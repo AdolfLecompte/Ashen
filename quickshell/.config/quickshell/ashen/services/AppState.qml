@@ -8,5 +8,6 @@ Singleton {
     property bool calendarVisible: false
     property bool networkVisible: false
     property bool bluetoothVisible: false
+    property bool launcherVisible: false
     property string networkTab: "wifi"
 }

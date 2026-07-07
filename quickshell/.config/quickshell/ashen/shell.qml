@@ -3,6 +3,7 @@ import QtQuick
 
 import "root:/modules/bar"
 import "root:/modules/lock"
+import "root:/modules/launcher"
 
 ShellRoot {
     Bar {}
@@ -11,4 +12,5 @@ ShellRoot {
     NetworkPanel {}
     BluetoothPanel {}
     LockScreen {}
+    Launcher {}
 }

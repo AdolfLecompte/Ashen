@@ -9,7 +9,7 @@ hl.bind(mod .. " + T",     hl.dsp.exec_cmd("kitty"))
 hl.bind(mod .. " + E",     hl.dsp.exec_cmd("nemo"))
 hl.bind(mod .. " + W",     hl.dsp.exec_cmd("brave"))
 hl.bind(mod .. " + C",     hl.dsp.exec_cmd("codium"))
-hl.bind(mod .. " + SPACE", hl.dsp.exec_cmd("quickshell -c ~/.config/ashen/modules/launcher"))
+hl.bind("SUPER + SUPER_L", hl.dsp.exec_cmd("qs ipc -c ashen call launcher toggle"), { release = true })
 
 -- Ventanas
 hl.bind(mod .. " + Q",       hl.dsp.window.close())

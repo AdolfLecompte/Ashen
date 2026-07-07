@@ -1,0 +1,11 @@
+with open('/home/adolf-arch/ashen/quickshell/.config/quickshell/ashen/modules/launcher/Launcher.qml', 'r') as f:
+    content = f.read()
+
+content = content.replace(
+    'source: modelData.icon.startsWith("/") ? ("file://" + modelData.icon) : ("image://icons/" + modelData.icon)',
+    'source: modelData.icon.startsWith("/") ? ("file://" + modelData.icon) : Quickshell.iconPath(modelData.icon, 48)'
+)
+
+with open('/home/adolf-arch/ashen/quickshell/.config/quickshell/ashen/modules/launcher/Launcher.qml', 'w') as f:
+    f.write(content)
+print('done')
