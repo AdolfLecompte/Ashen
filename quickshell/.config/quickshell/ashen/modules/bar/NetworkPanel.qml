@@ -317,7 +317,7 @@ PanelWindow {
                                     anchors.rightMargin: 12
                                     spacing: 10
                                     Text {
-                                        text: modelData.signal >= 60 ? "" : ""
+                                        text: modelData.signal >= 75 ? "" : modelData.signal >= 50 ? "" : modelData.signal >= 25 ? "" : ""
                                         color: Services.Colors.mist
                                         font.pixelSize: 20
                                         font.family: "Material Symbols Rounded"
@@ -406,7 +406,7 @@ PanelWindow {
                                     anchors.rightMargin: 12
                                     spacing: 10
                                     Text {
-                                        text: modelData.signal >= 60 ? "" : ""
+                                        text: modelData.signal >= 75 ? "" : modelData.signal >= 50 ? "" : modelData.signal >= 25 ? "" : ""
                                         color: Services.Colors.mist
                                         font.pixelSize: 20
                                         font.family: "Material Symbols Rounded"

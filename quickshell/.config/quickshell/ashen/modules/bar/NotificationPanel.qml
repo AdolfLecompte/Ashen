@@ -88,6 +88,26 @@ Scope {
                 }
                 Rectangle {
                     width: 30; height: 30; radius: 8
+                    color: Services.AppState.doNotDisturb ? Services.Colors.ghostAlpha(0.3) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Text {
+                        anchors.centerIn: parent
+                        text: Services.AppState.doNotDisturb ? "" : ""
+                        color: Services.AppState.doNotDisturb ? Services.Colors.ghost : Services.Colors.mist
+                        font.pixelSize: 16
+                        font.family: "Material Symbols Rounded"
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        hoverEnabled: true
+                        onEntered: parent.color = Services.AppState.doNotDisturb ? Services.Colors.ghostAlpha(0.45) : Services.Colors.ghostAlpha(0.15)
+                        onExited: parent.color = Services.AppState.doNotDisturb ? Services.Colors.ghostAlpha(0.3) : "transparent"
+                        onClicked: Services.AppState.doNotDisturb = !Services.AppState.doNotDisturb
+                    }
+                }
+                Rectangle {
+                    width: 30; height: 30; radius: 8
                     color: "transparent"
                     visible: Services.Notifications.history.length > 0
                     Text {

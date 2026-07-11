@@ -20,6 +20,42 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 4
 
+        // Caps Lock (solo visible si esta activo)
+        Rectangle {
+            visible: Services.Notifications.lastCapsLock
+            width: visible ? root.innerH : 0
+            height: root.innerH
+            radius: root.innerR
+            color: Services.Colors.ghost
+            clip: true
+            Behavior on width { NumberAnimation { duration: 200 } }
+            Text {
+                anchors.centerIn: parent
+                text: "A"
+                color: Services.Colors.abyss
+                font.pixelSize: 14
+                font.bold: true
+                font.family: "JetBrainsMono NF"
+            }
+        }
+        // Num Lock (solo visible si esta activo)
+        Rectangle {
+            visible: Services.Notifications.lastNumLock
+            width: visible ? root.innerH : 0
+            height: root.innerH
+            radius: root.innerR
+            color: Services.Colors.ghost
+            clip: true
+            Behavior on width { NumberAnimation { duration: 200 } }
+            Text {
+                anchors.centerIn: parent
+                text: "1"
+                color: Services.Colors.abyss
+                font.pixelSize: 14
+                font.bold: true
+                font.family: "JetBrainsMono NF"
+            }
+        }
         // Notificaciones
         Rectangle {
             width: root.innerH; height: root.innerH
@@ -40,6 +76,7 @@ Rectangle {
                 onClicked: Services.AppState.notificationsVisible = !Services.AppState.notificationsVisible
             }
         }
+        
         // Wifi
         Rectangle {
             height: root.innerH
@@ -224,7 +261,7 @@ Rectangle {
                 anchors.centerIn: parent
                 spacing: 5
                 Text {
-                    text: Services.Battery.charging ? "" : Services.Battery.level >= 90 ? "" : Services.Battery.level >= 70 ? "" : Services.Battery.level >= 50 ? "" : Services.Battery.level >= 30 ? "" : Services.Battery.level >= 15 ? "" : ""
+                    text: Services.Battery.charging ? "" : Services.Battery.level >= 90 ? "" : Services.Battery.level >= 70 ? "" : Services.Battery.level >= 50 ? "" : Services.Battery.level >= 30 ? "" : Services.Battery.level >= 15 ? "" : ""
                     color: {
                         if (Services.Battery.charging) return Services.Colors.abyss
                         if (Services.Battery.level >= 20) return Services.Colors.snow

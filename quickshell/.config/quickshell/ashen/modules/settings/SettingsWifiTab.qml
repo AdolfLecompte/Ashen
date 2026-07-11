@@ -191,7 +191,7 @@ Item {
                             anchors.leftMargin: 12
                             anchors.rightMargin: 12
                             spacing: 10
-                            Text { text: modelData.signal >= 60 ? "" : ""; color: Services.Colors.mist; font.pixelSize: 20; font.family: "Material Symbols Rounded" }
+                            Text { text: ""; color: Services.Colors.mist; font.pixelSize: 20; font.family: "Material Symbols Rounded" }
                             Column {
                                 Layout.fillWidth: true
                                 spacing: 2
@@ -244,7 +244,7 @@ Item {
                             anchors.leftMargin: 12
                             anchors.rightMargin: 12
                             spacing: 10
-                            Text { text: modelData.signal >= 60 ? "" : ""; color: Services.Colors.mist; font.pixelSize: 20; font.family: "Material Symbols Rounded" }
+                            Text { text: ""; color: Services.Colors.mist; font.pixelSize: 20; font.family: "Material Symbols Rounded" }
                             Column {
                                 Layout.fillWidth: true
                                 spacing: 2

@@ -51,10 +51,10 @@ PanelWindow {
 
         // Caja superior — invertida
         Rectangle {
-            width: 360
+            width: 440
             height: 100
             radius: 14
-            color: Services.Colors.ghost
+            color: Services.Colors.ghostAlpha(0.75)
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             RowLayout {
@@ -118,7 +118,7 @@ PanelWindow {
 
         // Caja calendario
         Rectangle {
-            width: 360
+            width: 440
             height: calCol.implicitHeight + 28
             radius: 14
             color: Services.Colors.surfaceAlpha(0.95)
@@ -129,7 +129,7 @@ PanelWindow {
             Column {
                 id: calCol
                 anchors.centerIn: parent
-                spacing: 10
+                spacing: 8
                 width: parent.width - 28
 
                 RowLayout {
@@ -249,7 +249,7 @@ PanelWindow {
                             property bool isToday: isValid && day === calRoot.today && calRoot.currentMonth === calRoot.todayMonth && calRoot.currentYear === calRoot.todayYear
 
                             width: calCol.width / 7 - 2
-                            height: width
+                            height: Math.min(width, 32)
                             radius: 6
                             color: isToday ? Services.Colors.ghost : "transparent"
 
@@ -268,6 +268,93 @@ PanelWindow {
                                 hoverEnabled: true
                                 onEntered: if (!parent.isToday) parent.color = Services.Colors.ghostAlpha(0.15)
                                 onExited: if (!parent.isToday) parent.color = "transparent"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Caja del clima -- ahora mismo + pronostico, invertida como el reloj
+        Rectangle {
+            width: 440
+            height: weatherCol.implicitHeight + 28
+            radius: 14
+            color: Services.Colors.ghostAlpha(0.75)
+            MouseArea { anchors.fill: parent; onClicked: {} }
+
+            Column {
+                id: weatherCol
+                anchors.centerIn: parent
+                width: parent.width - 28
+                spacing: 10
+
+                // Clima ahora mismo
+                Row {
+                    spacing: 12
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Services.Weather.icon
+                        color: Services.Colors.abyss
+                        font.pixelSize: 40
+                        font.family: "Material Symbols Rounded"
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Services.Weather.tempC + "°C"
+                        color: Services.Colors.abyss
+                        font.pixelSize: 30
+                        font.bold: true
+                        font.family: "JetBrainsMono NF"
+                    }
+                }
+
+                Rectangle { width: parent.width; height: 1; color: Services.Colors.surfaceAlpha(0.25) }
+
+                // Pronostico de los proximos dias
+                Row {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: 20
+
+                    Repeater {
+                        model: Services.Weather.forecast
+                        delegate: Column {
+                            required property var modelData
+                            spacing: 2
+                            width: 72
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: modelData.label
+                                color: Services.Colors.surfaceAlpha(0.7)
+                                font.pixelSize: 11
+                                font.family: "JetBrainsMono NF"
+                                font.bold: true
+                                font.letterSpacing: 1
+                            }
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: modelData.icon
+                                color: Services.Colors.abyss
+                                font.pixelSize: 30
+                                font.family: "Material Symbols Rounded"
+                            }
+                            Row {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                spacing: 5
+                                Text {
+                                    text: modelData.maxC + "°"
+                                    color: Services.Colors.abyss
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                    font.family: "JetBrainsMono NF"
+                                }
+                                Text {
+                                    text: modelData.minC + "°"
+                                    color: Services.Colors.surfaceAlpha(0.6)
+                                    font.pixelSize: 12
+                                    font.family: "JetBrainsMono NF"
+                                }
                             }
                         }
                     }

@@ -79,14 +79,16 @@ Scope {
             anchors.verticalCenter: parent.verticalCenter
             anchors.rightMargin: 20
             width: 48
-            height: 220
+            height: 250
             radius: 14
             color: Services.Colors.surfaceAlpha(0.9)
             border.color: Services.Colors.ghostAlpha(0.2)
             border.width: 1
 
             opacity: hideTimer.running ? 1.0 : 0.0
-            Behavior on opacity { NumberAnimation { duration: 200 } }
+            scale: hideTimer.running ? 1.0 : 0.85
+            Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
 
             Column {
                 anchors.fill: parent
@@ -103,7 +105,7 @@ Scope {
 
                 Rectangle {
                     width: 8
-                    height: parent.height - 44
+                    height: parent.height - 70
                     anchors.horizontalCenter: parent.horizontalCenter
                     radius: 4
                     color: Services.Colors.ghostAlpha(0.15)
@@ -114,8 +116,16 @@ Scope {
                         radius: 4
                         color: Services.Colors.ghost
                         height: parent.height * Math.max(0, Math.min(1, win.level))
-                        Behavior on height { NumberAnimation { duration: 150 } }
+                        Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
                     }
+                }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: Math.round(win.level * 100) + "%"
+                    font.family: "JetBrainsMono NF"
+                    font.pixelSize: 11
+                    font.bold: true
+                    color: Services.Colors.snow
                 }
             }
         }

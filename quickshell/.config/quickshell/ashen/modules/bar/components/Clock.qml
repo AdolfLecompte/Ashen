@@ -63,11 +63,24 @@ Rectangle {
             }
         }
 
-        Text {
-            text: root.timeIcon
-            font.pixelSize: 24
-            font.family: "Material Symbols Rounded"
-            color: Services.Colors.neutral
+        Row {
+            spacing: 4
+            Layout.alignment: Qt.AlignVCenter
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Services.Weather.icon
+                font.pixelSize: 22
+                font.family: "Material Symbols Rounded"
+                color: Services.Colors.neutral
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Services.Weather.tempC + "°C"
+                font.pixelSize: 13
+                font.family: "JetBrainsMono NF"
+                font.bold: true
+                color: Services.Colors.mist
+            }
         }
     }
 }

@@ -6,3 +6,4 @@ singleton Colors 1.0 Colors.qml
 singleton Brightness 1.0 Brightness.qml
 singleton Cava 1.0 Cava.qml
 singleton Notifications 1.0 Notifications.qml
+singleton Weather 1.0 Weather.qml

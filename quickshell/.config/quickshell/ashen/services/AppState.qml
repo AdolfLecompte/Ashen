@@ -4,6 +4,7 @@ import QtQuick
 
 Singleton {
     id: root
+    property bool doNotDisturb: false
     property bool settingsVisible: false
     property string settingsTab: "wifi"
     property bool notificationsVisible: false

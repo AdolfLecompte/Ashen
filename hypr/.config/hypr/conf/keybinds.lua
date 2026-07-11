@@ -53,7 +53,7 @@ hl.bind(mod .. " + D", hl.dsp.workspace.toggle_special("discord"))
 
 -- Sistema
 hl.bind(mod .. " + SHIFT + E", hl.dsp.exit())
-hl.bind(mod .. " + SHIFT + S", hl.dsp.exec_cmd("grimblast copy area"))
+hl.bind(mod .. " + SHIFT + S", hl.dsp.exec_cmd("grimblast --notify copysave area"))
 hl.bind(mod .. " + L",         hl.dsp.exec_cmd("qs ipc -c ashen call lockscreen lock"))
 
 -- Audio y brillo

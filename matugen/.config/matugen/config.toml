@@ -2,6 +2,7 @@
 scheme_type = "scheme-monochrome"
 
 [config.wallpaper]
+command = "true"
 set = false
 
 [templates.ashen_colors]

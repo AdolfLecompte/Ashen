@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Notifications
 import QtQuick
+import "root:/services" as Services
 
 Singleton {
     id: root
@@ -30,7 +31,9 @@ Singleton {
         entry.id = Date.now() + "-" + Math.floor(Math.random() * 100000)
         entry.timestamp = Date.now()
         root.history = [entry].concat(root.history).slice(0, 300)
-        root.pushPopup(entry)
+        if (!Services.AppState.doNotDisturb) {
+            root.pushPopup(entry)
+        }
         saveHistory()
     }
 
@@ -195,5 +198,48 @@ Singleton {
             }
         }
         onRunningChanged: if (!running) running = true
+    }
+
+    // --- Avisos de bateria baja (20/10/5%), una vez por umbral ---
+    property bool warned20: false
+    property bool warned10: false
+    property bool warned5: false
+
+    Connections {
+        target: Services.Battery
+        function onLevelChanged() {
+            if (Services.Battery.charging) return
+            let lvl = Services.Battery.level
+            if (lvl <= 5 && !root.warned5) {
+                root.warned5 = true
+                root.addSystemToast("BATTERY CRITICAL: 5%", "", false, "battery5")
+            } else if (lvl <= 10 && !root.warned10) {
+                root.warned10 = true
+                root.addSystemToast("BATTERY LOW: 10%", "", false, "battery10")
+            } else if (lvl <= 20 && !root.warned20) {
+                root.warned20 = true
+                root.addSystemToast("BATTERY LOW: 20%", "", false, "battery20")
+            }
+        }
+        function onChargingChanged() {
+            if (Services.Battery.charging) {
+                root.warned20 = false
+                root.warned10 = false
+                root.warned5 = false
+            }
+        }
+    }
+
+    // Aviso de sistema al activar/desactivar No Molestar
+    Connections {
+        target: Services.AppState
+        function onDoNotDisturbChanged() {
+            root.addSystemToast(
+                Services.AppState.doNotDisturb ? "DO NOT DISTURB ON" : "DO NOT DISTURB OFF",
+                "\ue7f8",
+                false,
+                "dnd"
+            )
+        }
     }
 }
