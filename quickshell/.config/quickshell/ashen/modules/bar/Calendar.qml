@@ -41,7 +41,7 @@ PanelWindow {
         onClicked: Services.AppState.calendarVisible = false
     }
 
-    readonly property int boxHeight: 380
+    readonly property int boxHeight: 320
 
     Row {
         anchors.top: parent.top
