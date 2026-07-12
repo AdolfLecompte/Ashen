@@ -55,6 +55,7 @@ Scope {
                     spacing: 6
 
                     TrayPill {}
+                    LocksPill {}
                     SystemPill {}
                     PowerPill {}
                 }

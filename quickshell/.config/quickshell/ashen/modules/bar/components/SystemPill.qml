@@ -20,42 +20,6 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 4
 
-        // Caps Lock (solo visible si esta activo)
-        Rectangle {
-            visible: Services.Notifications.lastCapsLock
-            width: visible ? root.innerH : 0
-            height: root.innerH
-            radius: root.innerR
-            color: Services.Colors.ghost
-            clip: true
-            Behavior on width { NumberAnimation { duration: 200 } }
-            Text {
-                anchors.centerIn: parent
-                text: ""
-                color: Services.Colors.abyss
-                font.pixelSize: 18
-                font.bold: true
-                font.family: "Material Symbols Rounded"
-            }
-        }
-        // Num Lock (solo visible si esta activo)
-        Rectangle {
-            visible: Services.Notifications.lastNumLock
-            width: visible ? root.innerH : 0
-            height: root.innerH
-            radius: root.innerR
-            color: Services.Colors.ghost
-            clip: true
-            Behavior on width { NumberAnimation { duration: 200 } }
-            Text {
-                anchors.centerIn: parent
-                text: ""
-                color: Services.Colors.abyss
-                font.pixelSize: 18
-                font.bold: true
-                font.family: "Material Symbols Rounded"
-            }
-        }
         // Notificaciones
         Rectangle {
             width: root.innerH; height: root.innerH
