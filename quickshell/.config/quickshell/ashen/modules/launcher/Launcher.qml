@@ -10,6 +10,8 @@ import "root:/services" as Services
 Scope {
     id: root
 
+    Component.onCompleted: appLoader.running = true
+
     IpcHandler {
         target: "launcher"
         function toggle() {
@@ -17,7 +19,7 @@ Scope {
             if (Services.AppState.launcherVisible) {
                 searchField.text = ""
                 searchField.forceActiveFocus()
-                appLoader.running = true
+                if (win.allApps.length === 0) appLoader.running = true
             }
         }
     }
@@ -36,7 +38,21 @@ Scope {
         property string activeCategory: "All"
         property int selectedIndex: 0
 
+        // Modo comando: activa cuando el buscador empieza con ">"
+        property bool commandMode: searchText.startsWith(">")
+        property string commandQuery: commandMode ? searchText.substring(1).toLowerCase().trim() : ""
+        property var commandActions: [
+            { id: "settings", icon: "\ue8b8", label: "Settings", action: "settings" },
+            { id: "record", icon: "\uf679", label: "Record", action: "record" },
+            { id: "theme", icon: "\ue40a", label: "Theme", action: "theme" },
+        ]
+        property var filteredCommands: {
+            if (commandQuery.length === 0) return commandActions
+            return commandActions.filter(c => c.label.toLowerCase().includes(commandQuery))
+        }
+
         function moveCategory(dir) {
+            if (win.commandMode) return
             let ids = win.categories.map(c => c.id)
             let idx = ids.indexOf(win.activeCategory)
             idx = (idx + dir + ids.length) % ids.length
@@ -44,26 +60,50 @@ Scope {
             win.selectedIndex = 0
         }
         function moveSelection(dir) {
-            if (win.filteredApps.length === 0) return
-            win.selectedIndex = Math.max(0, Math.min(win.filteredApps.length - 1, win.selectedIndex + dir))
+            let count = win.commandMode ? win.filteredCommands.length : win.filteredApps.length
+            if (count === 0) return
+            win.selectedIndex = Math.max(0, Math.min(count - 1, win.selectedIndex + dir))
             appList.positionViewAtIndex(win.selectedIndex, ListView.Contain)
         }
+        function runCommand(cmd) {
+            Services.AppState.launcherVisible = false
+            if (cmd.action === "theme") {
+                Services.AppState.settingsTab = "theme"
+                Services.AppState.settingsVisible = true
+            } else if (cmd.action === "record") {
+                let path = "/home/adolf-arch/Videos/ashen_" + Date.now() + ".mp4"
+                let startMs = Date.now()
+                Quickshell.execDetached(["sh", "-c",
+                    "mkdir -p /home/adolf-arch/Videos; wf-recorder -f '" + path + "' & echo $! > /home/adolf-arch/.cache/ashen_recording.pid; echo " + startMs + " > /home/adolf-arch/.cache/ashen_recording_start"
+                ])
+                Services.AppState.recording = true
+                Services.AppState.recordingStartTime = startMs
+            } else if (cmd.action === "settings") {
+                Services.AppState.settingsVisible = true
+            }
+        }
         function launchSelected() {
+            if (win.commandMode) {
+                if (win.filteredCommands.length === 0) return
+                let cmd = win.filteredCommands[Math.min(win.selectedIndex, win.filteredCommands.length - 1)]
+                win.runCommand(cmd)
+                return
+            }
             if (win.filteredApps.length === 0) return
             let app = win.filteredApps[Math.min(win.selectedIndex, win.filteredApps.length - 1)]
             Quickshell.execDetached(["sh", "-c", app.exec])
             Services.AppState.launcherVisible = false
         }
         property var categories: [
-           { id: "All", icon: "" },
-           { id: "Internet", icon: "" },
-           { id: "Development", icon: "" },
-           { id: "System", icon: "" },
-           { id: "Utility", icon: "" },
-           { id: "Games", icon: "" },
-           { id: "Graphics", icon: "" },
-           { id: "Office", icon: "" },
-           { id: "Other", icon: "" },
+           { id: "All", icon: "\ue5c3" },
+           { id: "Internet", icon: "\ue80b" },
+           { id: "Development", icon: "\ue86f" },
+           { id: "System", icon: "\ue322" },
+           { id: "Utility", icon: "\ue869" },
+           { id: "Games", icon: "\uea28" },
+           { id: "Graphics", icon: "\ue3f4" },
+           { id: "Office", icon: "\uef42" },
+           { id: "Other", icon: "\ue5d3" },
        ]
 
         property var filteredApps: {
@@ -81,30 +121,14 @@ Scope {
             return apps.slice(0, 50)
         }
 
+        // Carga de apps en un solo proceso (find + parseo), en vez de dos viajes secuenciales.
+        // Se precarga al arrancar quickshell (Component.onCompleted del Scope), asi la lista
+        // ya esta lista la primera vez que se abre el launcher.
         Process {
             id: appLoader
-            command: ["sh", "-c", "find /usr/share/applications ~/.local/share/applications -name '*.desktop' 2>/dev/null | head -200"]
-            running: false
-            stdout: StdioCollector {
-                onStreamFinished: {
-                    let files = text.trim().split("\n").filter(f => f.length > 0)
-                    win.loadApps(files)
-                }
-            }
-        }
-
-        function loadApps(files) {
-            desktopReader.command = ["sh", "-c",
-                "for f in " + files.join(" ") + "; do " +
-                "echo '---'; " +
-                "grep -E '^(Name|Comment|Exec|Icon|Categories|NoDisplay)=' \"$f\" 2>/dev/null; " +
-                "done"
+            command: ["sh", "-c",
+                "for f in $(find /usr/share/applications ~/.local/share/applications -name '*.desktop' 2>/dev/null | head -200); do echo '---'; grep -E '^(Name|Comment|Exec|Icon|Categories|NoDisplay)=' \"$f\" 2>/dev/null; done"
             ]
-            desktopReader.running = true
-        }
-
-        Process {
-            id: desktopReader
             running: false
             stdout: StdioCollector {
                 onStreamFinished: {
@@ -155,8 +179,8 @@ Scope {
 
         Rectangle {
             anchors.centerIn: parent
-            width: 620
-            height: 480
+            width: 700
+            height: contentCol.height + 32
             radius: 16
             color: Services.Colors.surfaceAlpha(0.96)
             border.color: Services.Colors.ghostAlpha(0.2)
@@ -199,10 +223,11 @@ Scope {
                         spacing: 12
 
                         Text {
-                            text: ""
+                            text: win.commandMode ? ">" : "\ue8b6"
                             color: Services.Colors.ghost
-                            font.pixelSize: 22
-                            font.family: "Material Symbols Rounded"
+                            font.pixelSize: win.commandMode ? 20 : 22
+                            font.bold: win.commandMode
+                            font.family: win.commandMode ? "JetBrainsMono NF" : "Material Symbols Rounded"
                         }
 
                         Item {
@@ -211,7 +236,7 @@ Scope {
 
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "Search applications..."
+                                text: "Search applications, or type > for actions..."
                                 color: Services.Colors.ash
                                 font.pixelSize: 16
                                 font.family: "JetBrainsMono NF"
@@ -237,7 +262,7 @@ Scope {
                         }
 
                         Text {
-                            text: ""
+                            text: "\ue5cd"
                             color: Services.Colors.ash
                             font.pixelSize: 20
                             font.family: "Material Symbols Rounded"
@@ -251,10 +276,12 @@ Scope {
                     }
                 }
 
-                // Categorias
+                // Categorias (ocultas en modo comando)
                 RowLayout {
                     width: parent.width
                     spacing: 6
+                    visible: !win.commandMode
+                    height: visible ? 30 : 0
                     Repeater {
                         model: win.categories
                         delegate: Rectangle {
@@ -284,17 +311,17 @@ Scope {
                     }
                 }
 
-                // Lista apps
+                // Lista: apps o comandos, segun el modo
                 Rectangle {
                     width: parent.width
-                    height: 4 * 62
+                    height: 6 * 62
                     color: "transparent"
                     clip: true
 
                     ListView {
                         id: appList
                         anchors.fill: parent
-                        model: win.filteredApps
+                        model: win.commandMode ? win.filteredCommands : win.filteredApps
                         spacing: 2
                         clip: true
 
@@ -320,16 +347,32 @@ Scope {
                                 anchors.rightMargin: 10
                                 spacing: 14
 
+                                // ── Icono: comando (glyph directo) o app (imagen + fallback) ──
                                 Rectangle {
                                     width: 40; height: 40
                                     radius: 10
                                     color: Services.Colors.ghostAlpha(0.15)
+                                    visible: win.commandMode
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: win.commandMode ? modelData.icon : ""
+                                        color: Services.Colors.ghost
+                                        font.pixelSize: 20
+                                        font.family: "Material Symbols Rounded"
+                                    }
+                                }
+                                Rectangle {
+                                    width: 40; height: 40
+                                    radius: 10
+                                    color: Services.Colors.ghostAlpha(0.15)
+                                    visible: !win.commandMode
 
                                     Image {
                                         id: appImg
                                         anchors.fill: parent
                                         anchors.margins: 6
-                                        source: modelData.icon.startsWith("/") ? ("file://" + modelData.icon) : Quickshell.iconPath(modelData.icon, 48)
+                                        source: !win.commandMode && modelData.icon ? (modelData.icon.startsWith("/") ? ("file://" + modelData.icon) : Quickshell.iconPath(modelData.icon, 48)) : ""
                                         fillMode: Image.PreserveAspectFit
                                         visible: status === Image.Ready
                                         opacity: 0.85
@@ -337,7 +380,7 @@ Scope {
 
                                     Text {
                                         anchors.centerIn: parent
-                                        text: ""
+                                        text: "\ue5c3"
                                         color: Services.Colors.ghost
                                         font.pixelSize: 22
                                         font.family: "Material Symbols Rounded"
@@ -350,7 +393,7 @@ Scope {
                                     spacing: 3
 
                                     Text {
-                                        text: modelData.name
+                                        text: win.commandMode ? modelData.label : modelData.name
                                         color: Services.Colors.snow
                                         font.pixelSize: 14
                                         font.family: "JetBrainsMono NF"
@@ -365,7 +408,7 @@ Scope {
                                         font.family: "JetBrainsMono NF"
                                         elide: Text.ElideRight
                                         width: parent.width
-                                        visible: modelData.comment.length > 0
+                                        visible: !win.commandMode && modelData.comment.length > 0
                                     }
                                 }
                             }
@@ -376,84 +419,10 @@ Scope {
                                 hoverEnabled: true
                                 onEntered: win.selectedIndex = index
                                 onClicked: {
-                                    Quickshell.execDetached(["sh", "-c", modelData.exec])
-                                    Services.AppState.launcherVisible = false
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Separador
-                Rectangle {
-                    width: parent.width
-                    height: 1
-                    color: Services.Colors.ghostAlpha(0.15)
-                }
-
-                // Accesos rapidos
-                Row {
-                    width: parent.width
-                    spacing: 8
-
-                    Repeater {
-                        model: [
-                            { icon: "", label: "Settings", action: "settings", cmd: "" },
-                            { icon: "", label: "Record", action: "record", cmd: "" },
-                            { icon: "",    label: "Theme",   action: "theme", cmd: "" },
-                        ]
-
-                        delegate: Rectangle {
-                            required property var modelData
-                            height: 40
-                            width: (contentCol.width - 16) / 3
-                            radius: 8
-                            color: Services.Colors.ghostAlpha(0.1)
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            RowLayout {
-                                anchors.centerIn: parent
-                                spacing: 8
-                                Text {
-                                    text: modelData.icon
-                                    color: Services.Colors.ghost
-                                    font.pixelSize: 18
-                                    font.family: "Material Symbols Rounded"
-                                }
-                                Text {
-                                    text: modelData.label
-                                    color: Services.Colors.mist
-                                    font.pixelSize: 12
-                                    font.family: "JetBrainsMono NF"
-                                }
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                hoverEnabled: true
-                                onEntered: parent.color = Services.Colors.ghostAlpha(0.2)
-                                onExited: parent.color = Services.Colors.ghostAlpha(0.1)
-                                onClicked: {
-                                    console.log("Action:", modelData.action, modelData.label)
-                                    if (modelData.action === "theme") {
-                                        Services.AppState.launcherVisible = false
-                                        Services.AppState.settingsTab = "theme"
-                                        Services.AppState.settingsVisible = true
-                                    } else if (modelData.action === "record") {
-                                        Services.AppState.launcherVisible = false
-                                        let path = "/home/adolf-arch/Videos/ashen_" + Date.now() + ".mp4"
-                                        let startMs = Date.now()
-                                        Quickshell.execDetached(["sh", "-c",
-                                            "mkdir -p /home/adolf-arch/Videos; wf-recorder -f '" + path + "' & echo $! > /home/adolf-arch/.cache/ashen_recording.pid; echo " + startMs + " > /home/adolf-arch/.cache/ashen_recording_start"
-                                        ])
-                                        Services.AppState.recording = true
-                                        Services.AppState.recordingStartTime = startMs
-                                    } else if (modelData.action === "settings") {
-                                        Services.AppState.launcherVisible = false
-                                        Services.AppState.settingsVisible = true
+                                    if (win.commandMode) {
+                                        win.runCommand(modelData)
                                     } else {
-                                        Quickshell.execDetached(["sh", "-c", modelData.cmd])
+                                        Quickshell.execDetached(["sh", "-c", modelData.exec])
                                         Services.AppState.launcherVisible = false
                                     }
                                 }
