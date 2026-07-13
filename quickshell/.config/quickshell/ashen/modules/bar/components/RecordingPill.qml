@@ -52,7 +52,9 @@ Rectangle {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
         onClicked: {
-            Quickshell.execDetached(["sh", "-c", "pkill -INT wf-recorder"])
+            Quickshell.execDetached(["sh", "-c",
+                "PID=$(cat /home/adolf-arch/.cache/ashen_recording.pid 2>/dev/null); [ -n \"$PID\" ] && kill -INT \"$PID\"; rm -f /home/adolf-arch/.cache/ashen_recording.pid /home/adolf-arch/.cache/ashen_recording_start"
+            ])
             Services.AppState.recording = false
         }
     }

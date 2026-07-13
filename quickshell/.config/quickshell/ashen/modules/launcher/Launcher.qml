@@ -443,9 +443,12 @@ Scope {
                                     } else if (modelData.action === "record") {
                                         Services.AppState.launcherVisible = false
                                         let path = "/home/adolf-arch/Videos/ashen_" + Date.now() + ".mp4"
-                                        Quickshell.execDetached(["sh", "-c", "wf-recorder -f '" + path + "'"])
+                                        let startMs = Date.now()
+                                        Quickshell.execDetached(["sh", "-c",
+                                            "mkdir -p /home/adolf-arch/Videos; wf-recorder -f '" + path + "' & echo $! > /home/adolf-arch/.cache/ashen_recording.pid; echo " + startMs + " > /home/adolf-arch/.cache/ashen_recording_start"
+                                        ])
                                         Services.AppState.recording = true
-                                        Services.AppState.recordingStartTime = Date.now()
+                                        Services.AppState.recordingStartTime = startMs
                                     } else if (modelData.action === "settings") {
                                         Services.AppState.launcherVisible = false
                                         Services.AppState.settingsVisible = true

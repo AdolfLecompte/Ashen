@@ -1,9 +1,30 @@
 pragma Singleton
 import Quickshell
+import Quickshell.Io
 import QtQuick
 
 Singleton {
     id: root
+
+    Component.onCompleted: recordingCheckProc.running = true
+
+    Process {
+        id: recordingCheckProc
+        command: ["sh", "-c", "PID=$(cat /home/adolf-arch/.cache/ashen_recording.pid 2>/dev/null); if [ -n \"$PID\" ] && kill -0 \"$PID\" 2>/dev/null; then cat /home/adolf-arch/.cache/ashen_recording_start 2>/dev/null; else rm -f /home/adolf-arch/.cache/ashen_recording.pid /home/adolf-arch/.cache/ashen_recording_start; fi"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let t = text.trim()
+                if (t.length > 0) {
+                    let startMs = parseFloat(t)
+                    if (!isNaN(startMs)) {
+                        root.recording = true
+                        root.recordingStartTime = startMs
+                    }
+                }
+            }
+        }
+    }
     property bool clipboardVisible: false
 
     property var bigOverlays: ["launcherVisible", "settingsVisible", "emojisVisible", "glyphVisible", "wallpaperVisible", "clipboardVisible"]
