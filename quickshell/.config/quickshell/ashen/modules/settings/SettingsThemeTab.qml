@@ -71,6 +71,56 @@ Item {
             "sed -i 's/active_border = { colors = {\"rgba([^)]*)\"} }/active_border = { colors = {\"rgba(" + borderHex + ")\"} }/' /home/adolf-arch/ashen/hypr/.config/hypr/conf/general.lua"
         ])
         tab.applyGtkTheme(c)
+        tab.applyKittyTheme(c)
+        tab.applyP10kTheme(c)
+    }
+
+    function applyKittyTheme(c) {
+        let conf = '# Generado por Ashen -- NO editar a mano, se regenera al cambiar de esquema\n' +
+            'foreground            ' + c.snow + '\n' +
+            'background            ' + c.abyss + '\n' +
+            'selection_foreground  ' + c.abyss + '\n' +
+            'selection_background  ' + c.ghost + '\n' +
+            'cursor                ' + c.ghost + '\n' +
+            'color0  ' + c.abyss + '\n' +
+            'color1  ' + c.error_ + '\n' +
+            'color2  #5a7a6a\n' +
+            'color3  #8a7a5a\n' +
+            'color4  #6272a4\n' +
+            'color5  #a89bc8\n' +
+            'color6  #5a7a8a\n' +
+            'color7  ' + c.mist + '\n' +
+            'color8  ' + c.ash + '\n' +
+            'color9  ' + c.error_ + '\n' +
+            'color10 #7a9e7e\n' +
+            'color11 #c4a882\n' +
+            'color12 #8899cc\n' +
+            'color13 #c8b8e8\n' +
+            'color14 #7aaabb\n' +
+            'color15 ' + c.snow + '\n'
+        let b64 = Qt.btoa(conf)
+        Quickshell.execDetached(["sh", "-c",
+            "echo '" + b64 + "' | base64 -d > /home/adolf-arch/.config/kitty/ashen-colors.conf && " +
+            "kitten @ --to unix:/tmp/kitty-ashen.sock set-colors --all " +
+            "foreground=" + c.snow + " background=" + c.abyss + " " +
+            "selection_foreground=" + c.abyss + " selection_background=" + c.ghost + " " +
+            "cursor=" + c.ghost + " color0=" + c.abyss + " color1=" + c.error_ + " " +
+            "color7=" + c.mist + " color8=" + c.ash + " color9=" + c.error_ + " color15=" + c.snow + " " +
+            "2>/dev/null"
+        ])
+    }
+
+    function applyP10kTheme(c) {
+        Quickshell.execDetached(["sh", "-c",
+            "sed -i \"s/^  local grey=.*/  local grey='" + c.mist + "'/\" /home/adolf-arch/.p10k.zsh && " +
+            "sed -i \"s/^  local red=.*/  local red='" + c.error_ + "'/\" /home/adolf-arch/.p10k.zsh && " +
+            "sed -i \"s/^  local yellow=.*/  local yellow='" + c.neutral + "'/\" /home/adolf-arch/.p10k.zsh && " +
+            "sed -i \"s/^  local blue=.*/  local blue='" + c.ghost + "'/\" /home/adolf-arch/.p10k.zsh && " +
+            "sed -i \"s/^  local magenta=.*/  local magenta='" + c.ghost + "'/\" /home/adolf-arch/.p10k.zsh && " +
+            "sed -i \"s/^  local cyan=.*/  local cyan='" + c.shade + "'/\" /home/adolf-arch/.p10k.zsh && " +
+            "sed -i \"s/^  local white=.*/  local white='" + c.snow + "'/\" /home/adolf-arch/.p10k.zsh && " +
+            "kitten @ --to unix:/tmp/kitty-ashen.sock send-text --match all $'source ~/.p10k.zsh\r' 2>/dev/null"
+        ])
     }
 
     function applyGtkTheme(c) {

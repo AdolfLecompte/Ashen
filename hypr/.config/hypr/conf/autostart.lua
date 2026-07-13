@@ -10,7 +10,6 @@ end
 
 start("awww-daemon")
 start("quickshell -c ashen")
-start("swayosd-server")
 start("hypridle")
 start("wl-paste --type text --watch cliphist store")
 start("wl-paste --type image --watch cliphist store")

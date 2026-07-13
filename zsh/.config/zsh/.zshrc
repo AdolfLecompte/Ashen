@@ -18,7 +18,6 @@ plugins=(
 source $ZSH/oh-my-zsh.sh
 
 # Starship prompt
-eval "$(starship init zsh)"
 
 # Aliases
 alias ls='ls --color=auto'
@@ -34,3 +33,5 @@ alias gp='git push'
 
 # Powerlevel10k
 [[ -f ~/.config/zsh/.p10k.zsh ]] && source ~/.config/zsh/.p10k.zsh
+export PATH="$HOME/.local/bin:$PATH"
+

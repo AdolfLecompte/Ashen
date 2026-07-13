@@ -19,7 +19,7 @@ hl.bind(mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
 
 -- Apps
-hl.bind(mod .. " + T",     hl.dsp.exec_cmd("kitty"))
+hl.bind(mod .. " + T",     hl.dsp.exec_cmd("kitty --single-instance --listen-on=unix:/tmp/kitty-ashen.sock"))
 hl.bind(mod .. " + E",     hl.dsp.exec_cmd("nemo"))
 hl.bind(mod .. " + W",     hl.dsp.exec_cmd("brave"))
 hl.bind(mod .. " + C",     hl.dsp.exec_cmd("codium"))
