@@ -25,6 +25,7 @@ ShellRoot {
     NetworkPanel {}
     BluetoothPanel {}
     USBPanel {}
+    TrayMenu {}
     LockScreen {}
     Launcher {}
     WallpaperPicker {}

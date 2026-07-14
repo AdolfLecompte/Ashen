@@ -28,22 +28,33 @@ Rectangle {
             model: SystemTray.items
             delegate: Item {
                 required property SystemTrayItem modelData
-                width: visible ? 22 : 0
-                height: 22
+                width: visible ? 26 : 0
+                height: 26
                 visible: !root.isSystemItem(modelData.id)
 
                 Image {
                     anchors.centerIn: parent
                     source: modelData.icon
-                    width: 18; height: 18
+                    width: 24; height: 24
+                    // render at 2x and downscale: tray icons ship small pixmaps
+                    // and look mushy when Qt upscales them
+                    sourceSize: Qt.size(48, 48)
+                    smooth: true
+                    mipmap: true
                 }
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     onClicked: (mouse) => {
-                        if (mouse.button === Qt.LeftButton) modelData.activate()
-                        else modelData.provideContext(Qt.point(x, y))
+                        let g = parent.mapToGlobal(parent.width / 2, 0)
+                        // onlyMenu items have no primary action, so a left click
+                        // has to open the menu too or they do nothing at all
+                        let wantsMenu = mouse.button === Qt.RightButton || modelData.onlyMenu
+                        if (wantsMenu && modelData.hasMenu)
+                            Services.AppState.openTrayMenu(modelData, g.x)
+                        else if (mouse.button === Qt.LeftButton)
+                            modelData.activate()
                     }
                 }
             }
