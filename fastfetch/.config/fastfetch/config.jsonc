@@ -74,7 +74,7 @@
       // El nombre crudo del CPU ("12th Gen Intel(R) Core(TM) i5-12450H @ ...")
       // se desborda de la caja; se le quitan (R) y (TM).
       "type": "command",
-      "key": "  󰘚  CPU     ",
+      "key": "    CPU     ",
       "text": "sed -n 's/^model name[[:space:]]*: //p' /proc/cpuinfo | head -1 | sed 's/(R)//g; s/(TM)//g; s/  */ /g'",
       "keyColor": "blue",
       "paddingLeft": 1
@@ -91,7 +91,7 @@
     },
     {
       "type": "memory",
-      "key": "  󰍛  Memory  ",
+      "key": "    Memory  ",
       "keyColor": "blue",
       "paddingLeft": 1
     },
