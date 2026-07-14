@@ -42,7 +42,7 @@ Scope {
 
         Process {
             id: nerdFontLoader
-            command: ["sh", "-c", "cat /home/adolf-arch/ashen/quickshell/.config/quickshell/ashen/modules/glyph/data/nerd_font_icons.txt"]
+            command: ["sh", "-c", "cat /home/adolf/ashen/quickshell/.config/quickshell/ashen/modules/glyph/data/nerd_font_icons.txt"]
             running: false
             stdout: StdioCollector {
                 onStreamFinished: {
@@ -59,7 +59,7 @@ Scope {
 
         Process {
             id: materialLoader
-            command: ["sh", "-c", "cat /home/adolf-arch/ashen/quickshell/.config/quickshell/ashen/modules/glyph/data/material_symbols.txt"]
+            command: ["sh", "-c", "cat /home/adolf/ashen/quickshell/.config/quickshell/ashen/modules/glyph/data/material_symbols.txt"]
             running: false
             stdout: StdioCollector {
                 onStreamFinished: {
@@ -87,7 +87,7 @@ Scope {
         function codeToChar(code) {
             let n = parseInt(code, 16)
             if (n > 0xFFFF) {
-                // par sustituto para puntos de codigo fuera del BMP (ej. Material Icons nuevos)
+                // surrogate pair for code points outside the BMP (e.g. newer Material Icons)
                 n -= 0x10000
                 let hi = 0xD800 + (n >> 10)
                 let lo = 0xDC00 + (n & 0x3FF)

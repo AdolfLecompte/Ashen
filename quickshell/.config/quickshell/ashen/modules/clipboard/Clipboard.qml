@@ -78,7 +78,7 @@ Scope {
                 win.entries = win.entries.map(e => {
                     if (!e.isImage) return e
                     let path = "/tmp/ashen_clip_thumbs/" + e.id + ".png"
-                    console.log("[Clipboard] asignando thumbPath para id", e.id, "->", path)
+                    console.log("[Clipboard] assigning thumbPath for id", e.id, "->", path)
                     return Object.assign({}, e, { thumbPath: path })
                 })
                 console.log("[Clipboard] entries actualizado, primer thumbPath:", win.entries.length > 0 ? win.entries[0].thumbPath : "ninguno")

@@ -145,7 +145,7 @@ Scope {
             color: Services.Colors.ghostAlpha(0.15)
         }
 
-        // ── Contenido: un modulo por pestana, cargado con Loader (anclas, no RowLayout) ──
+        // ── Content: one module per tab, loaded with a Loader (anchors, not RowLayout) ──
         Loader {
             id: tabLoader
             anchors.top: parent.top
@@ -156,7 +156,7 @@ Scope {
             source: win.tabSource(Services.AppState.settingsTab)
             onStatusChanged: {
                 if (status === Loader.Error) {
-                    console.log("[SettingsPanel] ERROR cargando", source, ":", sourceComponent ? sourceComponent.errorString() : "sin detalle")
+                    console.log("[SettingsPanel] ERROR loading", source, ":", sourceComponent ? sourceComponent.errorString() : "no details")
                 } else if (status === Loader.Ready) {
                     console.log("[SettingsPanel] OK cargado:", source)
                 }

@@ -38,7 +38,7 @@ Scope {
         property string activeCategory: "All"
         property int selectedIndex: 0
 
-        // Modo comando: activa cuando el buscador empieza con ">"
+        // Command mode: active when the search starts with ">"
         property bool commandMode: searchText.startsWith(">")
         property string commandQuery: commandMode ? searchText.substring(1).toLowerCase().trim() : ""
         property var commandActions: [
@@ -71,10 +71,10 @@ Scope {
                 Services.AppState.settingsTab = "theme"
                 Services.AppState.settingsVisible = true
             } else if (cmd.action === "record") {
-                let path = "/home/adolf-arch/Videos/ashen_" + Date.now() + ".mp4"
+                let path = "/home/adolf/Videos/ashen_" + Date.now() + ".mp4"
                 let startMs = Date.now()
                 Quickshell.execDetached(["sh", "-c",
-                    "mkdir -p /home/adolf-arch/Videos; wf-recorder -f '" + path + "' & echo $! > /home/adolf-arch/.cache/ashen_recording.pid; echo " + startMs + " > /home/adolf-arch/.cache/ashen_recording_start"
+                    "mkdir -p /home/adolf/Videos; wf-recorder -f '" + path + "' & echo $! > /home/adolf/.cache/ashen_recording.pid; echo " + startMs + " > /home/adolf/.cache/ashen_recording_start"
                 ])
                 Services.AppState.recording = true
                 Services.AppState.recordingStartTime = startMs
@@ -121,9 +121,9 @@ Scope {
             return apps.slice(0, 50)
         }
 
-        // Carga de apps en un solo proceso (find + parseo), en vez de dos viajes secuenciales.
-        // Se precarga al arrancar quickshell (Component.onCompleted del Scope), asi la lista
-        // ya esta lista la primera vez que se abre el launcher.
+        // Apps are loaded in a single process (find + parse) instead of two sequential trips.
+        // Preloaded when quickshell starts (Scope's Component.onCompleted), so the list
+        // is already there the first time the launcher opens.
         Process {
             id: appLoader
             command: ["sh", "-c",
@@ -311,7 +311,7 @@ Scope {
                     }
                 }
 
-                // Lista: apps o comandos, segun el modo
+                // List: apps or commands, depending on the mode
                 Rectangle {
                     width: parent.width
                     height: 6 * 62

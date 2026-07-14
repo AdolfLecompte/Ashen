@@ -1,0 +1,116 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "type": "file",
+    "source": "~/.config/fastfetch/ashen.txt",
+    "color": { "1": "white" },
+    "padding": {
+      "top": 5,
+      "left": 1,
+      "right": 3
+    }
+  },
+  "display": {
+    "separator": "  "
+  },
+  "modules": [
+    { "type": "custom", "format": "" },
+    {
+      "type": "title",
+      "key": "   ",
+      "keyColor": "blue",
+      "paddingLeft": 1
+    },
+    {
+      "type": "custom",
+      "format": "╭──────────────────────────────────────────╮",
+      "paddingLeft": 1
+    },
+    {
+      "type": "os",
+      "key": "    OS      ",
+      "format": "{2}",
+      "keyColor": "blue",
+      "paddingLeft": 1
+    },
+    {
+      "type": "kernel",
+      "key": "  󰌽  Kernel  ",
+      "format": "{2}",
+      "keyColor": "blue",
+      "paddingLeft": 1
+    },
+    {
+      "type": "packages",
+      "key": "  󰏗  Packages",
+      "keyColor": "blue",
+      "paddingLeft": 1
+    },
+    {
+      "type": "terminal",
+      "key": "  󰆍  Terminal",
+      "keyColor": "blue",
+      "paddingLeft": 1
+    },
+    {
+      "type": "wm",
+      "key": "  󱗃  WM      ",
+      "format": "{2}",
+      "keyColor": "blue",
+      "paddingLeft": 1
+    },
+    {
+      "type": "custom",
+      "format": "╰──────────────────────────────────────────╯",
+      "paddingLeft": 1
+    },
+    "break",
+    {
+      "type": "custom",
+      "format": "╭──────────────────────────────────────────╮",
+      "paddingLeft": 1
+    },
+    {
+      // El nombre crudo del CPU ("12th Gen Intel(R) Core(TM) i5-12450H @ ...")
+      // se desborda de la caja; se le quitan (R) y (TM).
+      "type": "command",
+      "key": "  󰘚  CPU     ",
+      "text": "sed -n 's/^model name[[:space:]]*: //p' /proc/cpuinfo | head -1 | sed 's/(R)//g; s/(TM)//g; s/  */ /g'",
+      "keyColor": "blue",
+      "paddingLeft": 1
+    },
+    {
+      "type": "gpu",
+      // Solo el nombre: con el fabricante delante ("NVIDIA GeForce RTX 4050
+      // Max-Q / Mobile") se sale de la caja.
+      "format": "{2}",
+      "key": "  󰖺  GPU     ",
+      "keyColor": "blue",
+      "paddingLeft": 1,
+      "hideType": "integrated"
+    },
+    {
+      "type": "memory",
+      "key": "  󰍛  Memory  ",
+      "keyColor": "blue",
+      "paddingLeft": 1
+    },
+    {
+      "type": "uptime",
+      "key": "  󱫐  Uptime  ",
+      "keyColor": "blue",
+      "paddingLeft": 1
+    },
+    {
+      "type": "custom",
+      "format": "╰──────────────────────────────────────────╯",
+      "paddingLeft": 1
+    },
+    {
+      "type": "colors",
+      "paddingLeft": 3,
+      "symbol": "square"
+    },
+    "break"
+  ]
+}

@@ -24,12 +24,12 @@ Singleton {
     function surfaceAlpha(a) { return Qt.rgba(surface.r, surface.g, surface.b, a) }
     function snowAlpha(a) { return Qt.rgba(snow.r, snow.g, snow.b, a) }
 
-    // ── Recarga en vivo: el JSON lo escribe applyScheme() (Theme tab) o matugen
-    //    (modo Dynamic). En cuanto el archivo cambia, todos los componentes que
-    //    usan Services.Colors.* se actualizan solos -- sin reiniciar quickshell.
+    // ── Live reload: the JSON is written by applyScheme() (Theme tab) or matugen
+    //    (Dynamic mode). As soon as the file changes, every component using
+    //    Services.Colors.* updates itself -- no quickshell restart needed.
     FileView {
         id: schemeFile
-        path: "/home/adolf-arch/.cache/ashen_scheme.json"
+        path: "/home/adolf/.cache/ashen_scheme.json"
         watchChanges: true
         onFileChanged: reload()
         onLoaded: {

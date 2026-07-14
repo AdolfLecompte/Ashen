@@ -163,8 +163,8 @@ PanelWindow {
                                 if ((modelData.icon || "") !== "") {
                                     return modelData.icon.startsWith("/") ? ("file://" + modelData.icon) : Quickshell.iconPath(modelData.icon, 48)
                                 }
-                                // Sin icono explicito del hint de D-Bus: intentamos adivinar
-                                // por el nombre de la app en minuscula (asi es como Papirus
+                                // No explicit icon in the D-Bus hint: guess it from the
+                                // lowercased app name (that is how Papirus
                                 // suele nombrar sus iconos: whatsapp.svg, discord.svg, steam.svg, etc)
                                 if ((modelData.appName || "") !== "") {
                                     return Quickshell.iconPath(modelData.appName.toLowerCase().replace(/\s+/g, "-"), 48)

@@ -25,7 +25,7 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 4
 
-        // Caps Lock (solo visible si esta activo)
+        // Caps Lock (only visible while active)
         Rectangle {
             visible: Services.Notifications.lastCapsLock
             width: visible ? root.innerH : 0
@@ -43,7 +43,7 @@ Rectangle {
                 font.family: "Material Symbols Rounded"
             }
         }
-        // Num Lock (solo visible si esta activo)
+        // Num Lock (only visible while active)
         Rectangle {
             visible: Services.Notifications.lastNumLock
             width: visible ? root.innerH : 0

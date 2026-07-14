@@ -47,7 +47,7 @@ Singleton {
                     let days = []
                     for (let i = 0; i < data.weather.length; i++) {
                         let w = data.weather[i]
-                        // hora ~del mediodia para representar el dia (indice 4 de 8 tramos de 3h)
+                        // ~midday slot to represent the day (index 4 of 8 three-hour slots)
                         let midday = w.hourly[Math.min(4, w.hourly.length - 1)]
                         days.push({
                             label: root.dayLabel(w.date, i),

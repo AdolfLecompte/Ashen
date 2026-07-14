@@ -8,7 +8,7 @@ import "root:/services" as Services
 Singleton {
     id: root
 
-    readonly property string historyPath: "/home/adolf-arch/.local/state/ashen/notifications.json"
+    readonly property string historyPath: "/home/adolf/.local/state/ashen/notifications.json"
 
     property var history: []
     property var activePopups: []
@@ -38,8 +38,8 @@ Singleton {
     }
 
     function addSystemToast(message, glyph, isLetter, typeKey) {
-        // Las del sistema solo se muestran como toast, no se guardan en el historial.
-        // Reemplaza cualquier otra activa del mismo "tipo" (typeKey) en vez de apilarse.
+        // System ones are only shown as a toast, never stored in the history.
+        // Replaces any other active one of the same "type" (typeKey) instead of stacking.
         root.activePopups = root.activePopups.filter(p => !(p.source === "system" && p.typeKey === typeKey))
         let entry = {
             appName: "System",
@@ -72,7 +72,7 @@ Singleton {
     function saveHistory() {
         let json = JSON.stringify(root.history)
         let b64 = Qt.btoa(json)
-        saveProc.command = ["sh", "-c", "mkdir -p /home/adolf-arch/.local/state/ashen && echo '" + b64 + "' | base64 -d > " + root.historyPath]
+        saveProc.command = ["sh", "-c", "mkdir -p /home/adolf/.local/state/ashen && echo '" + b64 + "' | base64 -d > " + root.historyPath]
         saveProc.running = true
     }
 
@@ -154,7 +154,7 @@ Singleton {
         onTriggered: kbStateProc.running = true
     }
 
-    // --- Cambios de perfil de energia (powerprofilesctl monitor, streaming) ---
+    // --- Power profile changes (powerprofilesctl monitor, streaming) ---
     // --- Cargador conectado/desconectado ---
     property bool lastCharging: false
     Process {
@@ -200,7 +200,7 @@ Singleton {
         onRunningChanged: if (!running) running = true
     }
 
-    // --- Avisos de bateria baja (20/10/5%), una vez por umbral ---
+    // --- Low battery warnings (20/10/5%), once per threshold ---
     property bool warned20: false
     property bool warned10: false
     property bool warned5: false
@@ -230,7 +230,7 @@ Singleton {
         }
     }
 
-    // Aviso de sistema al activar/desactivar No Molestar
+    // System notice when Do Not Disturb is toggled
     Connections {
         target: Services.AppState
         function onDoNotDisturbChanged() {

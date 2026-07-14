@@ -36,7 +36,7 @@ ColumnLayout {
             Image {
                 id: faceImg
                 anchors.fill: parent
-                source: "file:///home/adolf-arch/.face?" + Services.AppState.faceVersion
+                source: "file:///home/adolf/.face?" + Services.AppState.faceVersion
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 visible: false
@@ -103,7 +103,7 @@ ColumnLayout {
             onStreamFinished: {
                 let path = text.trim()
                 if (path.length > 0) {
-                    faceCopyProc.command = ["sh", "-c", "cp \"" + path + "\" /home/adolf-arch/.face"]
+                    faceCopyProc.command = ["sh", "-c", "cp \"" + path + "\" /home/adolf/.face"]
                     faceCopyProc.running = true
                 }
             }
@@ -206,7 +206,7 @@ ColumnLayout {
 
     Rectangle { Layout.fillWidth: true; height: 1; color: Services.Colors.ghostAlpha(0.15) }
 
-    // ── Idioma de teclado ──
+    // ── Keyboard layout ──
     ColumnLayout {
         id: kbLayoutSection
         Layout.fillWidth: true
@@ -217,7 +217,7 @@ ColumnLayout {
         Component.onCompleted: kbLayoutProc.running = true
         Process {
             id: kbLayoutProc
-            command: ["sh", "-c", "grep kb_layout /home/adolf-arch/ashen/hypr/.config/hypr/conf/input.lua | head -1"]
+            command: ["sh", "-c", "grep kb_layout /home/adolf/ashen/hypr/.config/hypr/conf/input.lua | head -1"]
             running: false
             stdout: StdioCollector {
                 onStreamFinished: {
@@ -231,7 +231,7 @@ ColumnLayout {
             kbLayoutSection.currentLayout = code
             Quickshell.execDetached(["sh", "-c",
                 "hyprctl keyword input:kb_layout " + code +
-                " && sed -i 's/kb_layout = \"[^\"]*\"/kb_layout = \"" + code + "\"/' /home/adolf-arch/ashen/hypr/.config/hypr/conf/input.lua"
+                " && sed -i 's/kb_layout = \"[^\"]*\"/kb_layout = \"" + code + "\"/' /home/adolf/ashen/hypr/.config/hypr/conf/input.lua"
             ])
         }
 

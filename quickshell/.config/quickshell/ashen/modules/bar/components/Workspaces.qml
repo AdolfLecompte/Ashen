@@ -15,19 +15,46 @@ Row {
     readonly property int pillR: 10
     readonly property int pad: 8
 
-    property var activeSpecial: {
-        let specials = Hyprland.workspaces.values.filter(w => w.id < 0)
-        if (specials.length === 0) return null
-        return specials[0]
+    // Hyprland does not emit the `workspace` event when entering a special, so
+    // focusedWorkspace is useless: the monitor is what knows which one is shown.
+    readonly property string shownSpecial: {
+        const mon = Hyprland.focusedMonitor
+        const ipc = mon ? mon.lastIpcObject : null
+        const sw = ipc ? ipc.specialWorkspace : null
+        return (sw && sw.name) ? sw.name : ""
     }
-    property bool inSpecial: activeSpecial !== null
-    property string specialName: inSpecial ? activeSpecial.name.replace("special:", "") : ""
+    readonly property bool inSpecial: shownSpecial !== ""
+
+    // Every special that exists (has windows), not just the one being shown.
+    readonly property var specials: Hyprland.workspaces.values
+        .filter(w => w.id < 0)
+        .sort((a, b) => b.id - a.id)
+
+    Connections {
+        target: Hyprland
+        function onRawEvent(event) {
+            if (event.name.startsWith("activespecial"))
+                Hyprland.refreshMonitors()
+        }
+    }
+
+    // Last focused normal workspace: specials have a negative id and would break
+    // the group-of-5 calculation.
+    property int lastNormalId: 1
+    Connections {
+        target: Hyprland
+        function onFocusedWorkspaceChanged() {
+            const f = Hyprland.focusedWorkspace
+            if (f && f.id > 0)
+                root.lastNormalId = f.id
+        }
+    }
 
     function specialIcon(name) {
-        if (name === "music")   return "󿿘"
+        if (name === "music")   return ""
         if (name === "discord") return ""
         if (name === "notes")   return ""
-        if (name === "term")    return "󿾋"
+        if (name === "term")    return ""
         if (name === "fav")     return ""
         return ""
     }
@@ -61,20 +88,18 @@ Row {
         border.color: Services.Colors.ghostAlpha(0.2)
         border.width: 1
         width: wsRow.width + root.pad * 2
-        opacity: root.inSpecial ? 0.4 : 1.0
-        Behavior on opacity { NumberAnimation { duration: 200 } }
 
         Rectangle {
             id: slideIndicator
             width: root.innerH; height: root.innerH
             radius: root.innerR
             color: Services.Colors.ghost
+            opacity: root.inSpecial ? 0 : 1
+            Behavior on opacity { NumberAnimation { duration: 200 } }
             y: (root.pillH - root.innerH) / 2
             x: {
-                let focused = Hyprland.focusedWorkspace
-                if (!focused) return root.pad
-                let base = Math.floor((focused.id - 1) / 5) * 5
-                let idx = focused.id - base - 1
+                let base = Math.floor((root.lastNormalId - 1) / 5) * 5
+                let idx = root.lastNormalId - base - 1
                 return root.pad + idx * (root.innerH + 4)
             }
             Behavior on x { SmoothedAnimation { duration: 250 } }
@@ -84,18 +109,19 @@ Row {
             id: wsRow
             anchors.centerIn: parent
             spacing: 4
+            opacity: root.inSpecial ? 0 : 1
+            enabled: !root.inSpecial
+            Behavior on opacity { NumberAnimation { duration: 200 } }
 
             Repeater {
                 model: 5
                 delegate: Item {
                     required property int index
                     property int wsId: {
-                        let focused = Hyprland.focusedWorkspace
-                        if (!focused) return index + 1
-                        let base = Math.floor((focused.id - 1) / 5) * 5
+                        let base = Math.floor((root.lastNormalId - 1) / 5) * 5
                         return base + index + 1
                     }
-                    property bool isActive: Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id === wsId
+                    property bool isActive: root.lastNormalId === wsId
                     property bool hasWindows: Hyprland.workspaces.values.find(w => w.id === wsId) !== undefined
                     width: root.innerH; height: root.innerH
 
@@ -127,33 +153,55 @@ Row {
                 }
             }
         }
-    }
 
-    // Special workspace pill
-    Rectangle {
-        height: root.pillH
-        radius: root.pillR
-        color: Services.Colors.ghost
-        width: root.inSpecial ? (root.innerH + root.pad * 2) : 0
-        opacity: root.inSpecial ? 1.0 : 0.0
-        clip: true
-        Behavior on width { SmoothedAnimation { duration: 250 } }
-        Behavior on opacity { NumberAnimation { duration: 200 } }
-
-        Text {
+        // Special workspaces: they overlay the numbers while one is being shown.
+        // The shown one is filled; the rest are dimmed.
+        Row {
+            id: specialRow
             anchors.centerIn: parent
-            text: root.specialIcon(root.specialName)
-            color: Services.Colors.abyss
-            font.pixelSize: 20
-            font.family: "Material Symbols Rounded"
-            opacity: root.inSpecial ? 1.0 : 0.0
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-        }
+            spacing: 4
+            opacity: root.inSpecial ? 1 : 0
+            enabled: root.inSpecial
+            z: 2
+            Behavior on opacity { NumberAnimation { duration: 200 } }
 
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: Quickshell.execDetached(["sh", "-c", "hyprctl dispatch 'hl.dsp.workspace.toggle_special(\"" + root.specialName + "\")'"])
+            Repeater {
+                model: root.specials
+
+                delegate: Item {
+                    required property var modelData
+                    readonly property string shortName: modelData.name.replace("special:", "")
+                    readonly property bool isShown: modelData.name === root.shownSpecial
+                    width: root.innerH; height: root.innerH
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: root.innerR
+                        color: parent.isShown ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.2)
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.specialIcon(parent.shortName)
+                        color: parent.isShown ? Services.Colors.abyss : Services.Colors.ash
+                        font.pixelSize: 18
+                        font.family: "Material Symbols Rounded"
+                        z: 1
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        z: 10
+                        onClicked: {
+                            var n = parent.shortName
+                            Quickshell.execDetached(["sh", "-c", "hyprctl dispatch 'hl.dsp.workspace.toggle_special(\"" + n + "\")'"])
+                        }
+                    }
+                }
+            }
         }
     }
 }

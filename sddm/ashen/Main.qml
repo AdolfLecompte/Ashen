@@ -7,7 +7,7 @@ Rectangle {
     height: 1080
     color: "#080809"
 
-    // ── Paleta Ashen Ghost (copiada del Colors.qml del shell, SDDM no puede importar el modulo) ──
+    // ── Ashen Ghost palette (copied from the shell's Colors.qml; SDDM cannot import the module) ──
     readonly property color abyss: "#080809"
     readonly property color surface: "#1c1c21"
     readonly property color ghost: "#6e6e7a"
@@ -125,7 +125,7 @@ Rectangle {
                 }
             }
 
-            // Selector de usuario (solo si hay mas de uno)
+            // User selector (only if there is more than one)
             Flow {
                 width: parent.width
                 spacing: 6
@@ -254,7 +254,7 @@ Rectangle {
                 }
             }
 
-            // Selector de sesion (solo si hay mas de una)
+            // Session selector (only if there is more than one)
             Flow {
                 width: parent.width
                 spacing: 6

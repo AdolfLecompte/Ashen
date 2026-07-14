@@ -11,13 +11,26 @@ Item {
     property var adapter: Bluetooth.defaultAdapter
 
     function startScan() {
-        if (adapter && adapter.enabled) {
-            adapter.scanning = true
-            Quickshell.execDetached(["sh", "-c", "echo -e 'scan on\nsleep 15\nscan off' | bluetoothctl"])
+        if (adapter && adapter.enabled && !adapter.discovering) {
+            adapter.discovering = true
+            scanTimer.restart()
         }
     }
 
+    Timer {
+        id: scanTimer
+        interval: 15000
+        onTriggered: if (tab.adapter) tab.adapter.discovering = false
+    }
+
+    // Bluetooth.defaultAdapter arrives asynchronously over DBus: it is still null
+    // when the tab is created, so it has to be retried once it shows up.
+    onAdapterChanged: if (adapter) Qt.callLater(startScan)
     Component.onCompleted: Qt.callLater(startScan)
+    Component.onDestruction: {
+        scanTimer.stop()
+        if (adapter && adapter.discovering) adapter.discovering = false
+    }
 
     Connections {
         target: tab.adapter
@@ -47,7 +60,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: ""
-                    color: tab.adapter && tab.adapter.scanning ? Services.Colors.ghost : Services.Colors.mist
+                    color: tab.adapter && tab.adapter.discovering ? Services.Colors.ghost : Services.Colors.mist
                     font.pixelSize: 16
                     font.family: "Material Symbols Rounded"
                     Behavior on color { ColorAnimation { duration: 200 } }
@@ -110,7 +123,7 @@ Item {
             spacing: 4
             visible: tab.adapter && tab.adapter.devices.values.length > 0
             Text {
-                text: tab.adapter && tab.adapter.scanning ? "Scanning..." : "Devices"
+                text: tab.adapter && tab.adapter.discovering ? "Scanning..." : "Devices"
                 color: Services.Colors.mist
                 font.pixelSize: 10
                 font.family: "JetBrainsMono NF"
@@ -149,7 +162,10 @@ Item {
                                 width: parent.width
                             }
                             Text {
-                                text: modelData.connected ? "Connected" : (modelData.paired ? "Paired" : "Available")
+                                text: modelData.pairing ? "Pairing..."
+                                    : modelData.connected ? "Connected"
+                                    : modelData.paired ? "Paired"
+                                    : "Available"
                                 color: modelData.connected ? Services.Colors.ghost : Services.Colors.ash
                                 font.pixelSize: 10
                                 font.family: "JetBrainsMono NF"
@@ -167,9 +183,20 @@ Item {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         hoverEnabled: true
+                        enabled: !modelData.pairing
                         onEntered: if (!modelData.connected) parent.color = Services.Colors.ghostAlpha(0.1)
                         onExited: if (!modelData.connected) parent.color = "transparent"
-                        onClicked: modelData.connected = !modelData.connected
+                        onClicked: {
+                            if (modelData.connected) {
+                                modelData.disconnect()
+                            } else if (modelData.paired) {
+                                modelData.connect()
+                            } else {
+                                // BlueZ rejects connect() without prior bonding
+                                modelData.trusted = true
+                                modelData.pair()
+                            }
+                        }
                     }
                 }
             }
@@ -186,13 +213,13 @@ Item {
                 anchors.margins: 12
                 spacing: 10
                 Text {
-                    text: tab.adapter && tab.adapter.scanning ? "" : ""
+                    text: tab.adapter && tab.adapter.discovering ? "" : ""
                     color: Services.Colors.ash
                     font.pixelSize: 22
                     font.family: "Material Symbols Rounded"
                 }
                 Text {
-                    text: tab.adapter && tab.adapter.scanning ? "Scanning..." : (tab.adapter ? "No devices found" : "No adapter")
+                    text: tab.adapter && tab.adapter.discovering ? "Scanning..." : (tab.adapter ? "No devices found" : "No adapter")
                     color: Services.Colors.ash
                     font.pixelSize: 13
                     font.family: "JetBrainsMono NF"

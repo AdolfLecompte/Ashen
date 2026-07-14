@@ -183,7 +183,7 @@ Scope {
                     radius: 10
                     color: isSystem ? "transparent" : Services.Colors.ghostAlpha(0.08)
 
-                    // ── Notificaciones del sistema: sutiles, una linea, sin icono ──
+                    // ── System notifications: subtle, one line, no icon ──
                     RowLayout {
                         visible: parent.isSystem
                         anchors.fill: parent
@@ -212,7 +212,7 @@ Scope {
                         }
                     }
 
-                    // ── Notificaciones de apps de terceros: icono, titulo, cuerpo completo ──
+                    // ── Third-party app notifications: icon, title, full body ──
                     RowLayout {
                         visible: !parent.isSystem
                         anchors.fill: parent
@@ -230,8 +230,8 @@ Scope {
                                 if ((modelData.icon || "") !== "") {
                                     return modelData.icon.startsWith("/") ? ("file://" + modelData.icon) : Quickshell.iconPath(modelData.icon, 48)
                                 }
-                                // Sin icono explicito del hint de D-Bus: intentamos adivinar
-                                // por el nombre de la app en minuscula (asi es como Papirus
+                                // No explicit icon in the D-Bus hint: guess it from the
+                                // lowercased app name (that is how Papirus
                                 // suele nombrar sus iconos: whatsapp.svg, discord.svg, steam.svg, etc)
                                 if ((modelData.appName || "") !== "") {
                                     return Quickshell.iconPath(modelData.appName.toLowerCase().replace(/\s+/g, "-"), 48)

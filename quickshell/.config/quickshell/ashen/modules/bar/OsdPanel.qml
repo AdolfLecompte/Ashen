@@ -67,8 +67,8 @@ Scope {
             interval: 1400
             onTriggered: unmapDelay.restart()
         }
-        // deja la ventana mapeada un poco mas para que el fade-out se vea,
-        // pero luego la desmapea de verdad para que no bloquee clicks
+        // keep the window mapped a bit longer so the fade-out is visible,
+        // then actually unmap it so it does not block clicks
         Timer {
             id: unmapDelay
             interval: 250

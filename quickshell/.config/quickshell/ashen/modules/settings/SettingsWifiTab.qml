@@ -272,7 +272,7 @@ Item {
         }
     }
 
-    // Dialogo de conexion (overlay dentro del propio tab)
+    // Connection dialog (overlay inside the tab itself)
     Rectangle {
         anchors.centerIn: parent
         width: 360
