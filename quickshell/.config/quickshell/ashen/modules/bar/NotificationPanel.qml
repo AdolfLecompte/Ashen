@@ -23,7 +23,11 @@ Scope {
     anchors { top: true; left: true; right: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
-    visible: Services.AppState.notificationsVisible
+    // stays mapped through the close animation, so the exit plays in reverse
+    readonly property bool shown: Services.AppState.notificationsVisible
+    visible: shown || closeDelay.running
+    onShownChanged: if (!shown) closeDelay.restart()
+    Timer { id: closeDelay; interval: 300 }
 
     function formatTime(ts) {
         if (!ts) return ""
@@ -38,18 +42,18 @@ Scope {
 
     FocusScope {
         anchors.fill: parent
-        focus: win.visible
+        focus: win.shown
         Keys.onEscapePressed: Services.AppState.notificationsVisible = false
     }
 
     Rectangle {
         id: card
         anchors.top: parent.top
-        anchors.right: parent.right
+        anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.topMargin: 64
         anchors.bottomMargin: 12
-        anchors.rightMargin: 12
+        anchors.leftMargin: 12
         width: 400
         radius: 18
         color: Services.Colors.surfaceAlpha(0.96)
@@ -61,7 +65,7 @@ Scope {
         Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
         transform: Translate {
-            x: Services.AppState.notificationsVisible ? 0 : 24
+            x: Services.AppState.notificationsVisible ? 0 : -24
             Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         }
 

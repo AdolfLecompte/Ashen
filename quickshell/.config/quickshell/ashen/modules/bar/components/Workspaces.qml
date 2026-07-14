@@ -59,27 +59,6 @@ Row {
         return ""
     }
 
-    // Launcher
-    Rectangle {
-        width: root.pillH; height: root.pillH
-        radius: root.pillR
-        color: Services.Colors.surfaceAlpha(0.82)
-        border.color: Services.Colors.ghostAlpha(0.2)
-        border.width: 1
-        Text {
-            anchors.centerIn: parent
-            text: ""
-            color: Services.Colors.ghost
-            font.pixelSize: 22
-            font.family: "Material Symbols Rounded"
-        }
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: Services.AppState.launcherVisible = !Services.AppState.launcherVisible
-        }
-    }
-
     // Workspaces normales
     Rectangle {
         height: root.pillH

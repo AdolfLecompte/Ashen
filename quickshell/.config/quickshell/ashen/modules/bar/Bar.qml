@@ -24,10 +24,22 @@ Scope {
                 CavaBackground {}
 
                 // ── Izquierda ──────────────────────────
-                Workspaces {
-                    id: workspaces
+                LauncherPill {
+                    id: launcherPill
                     anchors.left: parent.left
                     anchors.leftMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                NotificationPill {
+                    id: notificationPill
+                    anchors.left: launcherPill.right
+                    anchors.leftMargin: 6
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Workspaces {
+                    id: workspaces
+                    anchors.left: notificationPill.right
+                    anchors.leftMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 MediaPill {
