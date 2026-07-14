@@ -31,7 +31,7 @@ Singleton {
         let startMs = Date.now()
         let path = "/home/adolf/Videos/ashen_" + startMs + ".mp4"
         Quickshell.execDetached(["sh", "-c",
-            "mkdir -p /home/adolf/Videos; wf-recorder -f '" + path + "' & echo $! > /home/adolf/.cache/ashen_recording.pid; echo " + startMs + " > /home/adolf/.cache/ashen_recording_start"
+            "mkdir -p /home/adolf/Videos; wf-recorder --audio=\"$(pactl get-default-sink).monitor\" -f '" + path + "' & echo $! > /home/adolf/.cache/ashen_recording.pid; echo " + startMs + " > /home/adolf/.cache/ashen_recording_start"
         ])
         root.recording = true
         root.recordingStartTime = startMs
