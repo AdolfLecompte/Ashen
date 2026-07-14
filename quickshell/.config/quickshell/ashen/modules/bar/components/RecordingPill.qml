@@ -53,7 +53,7 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         onClicked: {
             Quickshell.execDetached(["sh", "-c",
-                "PID=$(cat /home/adolf-arch/.cache/ashen_recording.pid 2>/dev/null); [ -n \"$PID\" ] && kill -INT \"$PID\"; rm -f /home/adolf-arch/.cache/ashen_recording.pid /home/adolf-arch/.cache/ashen_recording_start"
+                "PID=$(cat /home/adolf/.cache/ashen_recording.pid 2>/dev/null); [ -n \"$PID\" ] && kill -INT \"$PID\"; rm -f /home/adolf/.cache/ashen_recording.pid /home/adolf/.cache/ashen_recording_start"
             ])
             Services.AppState.recording = false
         }
