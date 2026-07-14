@@ -159,7 +159,7 @@ The keyboard layout pill in the bar is **read-only**. Layouts are declared in
 
 ## Status
 
-1.0.0. The SDDM theme is in the repo but not enabled by default yet.
+1.0.2. The SDDM theme is in the repo but not enabled by default yet.
 
 ## License
 
