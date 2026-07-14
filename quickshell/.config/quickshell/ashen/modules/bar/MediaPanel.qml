@@ -12,16 +12,35 @@ PanelWindow {
     color: "transparent"
     visible: Services.AppState.mediaVisible
 
-    property var activePlayer: {
+    // Raw MPRIS read: drops to null for a few ms while the player changes track
+    property var livePlayer: {
         let list = Mpris.players.values.filter(p => p.playbackState !== MprisPlaybackState.Stopped)
         if (list.length === 0) return null
         let playing = list.find(p => p.isPlaying)
         return playing !== undefined ? playing : list[0]
     }
+
+    // Held across that gap so the panel does not flip to "Nothing playing"
+    property var activePlayer: null
     property bool hasPlayer: activePlayer !== null
 
-    // Cachear los valores que el navegador manda de forma intermitente
-    // (a veces llegan vacios un instante antes de reponerse)
+    onLivePlayerChanged: {
+        if (livePlayer !== null) {
+            dropTimer.stop()
+            activePlayer = livePlayer
+        } else {
+            dropTimer.restart()
+        }
+    }
+
+    Timer {
+        id: dropTimer
+        interval: 5000
+        onTriggered: if (root.livePlayer === null) root.activePlayer = null
+    }
+
+    // Cache the values the browser sends intermittently
+    // (they sometimes arrive empty for an instant before coming back)
     property string stableArtUrl: ""
     property string stableArtist: ""
     property string stableAlbum: ""
@@ -41,7 +60,7 @@ PanelWindow {
         root.stableAlbum = ""
         updateTrackInfo()
     }
-    Component.onCompleted: updateTrackInfo()
+    Component.onCompleted: { activePlayer = livePlayer; updateTrackInfo() }
     Connections {
         target: root.activePlayer
         ignoreUnknownSignals: true
@@ -49,8 +68,8 @@ PanelWindow {
         function onTrackArtistChanged() { root.updateTrackInfo() }
         function onTrackAlbumChanged() { root.updateTrackInfo() }
         function onTrackTitleChanged() {
-            // titulo nuevo = posible cancion nueva, reseteamos artista/album
-            // viejos para no arrastrar el anterior si el nuevo tarda en llegar
+            // new title = possibly a new song, so reset the old artist/album
+            // to avoid carrying the previous one over if the new one is slow
             root.stableArtist = ""
             root.stableAlbum = ""
             root.updateTrackInfo()
@@ -90,7 +109,6 @@ PanelWindow {
         width: 520
         height: 190
         x: Math.max(12, Math.min(parent.width - width - 12, Services.AppState.mediaPillCenterX - width / 2))
-        Behavior on x { NumberAnimation { duration: 150 } }
         radius: 16
         color: Services.Colors.surfaceAlpha(0.95)
         border.color: Services.Colors.ghostAlpha(0.2)
@@ -101,6 +119,11 @@ PanelWindow {
         scale: Services.AppState.mediaVisible ? 1.0 : 0.92
         Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
         Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+
+        transform: Translate {
+            y: Services.AppState.mediaVisible ? 0 : -24
+            Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -134,7 +157,7 @@ PanelWindow {
             anchors.margins: 20
             spacing: 18
 
-            // Art cuadrado con bordes redondos
+            // Square art with rounded corners
             Item {
                 width: 130; height: 130
                 Layout.alignment: Qt.AlignVCenter
@@ -281,8 +304,8 @@ PanelWindow {
                     }
                 }
 
-                // Controles: prev/next SOLO habilitados si el reproductor
-                // realmente soporta saltar de pista (sin fallback de seek)
+                // Controls: prev/next enabled ONLY if the player really
+                // supports skipping tracks (no seek fallback)
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 20

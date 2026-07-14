@@ -9,13 +9,35 @@ Item {
     id: root
     readonly property int pillH: 44
 
-    property var activePlayer: {
+    // Raw MPRIS read: drops to null for a few ms while the player changes track
+    property var livePlayer: {
         let list = Mpris.players.values.filter(p => p.playbackState !== MprisPlaybackState.Stopped)
         if (list.length === 0) return null
         let playing = list.find(p => p.isPlaying)
         return playing !== undefined ? playing : list[0]
     }
+
+    // Held across that gap so the pill does not collapse or flicker
+    property var activePlayer: null
     property bool hasPlayer: activePlayer !== null
+
+    onLivePlayerChanged: {
+        if (livePlayer !== null) {
+            dropTimer.stop()
+            activePlayer = livePlayer
+        } else {
+            dropTimer.restart()
+        }
+    }
+
+    Timer {
+        id: dropTimer
+        interval: 5000
+        onTriggered: if (root.livePlayer === null) {
+            root.activePlayer = null
+            root.stableArtUrl = ""
+        }
+    }
     function formatTime(seconds) {
         if (!seconds || seconds <= 0) return "0:00"
         let m = Math.floor(seconds / 60)
@@ -55,14 +77,14 @@ Item {
     Behavior on width { SmoothedAnimation { duration: 280 } }
     Behavior on opacity { NumberAnimation { duration: 200 } }
 
-    // Reporta su posicion real en pantalla para que MediaPanel se centre debajo
+    // Reports its real on-screen position so MediaPanel can center below it
     function reportPosition() {
         let g = root.mapToGlobal(0, 0)
         Services.AppState.mediaPillCenterX = g.x + root.width / 2
     }
     onXChanged: reportPosition()
 onWidthChanged: reportPosition()
-Component.onCompleted: { updateArt(); reportPosition() }
+Component.onCompleted: { activePlayer = livePlayer; updateArt(); reportPosition() }
 
     Rectangle {
         anchors.fill: parent
@@ -195,7 +217,7 @@ Component.onCompleted: { updateArt(); reportPosition() }
         
     }
 
-    // Click en cualquier parte libre de la pill abre el panel expandido
+    // Clicking any free area of the pill opens the expanded panel
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
