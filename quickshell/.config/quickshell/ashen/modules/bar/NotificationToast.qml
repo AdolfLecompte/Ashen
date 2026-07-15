@@ -43,7 +43,7 @@ PanelWindow {
                 radius: 14
                 color: Services.Colors.surfaceAlpha(0.96)
                 border.color: Services.Colors.ghostAlpha(0.2)
-                border.width: 1
+                border.width: 0
                 clip: true
 
                 opacity: (appeared && !dismissing) ? 1 : 0
@@ -95,7 +95,7 @@ PanelWindow {
                         radius: 9
                         color: Services.Colors.ghostAlpha(0.15)
                         border.color: Services.Colors.ghostAlpha(0.3)
-                        border.width: 1
+                        border.width: 0
                         Text {
                             anchors.centerIn: parent
                             text: modelData.glyph || ""

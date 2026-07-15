@@ -93,7 +93,7 @@ PanelWindow {
         radius: 18
         color: Services.Colors.surfaceAlpha(0.95)
         border.color: Services.Colors.ghostAlpha(0.2)
-        border.width: 1
+        border.width: 0
 
         opacity: Services.AppState.batteryVisible ? 1.0 : 0.0
         Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }

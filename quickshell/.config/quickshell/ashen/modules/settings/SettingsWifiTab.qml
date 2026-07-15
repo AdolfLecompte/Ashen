@@ -280,7 +280,7 @@ Item {
         radius: 14
         color: Services.Colors.surfaceAlpha(0.98)
         border.color: Services.Colors.ghostAlpha(0.2)
-        border.width: 1
+        border.width: 0
         visible: tab.showConnectDialog
 
         Column {

@@ -191,7 +191,7 @@ Scope {
             radius: 16
             color: Services.Colors.surfaceAlpha(0.96)
             border.color: Services.Colors.ghostAlpha(0.2)
-            border.width: 1
+            border.width: 0
             clip: true
 
             opacity: Services.AppState.launcherVisible ? 1.0 : 0.0

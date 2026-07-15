@@ -59,7 +59,7 @@ PanelWindow {
                 radius: 14
                 color: Services.Colors.surfaceAlpha(0.95)
                 border.color: Services.Colors.ghostAlpha(0.2)
-                border.width: 1
+                border.width: 0
                 Behavior on color { ColorAnimation { duration: 150 } }
 
                 Text {

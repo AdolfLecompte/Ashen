@@ -83,7 +83,7 @@ Scope {
             radius: 14
             color: Services.Colors.surfaceAlpha(0.9)
             border.color: Services.Colors.ghostAlpha(0.2)
-            border.width: 1
+            border.width: 0
 
             opacity: hideTimer.running ? 1.0 : 0.0
             scale: hideTimer.running ? 1.0 : 0.85

@@ -45,7 +45,7 @@ PanelWindow {
         height: Math.min(menuCol.implicitHeight + 16, root.height - 80)
         color: Services.Colors.surfaceAlpha(0.95)
         border.color: Services.Colors.ghostAlpha(0.2)
-        border.width: 1
+        border.width: 0
         clip: true
 
         opacity: root.shown ? 1.0 : 0.0

@@ -77,7 +77,7 @@ PanelWindow {
         height: Math.min(panelCol.implicitHeight + 28, root.height - 80)
         color: Services.Colors.surfaceAlpha(0.95)
         border.color: Services.Colors.ghostAlpha(0.2)
-        border.width: 1
+        border.width: 0
         clip: true
 
         opacity: Services.AppState.bluetoothVisible ? 1.0 : 0.0

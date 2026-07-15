@@ -80,7 +80,7 @@ PanelWindow {
         color: btnMouse.containsMouse ? Services.Colors.ghostAlpha(0.3)
                                       : Services.Colors.surfaceAlpha(0.92)
         border.color: Services.Colors.ghostAlpha(0.2)
-        border.width: 1
+        border.width: 0
         opacity: root.revealed ? 1.0 : 0.0
 
         Behavior on anchors.bottomMargin { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }

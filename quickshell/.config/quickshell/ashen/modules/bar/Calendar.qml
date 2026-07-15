@@ -69,7 +69,7 @@ PanelWindow {
             radius: 14
             color: Services.Colors.surfaceAlpha(0.95)
             border.color: Services.Colors.ghostAlpha(0.2)
-            border.width: 1
+            border.width: 0
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {
@@ -144,7 +144,7 @@ PanelWindow {
             radius: 14
             color: Services.Colors.surfaceAlpha(0.95)
             border.color: Services.Colors.ghostAlpha(0.2)
-            border.width: 1
+            border.width: 0
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {
@@ -304,7 +304,7 @@ PanelWindow {
             radius: 14
             color: Services.Colors.surfaceAlpha(0.95)
             border.color: Services.Colors.ghostAlpha(0.2)
-            border.width: 1
+            border.width: 0
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {

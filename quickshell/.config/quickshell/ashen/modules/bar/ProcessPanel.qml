@@ -43,7 +43,7 @@ PanelWindow {
         radius: 22
         color: Services.Colors.crypt
         border.color: Services.Colors.ghostAlpha(0.18)
-        border.width: 1
+        border.width: 0
         clip: true
 
         opacity: root.shown ? 1.0 : 0.0
