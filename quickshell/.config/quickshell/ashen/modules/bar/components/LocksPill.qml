@@ -1,20 +1,20 @@
 import QtQuick
-import QtQuick.Layouts
 
 import "root:/services" as Services
 
 Rectangle {
     id: root
-    readonly property int innerR: 8
-    readonly property int innerH: 32
-    property bool anyActive: Services.Notifications.lastCapsLock || Services.Notifications.lastNumLock
+    property bool capsActive: Services.Notifications.lastCapsLock
+    property bool numActive: Services.Notifications.lastNumLock
+    property bool anyActive: capsActive || numActive
 
     height: 44
     radius: 10
-    color: Services.Colors.surfaceAlpha(0.82)
-    border.color: Services.Colors.ghostAlpha(0.2)
+    // Whole containment pill fills with the accent when a lock is on, the same
+    // inversion every other active pill uses (see RecordingPill). No inner pills.
+    color: Services.Colors.ghost
     border.width: 0
-    width: anyActive ? (locksRow.width + 16) : 0
+    width: anyActive ? (locksRow.width + 20) : 0
     opacity: anyActive ? 1.0 : 0.0
     clip: true
     Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
@@ -23,43 +23,27 @@ Rectangle {
     Row {
         id: locksRow
         anchors.centerIn: parent
-        spacing: 4
+        spacing: 10
 
-        // Caps Lock (only visible while active)
-        Rectangle {
-            visible: Services.Notifications.lastCapsLock
-            width: visible ? root.innerH : 0
-            height: root.innerH
-            radius: root.innerR
-            color: Services.Colors.ghost
-            clip: true
-            Behavior on width { NumberAnimation { duration: 200 } }
-            Text {
-                anchors.centerIn: parent
-                text: "\ue318"
-                color: Services.Colors.abyss
-                font.pixelSize: 18
-                font.bold: true
-                font.family: "Material Symbols Rounded"
-            }
+        // Caps Lock (only present while active)
+        Text {
+            visible: root.capsActive
+            text: "\ue318"
+            color: Services.Colors.abyss
+            font.pixelSize: 24
+            font.bold: true
+            font.family: "Material Symbols Rounded"
+            anchors.verticalCenter: parent.verticalCenter
         }
-        // Num Lock (only visible while active)
-        Rectangle {
-            visible: Services.Notifications.lastNumLock
-            width: visible ? root.innerH : 0
-            height: root.innerH
-            radius: root.innerR
-            color: Services.Colors.ghost
-            clip: true
-            Behavior on width { NumberAnimation { duration: 200 } }
-            Text {
-                anchors.centerIn: parent
-                text: "\ue400"
-                color: Services.Colors.abyss
-                font.pixelSize: 18
-                font.bold: true
-                font.family: "Material Symbols Rounded"
-            }
+        // Num Lock (only present while active)
+        Text {
+            visible: root.numActive
+            text: "\ue400"
+            color: Services.Colors.abyss
+            font.pixelSize: 24
+            font.bold: true
+            font.family: "Material Symbols Rounded"
+            anchors.verticalCenter: parent.verticalCenter
         }
     }
 }
