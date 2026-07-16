@@ -91,17 +91,23 @@ except Exception:
     fi
 }
 
+# Pull a still frame from a video/gif wallpaper. Two consumers need it:
+# matugen (accepts stills only) and the lock screen, which can't draw a moving
+# background layer. Runs regardless of colour mode, so the lock frame stays in
+# sync with the wallpaper even when the dynamic palette is off.
+ensure_frame() {
+    needs_frame || return 0
+    # 2s in, so we skip fade-ins that would sample as pure black
+    ffmpeg -y -loglevel error -ss 2 -i "$WALL" -frames:v 1 "$FRAME" 2>/dev/null \
+        || ffmpeg -y -loglevel error -i "$WALL" -frames:v 1 "$FRAME" 2>/dev/null
+}
+
 apply_colors() {
     [ "$(cat "$CACHE/ashen_scheme_mode.txt" 2>/dev/null)" = "dynamic" ] || return 0
 
+    # ensure_frame already pulled the still for video/gif
     local src="$WALL"
-    if needs_frame; then
-        # 2s in, so we skip fade-ins that would sample as pure black
-        ffmpeg -y -loglevel error -ss 2 -i "$WALL" -frames:v 1 "$FRAME" 2>/dev/null \
-            || ffmpeg -y -loglevel error -i "$WALL" -frames:v 1 "$FRAME" 2>/dev/null \
-            || return 0
-        src="$FRAME"
-    fi
+    needs_frame && src="$FRAME"
 
     local type
     type="$(cat "$CACHE/ashen_dynamic_type.txt" 2>/dev/null || echo scheme-tonal-spot)"
@@ -127,5 +133,6 @@ else
     awww img "$WALL" --transition-type random --transition-duration 0.6 --transition-fps 60
 fi
 
+ensure_frame
 apply_colors
 printf '%s' "$WALL" > "$STATE"
