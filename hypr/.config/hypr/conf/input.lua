@@ -4,9 +4,12 @@
 
 hl.config({
     input = {
-        -- latam is first, so it stays the default at login.
-        -- Switching is done from Settings (hyprctl switchxkblayout), not a keybind.
-        kb_layout = "latam,us",
+        -- Shipped default is plain "us": it is the safest bet for whoever clones
+        -- this, and nobody inherits a layout they cannot type on. Add your own
+        -- from Settings > System > Keyboard Layout (max 4 -- XKB has 4 groups).
+        -- Whichever is first wins at login; Settings rewrites this list with the
+        -- pick first, so the choice survives a reload/reboot.
+        kb_layout = "us",
         kb_variant = "",
         kb_model = "",
         kb_options = "",
