@@ -29,7 +29,6 @@ Scope {
     WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     property var categories: [
-        { id: "general", icon: "", label: "General" },
         { id: "system", icon: "", label: "System" },
         { id: "wifi", icon: "", label: "Wi-Fi" },
         { id: "bluetooth", icon: "", label: "Bluetooth" },
@@ -41,7 +40,6 @@ Scope {
         if (id === "wifi") return "SettingsWifiTab.qml"
         if (id === "bluetooth") return "SettingsBluetoothTab.qml"
         if (id === "system") return "SettingsSystemTab.qml"
-        if (id === "general") return "SettingsGeneralTab.qml"
         if (id === "theme") return "SettingsThemeTab.qml"
         if (id === "about") return "SettingsAboutTab.qml"
         return ""
@@ -62,8 +60,8 @@ Scope {
     Rectangle {
         id: card
         anchors.centerIn: parent
-        width: 900
-        height: 620
+        width: 1080
+        height: 660
         radius: 18
         color: Services.Colors.surfaceAlpha(0.96)
         border.color: Services.Colors.ghostAlpha(0.2)
@@ -88,7 +86,12 @@ Scope {
 
             Column {
                 anchors.fill: parent
-                anchors.margins: 12
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                // Starts level with the divider (same 28) instead of riding
+                // above where the line begins
+                anchors.topMargin: 28
+                anchors.bottomMargin: 28
                 spacing: 8
 
                 Repeater {
@@ -109,26 +112,6 @@ Scope {
                             color: Services.AppState.settingsTab === modelData.id ? Services.Colors.abyss : Services.Colors.mist
                         }
 
-                        Rectangle {
-                            visible: hoverArea.containsMouse
-                            anchors.left: parent.right
-                            anchors.leftMargin: 8
-                            anchors.verticalCenter: parent.verticalCenter
-                            height: 28
-                            width: tipText.implicitWidth + 16
-                            radius: 6
-                            color: Services.Colors.abyss
-                            z: 100
-                            Text {
-                                id: tipText
-                                anchors.centerIn: parent
-                                text: modelData.label
-                                color: Services.Colors.snow
-                                font.pixelSize: 11
-                                font.family: "JetBrainsMono NF"
-                            }
-                        }
-
                         MouseArea {
                             id: hoverArea
                             anchors.fill: parent
@@ -143,9 +126,12 @@ Scope {
 
         Rectangle {
             anchors.top: parent.top
+            anchors.topMargin: 28
             anchors.bottom: parent.bottom
+            anchors.bottomMargin: 28
             anchors.left: sidebar.right
             width: 1
+            radius: 0.5
             color: Services.Colors.ghostAlpha(0.15)
         }
 
