@@ -2,6 +2,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "root:/services" as Services
 
 Singleton {
     id: root
@@ -9,6 +10,21 @@ Singleton {
     property int tempC: 0
     property string icon: ""
     property var forecast: []
+
+    // wttr.in only ever gives celsius, so F/K are derived here and every
+    // consumer renders through tempString()/degrees() -- never tempC directly.
+    function convert(c) {
+        if (Services.Prefs.tempUnit === "F") return Math.round(c * 9 / 5 + 32)
+        if (Services.Prefs.tempUnit === "K") return Math.round(c + 273.15)
+        return Math.round(c)
+    }
+    // Kelvin is an absolute scale: writing "273°K" is wrong, it has no degree sign
+    readonly property string unitSuffix: Services.Prefs.tempUnit === "K" ? "K" : "°" + Services.Prefs.tempUnit
+    function tempString(c) { return convert(c) + unitSuffix }
+    // Bare number + degree glyph, for the "24°/12°" forecast pairs
+    function degrees(c) { return convert(c) + (Services.Prefs.tempUnit === "K" ? "" : "°") }
+
+    readonly property string temp: tempString(tempC)
 
     function iconFor(cond, hour) {
         let c = (cond || "").toLowerCase()

@@ -64,9 +64,34 @@ Singleton {
     property real recordingStartTime: 0
     property bool keepAwake: false
     property real faceVersion: 0
+
+    // Identity, resolved once at startup: nothing here may be hardcoded, the
+    // shell has to follow a rename of the user or the host.
+    property string userName: ""
+    property string hostName: ""
+    property string homeDir: ""
+    readonly property string userLabel: userName === "" ? "" : userName + "@" + hostName
+    // faceVersion busts Qt's image cache: the path never changes, the file does
+    readonly property string facePath: homeDir === ""
+        ? "" : "file://" + homeDir + "/.face?" + faceVersion
+
+    Process {
+        id: identityProc
+        command: ["sh", "-c", "echo \"$(id -un)|$(hostnamectl hostname 2>/dev/null || hostname)|$HOME\""]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let p = text.trim().split("|")
+                if (p.length < 3 || p[0] === "") return
+                root.userName = p[0]
+                root.hostName = p[1]
+                root.homeDir = p[2]
+            }
+        }
+    }
     property bool doNotDisturb: false
     property bool settingsVisible: false
-    property string settingsTab: "general"
+    property string settingsTab: "system"
     property bool notificationsVisible: false
     property real volumePillCenterX: 400
     property real brightnessPillCenterX: 460

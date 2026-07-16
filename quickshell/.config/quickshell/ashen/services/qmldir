@@ -10,3 +10,5 @@ singleton Weather 1.0 Weather.qml
 singleton USB 1.0 USB.qml
 singleton SysMon 1.0 SysMon.qml
 singleton Keyboard 1.0 Keyboard.qml
+singleton Prefs 1.0 Prefs.qml
+singleton Wallpaper 1.0 Wallpaper.qml
