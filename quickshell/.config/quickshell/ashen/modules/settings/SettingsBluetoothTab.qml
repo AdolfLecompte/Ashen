@@ -10,6 +10,28 @@ Item {
 
     property var adapter: Bluetooth.defaultAdapter
 
+    // BlueZ reports a freedesktop icon name ("audio-headset", "input-mouse"...).
+    // Map it to a Material Symbol so a device looks like what it is; anything
+    // unrecognised falls back to the generic devices_other.
+    // Order matters: "audio-headset" would match the "audio" test too.
+    function deviceGlyph(device) {
+        let n = (device && device.icon ? device.icon : "").toLowerCase()
+        if (n.indexOf("headset") !== -1) return "\ue311"
+        if (n.indexOf("headphone") !== -1) return "\uf01f"
+        if (n.indexOf("earbud") !== -1) return "\uf003"
+        if (n.indexOf("speaker") !== -1 || n.indexOf("audio") !== -1) return "\ue32d"
+        if (n.indexOf("mouse") !== -1) return "\ue323"
+        if (n.indexOf("keyboard") !== -1) return "\ue312"
+        if (n.indexOf("gaming") !== -1 || n.indexOf("joypad") !== -1) return "\ue338"
+        if (n.indexOf("phone") !== -1) return "\ue7ba"
+        if (n.indexOf("watch") !== -1) return "\ue334"
+        if (n.indexOf("computer") !== -1) return "\ue31e"
+        if (n.indexOf("printer") !== -1) return "\ue8ad"
+        if (n.indexOf("display") !== -1 || n.indexOf("tv") !== -1) return "\ue63b"
+        if (n.indexOf("car") !== -1) return "\ueff7"
+        return "\ue337"
+    }
+
     function startScan() {
         if (adapter && adapter.enabled && !adapter.discovering) {
             adapter.discovering = true
@@ -59,7 +81,7 @@ Item {
                 color: "transparent"
                 Text {
                     anchors.centerIn: parent
-                    text: ""
+                    text: ""
                     color: tab.adapter && tab.adapter.discovering ? Services.Colors.ghost : Services.Colors.mist
                     font.pixelSize: 16
                     font.family: "Material Symbols Rounded"
@@ -106,14 +128,14 @@ Item {
                 anchors.fill: parent
                 anchors.margins: 12
                 spacing: 10
-                Text { text: ""; color: Services.Colors.ghost; font.pixelSize: 22; font.family: "Material Symbols Rounded" }
+                Text { text: ""; color: Services.Colors.ghost; font.pixelSize: 22; font.family: "Material Symbols Rounded" }
                 Column {
                     Layout.fillWidth: true
                     spacing: 2
                     Text { text: Services.Network.btDevice; color: Services.Colors.snow; font.pixelSize: 14; font.family: "JetBrainsMono NF"; font.bold: true }
                     Text { text: "Connected"; color: Services.Colors.ghost; font.pixelSize: 11; font.family: "JetBrainsMono NF" }
                 }
-                Text { text: ""; color: Services.Colors.ghost; font.pixelSize: 22; font.family: "Material Symbols Rounded" }
+                Text { text: ""; color: Services.Colors.ghost; font.pixelSize: 22; font.family: "Material Symbols Rounded" }
             }
         }
 
@@ -144,7 +166,7 @@ Item {
                         anchors.rightMargin: 12
                         spacing: 10
                         Text {
-                            text: modelData.connected ? "" : ""
+                            text: tab.deviceGlyph(modelData)
                             color: modelData.connected ? Services.Colors.ghost : Services.Colors.mist
                             font.pixelSize: 20
                             font.family: "Material Symbols Rounded"
@@ -173,7 +195,7 @@ Item {
                         }
                         Text {
                             visible: modelData.connected
-                            text: ""
+                            text: ""
                             color: Services.Colors.ghost
                             font.pixelSize: 18
                             font.family: "Material Symbols Rounded"
@@ -213,7 +235,7 @@ Item {
                 anchors.margins: 12
                 spacing: 10
                 Text {
-                    text: tab.adapter && tab.adapter.discovering ? "" : ""
+                    text: tab.adapter && tab.adapter.discovering ? "" : ""
                     color: Services.Colors.ash
                     font.pixelSize: 22
                     font.family: "Material Symbols Rounded"
