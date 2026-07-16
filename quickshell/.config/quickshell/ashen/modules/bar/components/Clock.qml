@@ -29,7 +29,7 @@ Rectangle {
         onTriggered: {
             let now = new Date()
             let h = now.getHours()
-            root.currentTime = Qt.formatDateTime(now, "hh:mm:ss AP")
+            root.currentTime = Qt.formatDateTime(now, Services.Prefs.timeFormat)
             root.currentDate = Qt.formatDateTime(now, "ddd, MMM d")
             if (h >= 0 && h < 5)        root.timeIcon = ""
             else if (h >= 5 && h < 8)   root.timeIcon = ""
@@ -75,7 +75,7 @@ Rectangle {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: Services.Weather.tempC + "°C"
+                text: Services.Weather.temp
                 font.pixelSize: 13
                 font.family: "JetBrainsMono NF"
                 font.bold: true

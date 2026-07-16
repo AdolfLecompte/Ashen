@@ -22,8 +22,13 @@ PanelWindow {
     onShownChanged: if (!shown) closeDelay.restart()
     Timer { id: closeDelay; interval: 300 }
 
-    property string currentTime: Qt.formatDateTime(new Date(), "hh:mm AP")
+    // The big clock stacks hour over minute, so the parts are kept separate
+    // instead of split() off a formatted string -- under 24h there is no " AP"
+    // to split on and the old surgery produced "undefined".
+    property string currentHour: Qt.formatDateTime(new Date(), Services.Prefs.hourToken)
+    property string currentMinute: Qt.formatDateTime(new Date(), "mm")
     property string currentSecs: Qt.formatDateTime(new Date(), "ss")
+    property string currentAmPm: Services.Prefs.clock24h ? "" : Qt.formatDateTime(new Date(), "AP")
     property string currentDate: Qt.formatDateTime(new Date(), "MMMM d, yyyy")
     property string currentDayName: Qt.locale().dayName(new Date().getDay())
 
@@ -33,8 +38,10 @@ PanelWindow {
         repeat: true
         onTriggered: {
             let now = new Date()
-            root.currentTime = Qt.formatDateTime(now, "hh:mm AP")
+            root.currentHour = Qt.formatDateTime(now, Services.Prefs.hourToken)
+            root.currentMinute = Qt.formatDateTime(now, "mm")
             root.currentSecs = Qt.formatDateTime(now, "ss")
+            root.currentAmPm = Services.Prefs.clock24h ? "" : Qt.formatDateTime(now, "AP")
             root.currentDate = Qt.formatDateTime(now, "MMMM d, yyyy")
             root.currentDayName = Qt.locale().dayName(now.getDay())
         }
@@ -81,7 +88,7 @@ PanelWindow {
                     spacing: -6
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: root.currentTime.split(":")[0]
+                        text: root.currentHour
                         color: Services.Colors.ghost
                         font.pixelSize: 56
                         font.family: "JetBrainsMono NF"
@@ -90,7 +97,7 @@ PanelWindow {
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: root.currentTime.split(":")[1].split(" ")[0]
+                        text: root.currentMinute
                         color: Services.Colors.snow
                         font.pixelSize: 56
                         font.family: "JetBrainsMono NF"
@@ -99,7 +106,11 @@ PanelWindow {
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: root.currentTime.split(" ")[1] + "  " + root.currentSecs
+                        // Either part can be switched off in Settings; with both
+                        // gone the row collapses instead of leaving a stray gap.
+                        text: [root.currentAmPm, Services.Prefs.clockSeconds ? root.currentSecs : ""]
+                            .filter(s => s !== "").join("  ")
+                        visible: text !== ""
                         color: Services.Colors.mist
                         font.pixelSize: 12
                         font.family: "JetBrainsMono NF"
@@ -324,7 +335,7 @@ PanelWindow {
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: Services.Weather.tempC + "\u00b0C"
+                        text: Services.Weather.temp
                         color: Services.Colors.snow
                         font.pixelSize: 26
                         font.bold: true
@@ -377,7 +388,7 @@ PanelWindow {
                                     font.family: "Material Symbols Rounded"
                                 }
                                 Text {
-                                    text: modelData.maxC + "\u00b0/" + modelData.minC + "\u00b0"
+                                    text: Services.Weather.degrees(modelData.maxC) + "/" + Services.Weather.degrees(modelData.minC)
                                     color: index === 0 ? Services.Colors.snow : Services.Colors.ash
                                     font.pixelSize: 10
                                     font.family: "JetBrainsMono NF"

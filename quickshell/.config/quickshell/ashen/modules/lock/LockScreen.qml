@@ -29,7 +29,7 @@ Scope {
             readonly property string glyphLock: "\uE899"
             readonly property string glyphLockOpen: "\uE898"
 
-            property string currentTime: Qt.formatDateTime(new Date(), "hh:mm AP")
+            property string currentTime: Qt.formatDateTime(new Date(), Services.Prefs.timeFormat)
             property string currentSecs: Qt.formatDateTime(new Date(), "ss")
             property string currentDate: Qt.formatDateTime(new Date(), "MMMM d, yyyy")
             property string currentDay: Qt.locale().dayName(new Date().getDay())
@@ -105,7 +105,7 @@ Scope {
                 repeat: true
                 onTriggered: {
                     let now = new Date()
-                    surface.currentTime = Qt.formatDateTime(now, "hh:mm AP")
+                    surface.currentTime = Qt.formatDateTime(now, Services.Prefs.timeFormat)
                     surface.currentSecs = Qt.formatDateTime(now, "ss")
                     surface.currentDate = Qt.formatDateTime(now, "MMMM d, yyyy")
                     surface.currentDay = Qt.locale().dayName(now.getDay())
@@ -126,8 +126,16 @@ Scope {
             }
             Process {
                 id: wallpaperProc
-                // sed, not `cut -d' ' -f2`: wallpaper filenames contain spaces
-                command: ["sh", "-c", "awww query | sed -n 's/.*image: //p' | head -1"]
+                // The live wallpaper may be a video (mpvpaper), which QML can't
+                // draw as a still. So resolve to a paintable image: a still
+                // wallpaper is used as-is; for video/gif we fall back to the
+                // frame ashen-wallpaper.sh extracts (same one matugen samples).
+                command: ["sh", "-c",
+                    "w=$(cat \"$HOME/.cache/ashen_wallpaper.txt\" 2>/dev/null); " +
+                    "case \"$(printf '%s' \"$w\" | tr '[:upper:]' '[:lower:]')\" in " +
+                    "*.png|*.jpg|*.jpeg|*.webp) printf '%s' \"$w\" ;; " +
+                    "*) printf '%s' \"$HOME/.cache/ashen_wall_frame.png\" ;; " +
+                    "esac"]
                 running: true
                 stdout: StdioCollector { onStreamFinished: surface.wallpaper = text.trim() }
             }
@@ -230,6 +238,9 @@ Scope {
                         source: surface.wallpaper !== "" ? ("file://" + surface.wallpaper) : ""
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
+                        // frame path is fixed but its contents change per video;
+                        // no cache or the lock shows the previous wallpaper's frame
+                        cache: false
                         visible: false
                     }
                     FastBlur {
@@ -315,7 +326,7 @@ Scope {
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                                 Text {
-                                    text: Services.Weather.tempC + "°C"
+                                    text: Services.Weather.temp
                                     color: Services.Colors.snowAlpha(0.55)
                                     font.pixelSize: 14
                                     font.family: "JetBrainsMono NF"
@@ -341,8 +352,9 @@ Scope {
                                     id: faceImg
                                     anchors.fill: parent
                                     anchors.margins: 2
-                                    source: "file:///home/adolf/.face"
+                                    source: Services.AppState.facePath
                                     fillMode: Image.PreserveAspectCrop
+                                    cache: false
                                     visible: false
                                 }
                                 Rectangle {
@@ -368,7 +380,7 @@ Scope {
                             }
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: "adolf-arch"
+                                text: Services.AppState.userLabel
                                 color: Services.Colors.snow
                                 font.pixelSize: 17
                                 font.family: "JetBrainsMono NF"
