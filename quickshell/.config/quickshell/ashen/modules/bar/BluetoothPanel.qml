@@ -161,7 +161,7 @@ PanelWindow {
                 }
             }
 
-            // Dispositivo conectado
+            // Connected device
             Rectangle {
                 width: parent.width
                 height: Services.Network.btDevice !== "" ? 64 : 0
@@ -207,7 +207,7 @@ PanelWindow {
                 }
             }
 
-            // Lista dispositivos
+            // Device list
             Column {
                 width: parent.width
                 spacing: 4
@@ -297,7 +297,7 @@ PanelWindow {
                 }
             }
 
-            // Sin dispositivos
+            // No devices
             Rectangle {
                 width: parent.width
                 height: 60

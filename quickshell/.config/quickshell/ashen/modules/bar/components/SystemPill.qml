@@ -131,7 +131,7 @@ Rectangle {
             }
         }
 
-        // Volumen
+        // Volume
         Rectangle {
             height: root.innerH
             radius: root.innerR
@@ -190,7 +190,7 @@ Rectangle {
                 }
             }
         }
-        // Brillo
+        // Brightness
         Rectangle {
             height: root.innerH
             radius: root.innerR
@@ -235,7 +235,7 @@ Rectangle {
             }
         }
 
-        // Bateria
+        // Battery
         Rectangle {
             height: root.innerH
             radius: root.innerR

@@ -100,7 +100,7 @@ PanelWindow {
         }
     }
 
-    // Panel principal
+    // Main panel
     Rectangle {
         anchors.top: parent.top
         anchors.right: parent.right
@@ -236,7 +236,7 @@ PanelWindow {
                     }
                 }
 
-                // Red conectada
+                // Connected network
                 Rectangle {
                     width: parent.width
                     height: Services.Network.wifiSsid !== "" ? 64 : 0
@@ -281,7 +281,7 @@ PanelWindow {
                     }
                 }
 
-                // Redes conocidas
+                // Known networks
                 Column {
                     width: parent.width
                     spacing: 4
@@ -371,7 +371,7 @@ PanelWindow {
                     }
                 }
 
-                // Redes disponibles
+                // Available networks
                 Column {
                     width: parent.width
                     spacing: 4
@@ -506,7 +506,7 @@ PanelWindow {
         }
     }
 
-    // Dialog conexion
+    // Connection dialog
     Rectangle {
         anchors.top: parent.top
         anchors.right: parent.right

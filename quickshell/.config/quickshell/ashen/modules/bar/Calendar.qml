@@ -69,7 +69,7 @@ PanelWindow {
             Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         }
 
-        // -- Columna central: Hora --
+        // -- Center column: Time --
         Rectangle {
             width: 150
             height: root.boxHeight
@@ -148,7 +148,7 @@ PanelWindow {
             }
         }
 
-        // -- Columna izquierda: Calendario --
+        // -- Left column: Calendar --
         Rectangle {
             width: 360
             height: root.boxHeight
@@ -308,7 +308,7 @@ PanelWindow {
             }
         }
 
-        // -- Columna derecha: Clima --
+        // -- Right column: Weather --
         Rectangle {
             width: 150
             height: root.boxHeight

@@ -100,7 +100,7 @@ Singleton {
         running: false
     }
 
-    // --- Servidor D-Bus real de notificaciones (org.freedesktop.Notifications) ---
+    // --- Real D-Bus notification server (org.freedesktop.Notifications) ---
     NotificationServer {
         id: notifServer
         bodySupported: true
