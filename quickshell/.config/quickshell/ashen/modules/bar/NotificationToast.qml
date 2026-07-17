@@ -163,26 +163,20 @@ PanelWindow {
                         radius: 10
                         color: Services.Colors.ghostAlpha(0.15)
                         Image {
+                            id: toastIconImg
                             anchors.fill: parent
                             anchors.margins: 5
-                            source: {
-                                if ((modelData.icon || "") !== "") {
-                                    return modelData.icon.startsWith("/") ? ("file://" + modelData.icon) : Quickshell.iconPath(modelData.icon, 48)
-                                }
-                                // No explicit icon in the D-Bus hint: guess it from the
-                                // lowercased app name (that is how Papirus
-                                // suele nombrar sus iconos: whatsapp.svg, discord.svg, steam.svg, etc)
-                                if ((modelData.appName || "") !== "") {
-                                    return Quickshell.iconPath(modelData.appName.toLowerCase().replace(/\s+/g, "-"), 48)
-                                }
-                                return ""
-                            }
+                            // Already resolved to a usable source by
+                            // Notifications.resolveIcon (image://, file:// or http).
+                            source: modelData.icon || ""
+                            sourceSize.width: 48
+                            sourceSize.height: 48
                             fillMode: Image.PreserveAspectFit
                             visible: status === Image.Ready
                         }
                         Text {
                             anchors.centerIn: parent
-                            visible: (modelData.icon || "") === ""
+                            visible: toastIconImg.status !== Image.Ready
                             text: ""
                             color: Services.Colors.ghost
                             font.pixelSize: 16

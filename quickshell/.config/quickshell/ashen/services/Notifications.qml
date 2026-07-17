@@ -27,6 +27,26 @@ Singleton {
     property string lastPowerProfile: ""
     property bool initialized: false
 
+    // Brave PWAs (WhatsApp Web) all report appName "Brave" with the generic
+    // Brave-lion appIcon — no dbus field distinguishes them. In this setup
+    // Brave notifications are WhatsApp, so remap them to the WhatsApp PWA icon
+    // resolved from its .desktop (via the icon theme, no hardcoded path).
+    // Returns a ready-to-use Image source (image://, file:// or http URL) so
+    // both the panel and the lock screen can bind it directly.
+    readonly property string whatsappIconId: "brave-hnpfjngllnobngcgfapefoaidbinmjnm-Default"
+    function resolveIcon(appName, appIcon) {
+        if (appName === "Brave") {
+            let p = Quickshell.iconPath(root.whatsappIconId, true)
+            if (p && p !== "") return p
+        }
+        let ic = appIcon || ""
+        if (ic === "") return ""
+        if (ic.startsWith("image://") || ic.startsWith("file://") || ic.startsWith("http")) return ic
+        if (ic.startsWith("/")) return "file://" + ic
+        // Bare icon-theme name (e.g. "discord", "steam")
+        return Quickshell.iconPath(ic, true)
+    }
+
     function addEntry(entry) {
         entry.id = Date.now() + "-" + Math.floor(Math.random() * 100000)
         entry.timestamp = Date.now()
@@ -120,7 +140,7 @@ Singleton {
                 appName: notification.appName || "Unknown",
                 summary: notification.summary || "",
                 body: notification.body || "",
-                icon: notification.appIcon || "",
+                icon: root.resolveIcon(notification.appName, notification.appIcon),
                 urgency: notification.urgency,
                 source: "app"
             })
