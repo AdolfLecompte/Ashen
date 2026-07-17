@@ -43,6 +43,7 @@ Rectangle {
                     color: Services.Colors.snow
                     font.pixelSize: 12
                     font.family: "JetBrainsMono NF"
+                    font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
@@ -85,6 +86,7 @@ Rectangle {
                     color: (Services.Network.online || wifiHover.containsMouse) ? Services.Colors.abyss : Services.Colors.ash
                     font.pixelSize: 12
                     font.family: "JetBrainsMono NF"
+                    font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                     Behavior on color { ColorAnimation { duration: 200 } }
                 }
@@ -125,6 +127,7 @@ Rectangle {
                     color: (Services.Network.btEnabled || btHover.containsMouse) ? Services.Colors.abyss : Services.Colors.ash
                     font.pixelSize: 12
                     font.family: "JetBrainsMono NF"
+                    font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                     Behavior on color { ColorAnimation { duration: 200 } }
                 }
@@ -185,6 +188,7 @@ Rectangle {
                     color: (!Services.Audio.muted && Services.Audio.volume > 0 || volHover.containsMouse) ? Services.Colors.abyss : Services.Colors.ash
                     font.pixelSize: 12
                     font.family: "JetBrainsMono NF"
+                    font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                     Behavior on color { ColorAnimation { duration: 200 } }
                 }
@@ -229,6 +233,7 @@ Rectangle {
                     color: (Services.Brightness.level > 0 || brightHover.containsMouse) ? Services.Colors.abyss : Services.Colors.ash
                     font.pixelSize: 12
                     font.family: "JetBrainsMono NF"
+                    font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                     Behavior on color { ColorAnimation { duration: 200 } }
                 }
@@ -282,6 +287,7 @@ Rectangle {
                     }
                     font.pixelSize: 12
                     font.family: "JetBrainsMono NF"
+                    font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                     Behavior on color { ColorAnimation { duration: 300 } }
                 }

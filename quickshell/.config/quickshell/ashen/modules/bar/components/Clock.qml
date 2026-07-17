@@ -60,6 +60,7 @@ Rectangle {
                 color: Services.Colors.mist
                 font.pixelSize: 10
                 font.family: "JetBrainsMono NF"
+                font.bold: true
             }
         }
 

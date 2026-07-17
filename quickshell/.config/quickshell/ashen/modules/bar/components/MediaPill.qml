@@ -164,6 +164,7 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt(); reportPosition(
         color: Services.Colors.mist
         font.pixelSize: 10
         font.family: "JetBrainsMono NF"
+        font.bold: true
     }
             }
 

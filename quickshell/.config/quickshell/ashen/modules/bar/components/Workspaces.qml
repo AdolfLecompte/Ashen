@@ -54,7 +54,6 @@ Row {
         if (name === "music")   return ""
         if (name === "discord") return ""
         if (name === "notes")   return ""
-        if (name === "term")    return ""
         if (name === "fav")     return ""
         return ""
     }
@@ -118,7 +117,7 @@ Row {
                         color: parent.isActive ? Services.Colors.abyss : Services.Colors.ash
                         font.pixelSize: 13
                         font.family: "JetBrainsMono NF"
-                        font.bold: parent.isActive
+                        font.bold: true
                         z: 1
                         Behavior on color { ColorAnimation { duration: 200 } }
                     }
