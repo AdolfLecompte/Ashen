@@ -143,7 +143,7 @@ Singleton {
                             root.addSystemToast(kb.capsLock ? "CAPS LOCK ON" : "CAPS LOCK OFF", "", false, "capslock")
                         }
                         if (kb.numLock !== root.lastNumLock) {
-                            root.addSystemToast(kb.numLock ? "NUM LOCK ON" : "NUM LOCK OFF", "", false, "numlock")
+                            root.addSystemToast(kb.numLock ? "NUM LOCK ON" : "NUM LOCK OFF", "\uf2af", false, "numlock")
                         }
                     }
                     root.lastCapsLock = kb.capsLock

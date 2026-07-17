@@ -38,7 +38,7 @@ Rectangle {
         // Num Lock (only present while active)
         Text {
             visible: root.numActive
-            text: "\ue400"
+            text: "\uf2af"
             color: Services.Colors.abyss
             font.pixelSize: 24
             font.bold: true
