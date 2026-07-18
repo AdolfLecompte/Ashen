@@ -49,7 +49,7 @@ PKGS_OFFICIAL=(
     wl-clipboard cliphist grim slurp wf-recorder
     hypridle mpvpaper ffmpeg
     nemo zenity fastfetch cava
-    sddm papirus-icon-theme ttf-jetbrains-mono-nerd adw-gtk3
+    papirus-icon-theme ttf-jetbrains-mono-nerd adw-gtk3
     xdg-desktop-portal-hyprland polkit-gnome
 )
 
@@ -61,7 +61,7 @@ PKGS_AUR=(
 
 SERVICES=(NetworkManager bluetooth power-profiles-daemon)
 
-STOW_PKGS=(cava dconf fastfetch gtk hypr kitty matugen quickshell sddm zsh)
+STOW_PKGS=(cava dconf fastfetch gtk hypr kitty matugen quickshell zsh)
 
 # ── 1. Packages ───────────────────────────────────────────────────────────
 if [[ $DO_PACKAGES -eq 1 ]]; then
@@ -174,14 +174,6 @@ if [[ $DO_SERVICES -eq 1 ]]; then
             sudo systemctl enable --now "$svc" && ok "$svc enabled"
         fi
     done
-
-    # SDDM last and separately: enabling a display manager changes how the
-    # machine boots, so it never happens without an explicit yes.
-    if systemctl is-enabled --quiet sddm 2>/dev/null; then
-        ok "sddm already enabled"
-    elif ask "Enable sddm? (this changes what starts at boot)"; then
-        sudo systemctl enable sddm && ok "sddm enabled — reboot to use it"
-    fi
 else
     say "Skipping services (--no-services)"
 fi
@@ -196,4 +188,4 @@ fi
 
 echo
 ok "Ashen setup complete."
-echo "  Log out and log back in through SDDM, picking the Hyprland session."
+echo "  Log out and start the Hyprland session from your display manager or TTY."

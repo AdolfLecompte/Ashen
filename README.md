@@ -46,7 +46,7 @@ brightnessctl lm_sensors
 wl-clipboard cliphist grim slurp wf-recorder
 hypridle mpvpaper ffmpeg
 nemo zenity fastfetch cava
-sddm papirus-icon-theme ttf-jetbrains-mono-nerd
+papirus-icon-theme ttf-jetbrains-mono-nerd
 xdg-desktop-portal-hyprland polkit-gnome
 ```
 
@@ -113,12 +113,12 @@ system services. It is safe to re-run. Flags:
 To do it by hand instead:
 
 ```bash
-stow -t ~ cava dconf fastfetch gtk hypr kitty matugen quickshell sddm zsh
+stow -t ~ cava dconf fastfetch gtk hypr kitty matugen quickshell zsh
 ```
 
 Then set Zsh as your shell (`chsh -s $(which zsh)`), enable `NetworkManager`,
-`bluetooth`, `power-profiles-daemon` and `sddm`, and log into the Hyprland session
-through SDDM.
+`bluetooth` and `power-profiles-daemon`, and start the Hyprland session from your
+display manager or TTY.
 
 > **Clone to `~/ashen`.** `scripts/` is deliberately *not* stowed — the shell calls
 > those scripts by absolute path (`$HOME/ashen/scripts/ashen-wallpaper.sh`), so the
@@ -159,7 +159,7 @@ The keyboard layout pill in the bar is **read-only**. Layouts are declared in
 
 ## Status
 
-1.1.2. The SDDM theme is in the repo but not enabled by default yet.
+1.1.3.
 
 ## License
 
