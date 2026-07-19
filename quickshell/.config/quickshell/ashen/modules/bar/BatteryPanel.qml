@@ -168,14 +168,38 @@ PanelWindow {
                     }
                 }
 
-                // Centered percentage
-                Text {
+                // Centered battery glyph + percentage
+                RowLayout {
                     anchors.centerIn: parent
-                    text: Services.Battery.level + "%"
-                    color: Services.Colors.snow
-                    font.pixelSize: 44
-                    font.bold: true
-                    font.family: "JetBrainsMono NF"
+                    spacing: 12
+
+                    // Glyph tracks charge level (and charging state)
+                    Text {
+                        text: {
+                            if (Services.Battery.charging) return "\ue1a3"   // battery_charging_full
+                            var l = Services.Battery.level
+                            if (l >= 95) return "\ue1a5"                     // battery_full
+                            if (l >= 85) return "\uf0a1"                     // battery_6_bar
+                            if (l >= 70) return "\uf0a0"                     // battery_5_bar
+                            if (l >= 55) return "\uf09f"                     // battery_4_bar
+                            if (l >= 40) return "\uf09e"                     // battery_3_bar
+                            if (l >= 25) return "\uf09d"                     // battery_2_bar
+                            if (l >= 10) return "\uf09c"                     // battery_1_bar
+                            return "\uebdc"                                 // battery_0_bar
+                        }
+                        color: Services.Battery.charging ? Services.Colors.ghost
+                            : (Services.Battery.level <= 15 ? Services.Colors.snow : Services.Colors.ghost)
+                        font.family: "Material Symbols Rounded"
+                        font.pixelSize: 40
+                    }
+
+                    Text {
+                        text: Services.Battery.level + "%"
+                        color: Services.Colors.snow
+                        font.pixelSize: 44
+                        font.bold: true
+                        font.family: "JetBrainsMono NF"
+                    }
                 }
             }
 
