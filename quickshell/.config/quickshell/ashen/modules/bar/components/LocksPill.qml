@@ -10,11 +10,12 @@ Rectangle {
 
     height: 44
     radius: 10
-    // Whole containment pill fills with the accent when a lock is on, the same
-    // inversion every other active pill uses (see RecordingPill). No inner pills.
+    // Solid-accent containment pill with dark glyphs, so the locks read clearly.
+    // Glyphs sit at a middle size: big enough to fill the pill squarely, not the
+    // oversized 24px that dominated the bar.
     color: Services.Colors.ghost
     border.width: 0
-    width: anyActive ? (locksRow.width + 20) : 0
+    width: anyActive ? (locksRow.width + 18) : 0
     opacity: anyActive ? 1.0 : 0.0
     clip: true
     Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
@@ -23,14 +24,14 @@ Rectangle {
     Row {
         id: locksRow
         anchors.centerIn: parent
-        spacing: 10
+        spacing: 8
 
         // Caps Lock (only present while active)
         Text {
             visible: root.capsActive
-            text: "\ue318"
+            text: "\ue318"                 // keyboard_capslock
             color: Services.Colors.abyss
-            font.pixelSize: 24
+            font.pixelSize: 20
             font.bold: true
             font.family: "Material Symbols Rounded"
             anchors.verticalCenter: parent.verticalCenter
@@ -38,9 +39,9 @@ Rectangle {
         // Num Lock (only present while active)
         Text {
             visible: root.numActive
-            text: "\uf2af"
+            text: "\ue400"                 // looks_one
             color: Services.Colors.abyss
-            font.pixelSize: 24
+            font.pixelSize: 20
             font.bold: true
             font.family: "Material Symbols Rounded"
             anchors.verticalCenter: parent.verticalCenter
