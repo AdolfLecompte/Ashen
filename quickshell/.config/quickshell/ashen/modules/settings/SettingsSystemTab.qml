@@ -114,6 +114,21 @@ Item {
         }
     }
 
+    // Fixed-size glyph box so every setting row's label starts at the same x
+    // (matches the boxed glyph SliderRow already uses).
+    component RowGlyph: Rectangle {
+        id: rg
+        property string glyph: ""
+        width: 26; height: 26; radius: 8; color: "transparent"
+        Text {
+            anchors.centerIn: parent
+            text: rg.glyph
+            font.family: "Material Symbols Rounded"
+            font.pixelSize: 18
+            color: Services.Colors.ghost
+        }
+    }
+
     component Toggle: Rectangle {
         id: sw
         property bool checked: false
@@ -355,33 +370,23 @@ Item {
 
             Divider {}
 
-            // ── Clock ──
+            // -- Clock --
             SectionLabel { text: "Clock" }
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
-                Text {
-                    text: ""
-                    font.family: "Material Symbols Rounded"
-                    font.pixelSize: 18
-                    color: Services.Colors.ghost
-                }
+                RowGlyph { glyph: "\uefd6" }        // access_time
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
                     Text { text: "Time Format"; color: Services.Colors.snow; font.pixelSize: 13; font.family: "JetBrainsMono NF" }
-                    Text {
-                        text: col.timePreview
-                        color: Services.Colors.ash
-                        font.pixelSize: 10
-                        font.family: "JetBrainsMono NF"
-                    }
+                    Text { text: col.timePreview; color: Services.Colors.ash; font.pixelSize: 10; font.family: "JetBrainsMono NF" }
                 }
                 ChoiceRow {
                     options: [
                         { id: "24", label: "24H" },
-                        { id: "12", label: "12H AM/PM" },
+                        { id: "12", label: "12H" },
                     ]
                     current: Services.Prefs.clock24h ? "24" : "12"
                     onPicked: id => Services.Prefs.clock24h = (id === "24")
@@ -391,12 +396,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
-                Text {
-                    text: ""
-                    font.family: "Material Symbols Rounded"
-                    font.pixelSize: 18
-                    color: Services.Colors.ghost
-                }
+                RowGlyph { glyph: "\ue425" }        // timer
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
@@ -409,26 +409,20 @@ Item {
                 }
             }
 
+            Divider {}
+
+            // -- Weather --
+            SectionLabel { text: "Weather" }
+
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
-                Text {
-                    text: ""
-                    font.family: "Material Symbols Rounded"
-                    font.pixelSize: 18
-                    color: Services.Colors.ghost
-                }
+                RowGlyph { glyph: "\uf076" }        // thermostat
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
                     Text { text: "Temperature"; color: Services.Colors.snow; font.pixelSize: 13; font.family: "JetBrainsMono NF" }
-                    Text {
-                        // The forecast API only speaks celsius; F and K are converted locally
-                        text: "Now: " + Services.Weather.temp
-                        color: Services.Colors.ash
-                        font.pixelSize: 10
-                        font.family: "JetBrainsMono NF"
-                    }
+                    Text { text: "Now: " + Services.Weather.temp; color: Services.Colors.ash; font.pixelSize: 10; font.family: "JetBrainsMono NF" }
                 }
                 ChoiceRow {
                     options: [
@@ -438,6 +432,121 @@ Item {
                     ]
                     current: Services.Prefs.tempUnit
                     onPicked: id => Services.Prefs.tempUnit = id
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+                RowGlyph { glyph: "\ue7f1" }        // location_city
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Text { text: "Location"; color: Services.Colors.snow; font.pixelSize: 13; font.family: "JetBrainsMono NF" }
+                    Text {
+                        text: Services.Weather.cityError
+                            ? "No matches - try another name"
+                            : (Services.Weather.city !== "" ? Services.Weather.city : "Auto (by IP)")
+                        color: Services.Weather.cityError ? Services.Colors.error_ : Services.Colors.ash
+                        font.pixelSize: 10
+                        font.family: "JetBrainsMono NF"
+                    }
+                }
+                Rectangle {
+                    Layout.preferredWidth: 150
+                    Layout.preferredHeight: 34
+                    radius: 10
+                    color: Services.Colors.ghostAlpha(0.12)
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Type a city..."
+                        color: Services.Colors.ash
+                        font.pixelSize: 12
+                        font.family: "JetBrainsMono NF"
+                        visible: cityInput.text.length === 0
+                    }
+                    TextInput {
+                        id: cityInput
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: Services.Colors.snow
+                        font.pixelSize: 12
+                        font.family: "JetBrainsMono NF"
+                        clip: true
+                        onTextChanged: cityDebounce.restart()
+                        onAccepted: {
+                            let r = Services.Weather.searchResults
+                            if (r.length > 0) { Services.Weather.chooseResult(r[0].lat, r[0].lon, r[0].label); text = "" }
+                        }
+                    }
+                }
+            }
+
+            // Debounce keystrokes so the geocoder isn't hit on every letter.
+            Timer {
+                id: cityDebounce
+                interval: 350
+                onTriggered: Services.Weather.search(cityInput.text)
+            }
+
+            // Candidate dropdown (name + region/country); one tap to pick.
+            Repeater {
+                model: Services.Weather.searchResults
+                delegate: Rectangle {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 38
+                    radius: 8
+                    color: sugArea.containsMouse ? Services.Colors.ghostAlpha(0.18) : Services.Colors.ghostAlpha(0.06)
+                    Behavior on color { ColorAnimation { duration: 120 } }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        spacing: 10
+                        Text {
+                            text: "\uf1db"            // location_on
+                            font.family: "Material Symbols Rounded"
+                            font.pixelSize: 14
+                            color: Services.Colors.ghost
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+                            Text {
+                                text: modelData.label
+                                color: Services.Colors.snow
+                                font.pixelSize: 12
+                                font.family: "JetBrainsMono NF"
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+                            Text {
+                                text: modelData.detail
+                                visible: text !== ""
+                                color: Services.Colors.ash
+                                font.pixelSize: 9
+                                font.family: "JetBrainsMono NF"
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+                    MouseArea {
+                        id: sugArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Services.Weather.chooseResult(modelData.lat, modelData.lon, modelData.label)
+                            cityInput.text = ""
+                        }
+                    }
                 }
             }
 
