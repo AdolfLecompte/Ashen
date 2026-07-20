@@ -303,7 +303,7 @@ PanelWindow {
                             onPaint: {
                                 var ctx = getContext("2d")
                                 ctx.reset()
-                                ctx.lineWidth = 4
+                                ctx.lineWidth = 5
                                 ctx.lineCap = "round"
                                 // Dim full wave
                                 ctx.strokeStyle = Services.Colors.ghostAlpha(0.18)
