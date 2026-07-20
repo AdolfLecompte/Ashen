@@ -149,6 +149,11 @@ PanelWindow {
                         to: battBox.target
                         duration: 6500; easing.type: Easing.OutCubic
                     }
+                    // The sweep's end value is captured when it starts; if the
+                    // async battery refresh landed a fresher level mid-sweep, the
+                    // onTargetChanged handler skipped it (guarded on !running), so
+                    // reconcile to the live target once the trace settles.
+                    onStopped: if (win.shown && battBox.armed && battBox.frac !== battBox.target) liveFrac.restart()
                 }
                 // After the sweep, ease to live level changes (e.g. while charging).
                 onTargetChanged: if (win.shown && battBox.armed && !introSweep.running) liveFrac.restart()
