@@ -129,7 +129,7 @@ Scope {
 
         Rectangle {
             anchors.centerIn: parent
-            width: 540
+            width: 720
             height: 580
             radius: 16
             color: Services.Colors.surfaceAlpha(0.96)
@@ -266,12 +266,15 @@ Scope {
                             required property var modelData
                             required property int index
                             width: list.width
-                            height: 48
+                            // Image rows are a bit taller to fit the fixed tile;
+                            // text rows stay compact.
+                            height: modelData.isImage ? 76 : 48
                             radius: 8
                             color: index === win.selectedIndex ? Services.Colors.ghostAlpha(0.2) : Services.Colors.ghostAlpha(0.08)
                             Behavior on color { ColorAnimation { duration: 100 } }
 
                             RowLayout {
+                                visible: !modelData.isImage
                                 anchors.fill: parent
                                 anchors.leftMargin: 12
                                 anchors.rightMargin: 8
@@ -322,6 +325,67 @@ Scope {
                                         hoverEnabled: true
                                         onEntered: parent.color = Services.Colors.ghostAlpha(0.2)
                                         onExited: parent.color = "transparent"
+                                        onClicked: win.deleteEntry(modelData)
+                                    }
+                                }
+                            }
+
+                            // Image row: fixed rounded tile on the left + the
+                            // capture name beside it, like the settings wallpaper card.
+                            RowLayout {
+                                visible: modelData.isImage
+                                anchors.fill: parent
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 8
+                                spacing: 12
+
+                                Rectangle {
+                                    Layout.preferredWidth: 132
+                                    Layout.preferredHeight: 60
+                                    radius: 8
+                                    color: Services.Colors.ghostAlpha(0.15)
+                                    clip: true
+                                    Image {
+                                        anchors.fill: parent
+                                        anchors.margins: 3
+                                        source: modelData.thumbPath !== "" ? "file://" + modelData.thumbPath : ""
+                                        fillMode: Image.PreserveAspectFit
+                                        visible: modelData.thumbPath !== "" && status === Image.Ready
+                                        asynchronous: true
+                                        cache: false
+                                    }
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: ""
+                                        color: Services.Colors.ghost
+                                        font.pixelSize: 22
+                                        font.family: "Material Symbols Rounded"
+                                        visible: modelData.thumbPath === ""
+                                    }
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData.preview
+                                    color: Services.Colors.snow
+                                    font.pixelSize: 12
+                                    font.family: "JetBrainsMono NF"
+                                    elide: Text.ElideRight
+                                }
+                                Rectangle {
+                                    Layout.preferredWidth: 26; Layout.preferredHeight: 26; radius: 7
+                                    color: delImgMouse.containsMouse ? Services.Colors.ghostAlpha(0.2) : "transparent"
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: ""
+                                        color: Services.Colors.ash
+                                        font.pixelSize: 14
+                                        font.family: "Material Symbols Rounded"
+                                    }
+                                    MouseArea {
+                                        id: delImgMouse
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        hoverEnabled: true
                                         onClicked: win.deleteEntry(modelData)
                                     }
                                 }
