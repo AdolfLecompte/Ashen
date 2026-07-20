@@ -17,7 +17,7 @@ PanelWindow {
     Timer { id: closeDelay; interval: 300; onTriggered: battBox.frac = 0 }
     // Holds the border sweep until the window has mapped and the card settled,
     // so the whole 0->level trace is actually seen (see introSweep).
-    Timer { id: openDelay; interval: 260; onTriggered: introSweep.restart() }
+    Timer { id: openDelay; interval: 260; onTriggered: { battBox.armed = true; introSweep.restart() } }
 
     property string timeRemaining: "--"
     property var availableProfiles: []
@@ -26,8 +26,8 @@ PanelWindow {
     function refreshBattery() { battProc.running = true }
     function refreshProfiles() { profProc.running = true }
     onShownChanged: {
-        if (shown) { refreshBattery(); refreshProfiles(); battBox.frac = 0; openDelay.restart() }
-        else closeDelay.restart()
+        if (shown) { refreshBattery(); refreshProfiles(); battBox.armed = false; battBox.frac = 0; openDelay.restart() }
+        else { battBox.armed = false; closeDelay.restart() }
     }
 
     function setProfile(name) {
@@ -128,6 +128,11 @@ PanelWindow {
                 // actually strokes, so it can animate independently of the level.
                 property real target: Services.Battery.level / 100
                 property real frac: 0
+                // Canvas keeps its last rendered image as a texture: on re-map
+                // it flashes that stale (full) buffer before the sweep repaints.
+                // Gate the whole canvas on `armed` so it's invisible until the
+                // sweep actually starts -> no full-flash, no jump.
+                property bool armed: false
                 onFracChanged: battCanvas.requestPaint()
                 onWidthChanged: battCanvas.requestPaint()
                 onHeightChanged: battCanvas.requestPaint()
@@ -142,11 +147,11 @@ PanelWindow {
                     NumberAnimation {
                         target: battBox; property: "frac"
                         to: battBox.target
-                        duration: 3200; easing.type: Easing.OutCubic
+                        duration: 6500; easing.type: Easing.OutCubic
                     }
                 }
                 // After the sweep, ease to live level changes (e.g. while charging).
-                onTargetChanged: if (win.shown && !introSweep.running) liveFrac.restart()
+                onTargetChanged: if (win.shown && battBox.armed && !introSweep.running) liveFrac.restart()
                 NumberAnimation {
                     id: liveFrac
                     target: battBox; property: "frac"
@@ -157,6 +162,7 @@ PanelWindow {
                 Canvas {
                     id: battCanvas
                     anchors.fill: parent
+                    opacity: battBox.armed ? 1 : 0
                     onPaint: {
                         var ctx = getContext("2d")
                         ctx.reset()
@@ -274,8 +280,25 @@ PanelWindow {
                 font.letterSpacing: 1
             }
 
-            RowLayout {
+            Item {
+                id: profSelect
                 Layout.fillWidth: true
+                Layout.preferredHeight: 64
+                property Item activeProf: null
+
+                // Sliding highlight behind the active profile (workspace-style)
+                Rectangle {
+                    visible: profSelect.activeProf !== null
+                    x: profSelect.activeProf ? profSelect.activeProf.x : 0
+                    width: profSelect.activeProf ? profSelect.activeProf.width : 0
+                    height: 64
+                    radius: 12
+                    color: Services.Colors.ghost
+                    Behavior on x { SmoothedAnimation { duration: 250 } }
+                }
+
+                RowLayout {
+                anchors.fill: parent
                 spacing: 10
 
                 Repeater {
@@ -287,10 +310,13 @@ PanelWindow {
                     delegate: Rectangle {
                         required property var modelData
                         property bool available: win.availableProfiles.includes(modelData.id)
+                        readonly property bool active: win.activeProfile === modelData.id
+                        onActiveChanged: if (active) profSelect.activeProf = this
+                        Component.onCompleted: if (active) profSelect.activeProf = this
                         Layout.fillWidth: true
                         height: 64
                         radius: 12
-                        color: win.activeProfile === modelData.id ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.12)
+                        color: active ? "transparent" : Services.Colors.ghostAlpha(0.12)
                         opacity: available ? 1.0 : 0.35
                         Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -299,7 +325,7 @@ PanelWindow {
                             text: modelData.icon
                             font.family: "Material Symbols Rounded"
                             font.pixelSize: 28
-                            color: win.activeProfile === modelData.id ? Services.Colors.abyss : Services.Colors.mist
+                            color: active ? Services.Colors.abyss : Services.Colors.mist
                         }
 
                         MouseArea {
@@ -310,6 +336,7 @@ PanelWindow {
                         }
                     }
                 }
+            }
             }
         }
     }
