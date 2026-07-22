@@ -347,6 +347,15 @@ Item {
                     "wpctl set-mute @DEFAULT_AUDIO_SINK@ 0 && wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ " + pct + "%"])
             }
 
+            // Output device selector (speakers / headphones / HDMI)
+            Widgets.DevicePicker {
+                Layout.fillWidth: true
+                glyph: "\ue050"
+                devices: Services.Audio.sinks
+                current: Services.Audio.defaultSink
+                onPicked: name => Services.Audio.setSink(name)
+            }
+
             SliderRow {
                 glyph: Services.Audio.micMuted ? "" : ""
                 label: "Microphone"
@@ -361,6 +370,15 @@ Item {
                     if (Services.Audio.micMuted) Services.Audio.toggleMicMute()
                     Services.Audio.setMicVolume(pct)
                 }
+            }
+
+            // Input device selector (microphones)
+            Widgets.DevicePicker {
+                Layout.fillWidth: true
+                glyph: "\ue029"
+                devices: Services.Audio.sources
+                current: Services.Audio.defaultSource
+                onPicked: name => Services.Audio.setSource(name)
             }
 
             SliderRow {

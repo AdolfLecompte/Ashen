@@ -32,7 +32,7 @@ PanelWindow {
         anchors.top: parent.top
         anchors.topMargin: 64
         width: 300
-        height: 152
+        height: col.implicitHeight + 32
         x: Math.max(12, Math.min(parent.width - width - 12, Services.AppState.volumePillCenterX - width / 2))
         radius: 16
         color: Services.Colors.surfaceAlpha(0.95)
@@ -49,7 +49,10 @@ PanelWindow {
         MouseArea { anchors.fill: parent; onClicked: {} }
 
         Column {
-            anchors.fill: parent
+            id: col
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
             anchors.margins: 16
             spacing: 12
 
@@ -117,6 +120,15 @@ PanelWindow {
                 fillColor: Services.Audio.muted ? Services.Colors.mist : Services.Colors.ghost
                 value: Services.Audio.volume / 100
                 onMoved: r => win.setVolume(r)
+            }
+
+            // Output device picker (speakers / headphones / HDMI)
+            Widgets.DevicePicker {
+                width: parent.width
+                glyph: "\ue050"
+                devices: Services.Audio.sinks
+                current: Services.Audio.defaultSink
+                onPicked: name => Services.Audio.setSink(name)
             }
 
             // ── Divider ────────────────────────────
@@ -190,6 +202,15 @@ PanelWindow {
                 fillColor: Services.Audio.micMuted ? Services.Colors.mist : Services.Colors.ghost
                 value: Services.Audio.micVolume / 100
                 onMoved: r => Services.Audio.setMicVolume(Math.round(r * 100))
+            }
+
+            // Input device picker (microphones)
+            Widgets.DevicePicker {
+                width: parent.width
+                glyph: "\ue029"
+                devices: Services.Audio.sources
+                current: Services.Audio.defaultSource
+                onPicked: name => Services.Audio.setSource(name)
             }
         }
     }

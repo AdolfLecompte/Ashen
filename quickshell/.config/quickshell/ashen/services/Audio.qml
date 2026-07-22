@@ -30,6 +30,41 @@ Singleton {
         Quickshell.execDetached(["sh", "-c", "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ " + pct + "%"])
     }
 
+    // ── Output/input device switching (like Noctalia) ──────────────────────
+    // Each entry: { name: <pactl node name>, desc: <human label> }.
+    property var sinks: []
+    property var sources: []
+    property string defaultSink: ""
+    property string defaultSource: ""
+
+    // Strip the long controller prefix so the picker shows just the port name.
+    function shortName(desc) {
+        return (desc || "").replace(/^.*High Definition Audio Controller /, "")
+                           .replace(/^Monitor of /, "Monitor: ")
+    }
+
+    // Set the default and move every already-running stream over, so the switch
+    // is immediate instead of only affecting apps opened afterwards.
+    function setSink(name) {
+        Quickshell.execDetached(["sh", "-c",
+            "pactl set-default-sink '" + name + "'; " +
+            "for i in $(pactl list short sink-inputs | cut -f1); do pactl move-sink-input $i '" + name + "'; done"])
+        root.defaultSink = name
+        refreshDevices()
+    }
+    function setSource(name) {
+        Quickshell.execDetached(["sh", "-c",
+            "pactl set-default-source '" + name + "'; " +
+            "for i in $(pactl list short source-outputs | cut -f1); do pactl move-source-output $i '" + name + "'; done"])
+        root.defaultSource = name
+        refreshDevices()
+    }
+    function refreshDevices() {
+        sinkListProc.running = true
+        srcListProc.running = true
+        srcDefaultProc.running = true
+    }
+
 
     Process {
         id: volProc
@@ -63,7 +98,45 @@ Singleton {
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
+                root.defaultSink = text.trim()
                 root.headphones = /headphone|headset|bluez/i.test(text)
+            }
+        }
+    }
+    Process {
+        id: srcDefaultProc
+        command: ["sh", "-c", "pactl get-default-source"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: { root.defaultSource = text.trim() }
+        }
+    }
+
+    Process {
+        id: sinkListProc
+        command: ["sh", "-c", "pactl -f json list sinks"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    let arr = JSON.parse(text)
+                    root.sinks = arr.map(s => ({ name: s.name, desc: root.shortName(s.description) }))
+                } catch (e) { root.sinks = [] }
+            }
+        }
+    }
+    Process {
+        id: srcListProc
+        command: ["sh", "-c", "pactl -f json list sources"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    // Drop the monitor sources (loopbacks of every sink) — only
+                    // real capture devices (microphones) belong in the picker.
+                    let arr = JSON.parse(text).filter(s => !s.name.endsWith(".monitor"))
+                    root.sources = arr.map(s => ({ name: s.name, desc: root.shortName(s.description) }))
+                } catch (e) { root.sources = [] }
             }
         }
     }
@@ -73,5 +146,12 @@ Singleton {
         running: true
         repeat: true
         onTriggered: { volProc.running = true; micProc.running = true; sinkProc.running = true }
+    }
+    // Device lists change rarely (plug/unplug); poll them slower.
+    Timer {
+        interval: 3000
+        running: true
+        repeat: true
+        onTriggered: root.refreshDevices()
     }
 }
