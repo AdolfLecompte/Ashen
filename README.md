@@ -166,7 +166,7 @@ The keyboard layout pill in the bar is **read-only**. Layouts are declared in
 
 ## Status
 
-1.5.0
+1.5.1
 
 ## License
 

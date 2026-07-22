@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.1
+
+### Fixed
+- **Portability** — every path now resolves from `$HOME` at runtime instead of
+  the hardcoded `/home/adolf`, and the install-time `sed` that rewrote the
+  working tree is gone. `git pull` no longer dirties the tree or conflicts on
+  each release, and paths that pointed at the repo checkout (glyph data,
+  `general.lua`, `input.lua`) now use the stowed `~/.config` location, so they
+  hold wherever the repo was cloned.
+
 ## 1.5.0
 
 ### Added
