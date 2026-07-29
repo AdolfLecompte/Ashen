@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import "root:/services" as Services
+import "root:/modules/settings/components"
 import "root:/modules/net" as Net
 
 Item {
@@ -13,6 +14,10 @@ Item {
     property var networks: []
     property var knownNetworks: []
     property string connectingTo: ""
+
+    // Saved networks currently in range (not the active one).
+    readonly property var knownRows: tab.networks.filter(n => !n.active && tab.knownNetworks.includes(n.ssid))
+
     property string password: ""
     property bool showPassword: false
     property bool showConnectDialog: false
@@ -22,12 +27,11 @@ Item {
         knownProc.running = true
     }
 
-    // Olvidar una red por SSID. El nombre del perfil de NetworkManager NO siempre
-    // es el SSID: ante duplicados NM crea "SSID 1", "SSID 2"… así que
-    // `connection delete id <ssid>` falla silenciosamente para esos perfiles
-    // (justo los de las redes a las que ya te conectaste). Resolvemos SSID→perfil
-    // recorriendo los perfiles wifi y borrando todos los que matcheen.
-    // sh -c con el SSID como $1 (argv, no interpolado) evita inyección de shell.
+    // Forget a network by SSID. A NetworkManager profile name isn't always the
+    // SSID: on duplicates NM makes "SSID 1", "SSID 2"…, so `connection delete id
+    // <ssid>` fails silently for those. We resolve SSID→profile by walking the
+    // wifi profiles and deleting every match. SSID passed as $1 (argv, not
+    // interpolated) to avoid shell injection.
     function forgetSsid(ssid) {
         forgetProc.ssid = ssid
         forgetProc.running = true
@@ -80,9 +84,8 @@ Item {
 
     Process {
         id: knownProc
-        // Emitimos el SSID de cada perfil wifi guardado (NO el nombre del perfil,
-        // que puede ser "SSID 1"). Así la clasificación known/available compara
-        // SSID contra SSID y las redes ya guardadas caen en "Known Networks".
+        // Emit each saved wifi profile's SSID (not the profile name, which may be
+        // "SSID 1"), so known/available classification compares SSID against SSID.
         command: ["sh", "-c",
             'nmcli -t -f NAME,TYPE connection show | while IFS=: read -r n t; do [ "$t" = 802-11-wireless ] || continue; nmcli -g 802-11-wireless.ssid connection show "$n"; done']
         running: false
@@ -116,6 +119,7 @@ Item {
         visible: !tab.showConnectDialog
 
         Text {
+            visible: false   // the drawer header carries the section name
             text: "Wi-Fi"
             color: Services.Colors.snow
             font.pixelSize: 20
@@ -151,33 +155,20 @@ Item {
                     onClicked: tab.refreshNetworks()
                 }
             }
-            Rectangle {
-                width: 52; height: 28; radius: 14
-                color: Services.Network.wifiEnabled ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.25)
-                Behavior on color { ColorAnimation { duration: 200 } }
-                Rectangle {
-                    width: 20; height: 20; radius: 10
-                    color: Services.Colors.snow
-                    anchors.verticalCenter: parent.verticalCenter
-                    x: Services.Network.wifiEnabled ? parent.width - width - 4 : 4
-                    Behavior on x { NumberAnimation { duration: 200 } }
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        let turnOn = !Services.Network.wifiEnabled
-                        // Optimistic: flip the pill/panel and empty the list NOW so
-                        // there's no ~6s lag waiting for the service's 10s poll.
-                        Services.Network.wifiEnabled = turnOn
-                        if (!turnOn) {
-                            tab.networks = []
-                            Services.Network.wifiSsid = ""
-                            Services.Network.wifiSignal = 0
-                        }
-                        Quickshell.execDetached(["sh", "-c", turnOn ? "nmcli radio wifi on" : "nmcli radio wifi off"])
-                        wifiSettleTimer.restart()   // reconcile with reality shortly
+            Toggle {
+                checked: Services.Network.wifiEnabled
+                onToggled: {
+                    let turnOn = !Services.Network.wifiEnabled
+                    // Optimistic: flip the pill/panel and empty the list NOW so
+                    // there's no ~6s lag waiting for the service's 10s poll.
+                    Services.Network.wifiEnabled = turnOn
+                    if (!turnOn) {
+                        tab.networks = []
+                        Services.Network.wifiSsid = ""
+                        Services.Network.wifiSignal = 0
                     }
+                    Quickshell.execDetached(["sh", "-c", turnOn ? "nmcli radio wifi on" : "nmcli radio wifi off"])
+                    wifiSettleTimer.restart()   // reconcile with reality shortly
                 }
             }
         }
@@ -187,9 +178,10 @@ Item {
             height: Services.Network.wifiSsid !== "" ? 64 : 0
             visible: Services.Network.wifiSsid !== ""
             radius: 8
+            // Filled, not outlined: the accent border read as a glow and
+            // nothing else in the shell outlines a selection.
             color: Services.Colors.ghostAlpha(0.2)
-            border.color: Services.Colors.ghost
-            border.width: 1
+            border.width: 0
             RowLayout {
                 anchors.fill: parent
                 anchors.margins: 12
@@ -230,17 +222,17 @@ Item {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 4
-            visible: tab.networks.filter(n => !n.active && tab.knownNetworks.includes(n.ssid)).length > 0
+            visible: tab.knownRows.length > 0
             Text { text: "Known Networks"; color: Services.Colors.mist; font.pixelSize: 10; font.family: "JetBrainsMono NF"; leftPadding: 4 }
             Rectangle {
                 Layout.fillWidth: true
-                height: Math.min(knownList.contentHeight, 3 * 54)
+                Layout.preferredHeight: Math.min(knownList.contentHeight, 3 * 54)
                 color: "transparent"
                 clip: true
                 ListView {
                     id: knownList
                     anchors.fill: parent
-                    model: tab.networks.filter(n => !n.active && tab.knownNetworks.includes(n.ssid))
+                    model: tab.knownRows
                     spacing: 2
                     clip: true
                     ScrollBar.vertical: ScrollBar { policy: knownList.contentHeight > knownList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff; width: 4 }
@@ -411,6 +403,7 @@ Item {
                     Layout.fillWidth: true
                     height: 40; radius: 8
                     color: Services.Colors.ghost
+                    gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                     function connect() {
                         // argv, not a shell string: an SSID or password holding a
                         // quote would otherwise close it and run the rest as shell.
@@ -420,13 +413,20 @@ Item {
                         Quickshell.execDetached(cmd)
                         tab.showConnectDialog = false
                     }
+                    // Hover keeps the accent and just lifts it with a white veil.
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: parent.radius
+                        color: Services.Colors.snowAlpha(0.16)
+                        opacity: connectMouse.containsMouse ? 1 : 0
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                    }
                     Text { anchors.centerIn: parent; text: "Connect"; color: Services.Colors.abyss; font.pixelSize: 13; font.family: "JetBrainsMono NF"; font.bold: true }
                     MouseArea {
+                        id: connectMouse
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         hoverEnabled: true
-                        onEntered: parent.color = Services.Colors.shade
-                        onExited: parent.color = Services.Colors.ghost
                         onClicked: connectBtn.connect()
                     }
                 }

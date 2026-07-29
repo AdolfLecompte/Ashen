@@ -5,124 +5,10 @@ import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
 import "root:/services" as Services
+import "root:/modules/settings/components"
 
 Item {
     anchors.fill: parent
-
-    // Profile picture and Wallpaper are the same card: a rounded preview of an
-    // image, a glyph while there is none, a label pinned beside it and one
-    // action button.
-    component PreviewCard: Rectangle {
-        id: card
-        property string source: ""
-        property string fallbackGlyph: ""
-        property string title: ""
-        property string subtitle: ""
-        property string action: ""
-        // Square + crop suits a face; a wallpaper needs a wide tile and a fit,
-        // since they run from near-square to 2.76 ultrawide and cropping would
-        // hide most of the picture.
-        property int previewWidth: 80
-        property int previewFill: Image.PreserveAspectCrop
-        signal triggered()
-
-        Layout.fillWidth: true
-        height: 110
-        radius: 12
-        color: cardHover.containsMouse ? Services.Colors.ghostAlpha(0.18) : Services.Colors.ghostAlpha(0.1)
-        Behavior on color { ColorAnimation { duration: 150 } }
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 16
-            anchors.rightMargin: 16
-            // Small gap only: the label belongs to the picture, so it sits next
-            // to it rather than drifting into the middle of the card.
-            spacing: 12
-
-            Rectangle {
-                id: preview
-                width: card.previewWidth; height: 80
-                radius: 12
-                color: Services.Colors.ghostAlpha(0.2)
-                clip: true
-
-                Image {
-                    id: previewImg
-                    anchors.fill: parent
-                    source: card.source
-                    fillMode: card.previewFill
-                    asynchronous: true
-                    visible: false
-                    // paths are stable while the file behind them changes
-                    cache: false
-                }
-                Rectangle {
-                    id: previewMask
-                    anchors.fill: previewImg
-                    radius: preview.radius
-                    visible: false
-                }
-                OpacityMask {
-                    anchors.fill: previewImg
-                    source: previewImg
-                    maskSource: previewMask
-                    visible: previewImg.status === Image.Ready
-                }
-                Text {
-                    anchors.centerIn: parent
-                    text: card.fallbackGlyph
-                    color: Services.Colors.ghost
-                    font.pixelSize: 40
-                    font.family: "Material Symbols Rounded"
-                    visible: previewImg.status !== Image.Ready
-                }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 3
-                Text {
-                    text: card.title
-                    color: Services.Colors.snow
-                    font.pixelSize: 15
-                    font.bold: true
-                    font.family: "JetBrainsMono NF"
-                    Layout.alignment: Qt.AlignLeft
-                }
-                Text {
-                    text: card.subtitle
-                    color: Services.Colors.mist
-                    font.pixelSize: 10
-                    font.family: "JetBrainsMono NF"
-                    elide: Text.ElideMiddle
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignLeft
-                }
-            }
-
-            Rectangle {
-                width: 90; height: 36
-                radius: 8
-                color: Services.Colors.ghost
-                Text {
-                    anchors.centerIn: parent
-                    text: card.action
-                    color: Services.Colors.abyss
-                    font.pixelSize: 12
-                    font.bold: true
-                    font.family: "JetBrainsMono NF"
-                }
-            }
-        }
-        MouseArea {
-            id: cardHover
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            hoverEnabled: true
-            onClicked: card.triggered()
-        }
-    }
 
     Flickable {
         anchors.fill: parent
@@ -324,43 +210,13 @@ Item {
         ])
     }
     Text {
+        visible: false   // the drawer header carries the section name
         text: "Theme"
         color: Services.Colors.snow
         font.pixelSize: 20
         font.bold: true
         font.family: "JetBrainsMono NF"
     }
-
-    PreviewCard {
-        source: Services.AppState.facePath
-        fallbackGlyph: "\uf0d3"
-        title: "Profile Picture"
-        subtitle: Services.AppState.userLabel
-        action: "Change"
-        onTriggered: facePickProc.running = true
-    }
-
-    Process {
-        id: facePickProc
-        command: ["sh", "-c", "zenity --file-selection --title='Choose profile picture' --file-filter='Images | *.png *.jpg *.jpeg' 2>/dev/null"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let path = text.trim()
-                if (path.length > 0 && Services.AppState.homeDir !== "") {
-                    faceCopyProc.command = ["cp", path, Services.AppState.homeDir + "/.face"]
-                    faceCopyProc.running = true
-                }
-            }
-        }
-    }
-    Process {
-        id: faceCopyProc
-        running: false
-        onExited: Services.AppState.faceVersion = Date.now()
-    }
-
-    Rectangle { Layout.fillWidth: true; height: 1; color: Services.Colors.ghostAlpha(0.15) }
 
     PreviewCard {
         // Shows the wallpaper actually on screen; video/gif resolve to the
@@ -375,7 +231,7 @@ Item {
         // import, so promising "add" here would be a lie.
         subtitle: Services.Wallpaper.path !== ""
             ? Services.Wallpaper.path.split("/").pop()
-            : "Pick one from ~/Pictures/Wallpapers"
+            : "Pick one from " + wallDirRow.dir
         action: "Open"
         onTriggered: {
             Services.AppState.settingsVisible = false
@@ -383,7 +239,71 @@ Item {
         }
     }
 
-    Rectangle { Layout.fillWidth: true; height: 1; color: Services.Colors.ghostAlpha(0.15) }
+    // Where the picker looks. Same shape as the recording folder row in Sound.
+    RowLayout {
+        id: wallDirRow
+        Layout.fillWidth: true
+        Layout.topMargin: 4
+        spacing: 12
+
+        readonly property string dir: Services.Prefs.wallpaperDir !== ""
+            ? Services.Prefs.wallpaperDir : Services.Paths.wallpapers
+
+        RowGlyph { glyph: "\ue2c7" }
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 2
+            Text {
+                text: "Wallpapers folder"
+                color: Services.Colors.snow
+                font.pixelSize: 13
+                font.bold: true
+                font.family: "JetBrainsMono NF"
+            }
+            Text {
+                text: wallDirRow.dir
+                color: Services.Colors.ash
+                font.pixelSize: 10
+                font.family: "JetBrainsMono NF"
+                elide: Text.ElideMiddle
+                Layout.fillWidth: true
+            }
+        }
+        Rectangle {
+            width: 84; height: 32
+            radius: 8
+            color: wallDirHover.containsMouse ? Services.Colors.ghostAlpha(0.3) : Services.Colors.ghostAlpha(0.15)
+            Behavior on color { ColorAnimation { duration: 120 } }
+            Text {
+                anchors.centerIn: parent
+                text: "Change"
+                color: Services.Colors.snow
+                font.pixelSize: 11
+                font.family: "JetBrainsMono NF"
+            }
+            MouseArea {
+                id: wallDirHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: wallDirPickProc.running = true
+            }
+        }
+    }
+
+    Process {
+        id: wallDirPickProc
+        command: ["sh", "-c", "zenity --file-selection --directory --title='Where wallpapers live' 2>/dev/null"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let dir = text.trim()
+                if (dir.length > 0) Services.Prefs.wallpaperDir = dir
+            }
+        }
+    }
+
+    Divider {}
 
     ColumnLayout {
         id: schemeSection
@@ -517,6 +437,7 @@ Item {
                         width: 18; height: 18
                         radius: 9
                         color: Services.Colors.ghost
+                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                         Text {
                             anchors.centerIn: parent
                             text: ""
@@ -600,6 +521,7 @@ Item {
                             height: 32
                             radius: 8
                             color: active ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.12)
+                            gradient: Services.Prefs.useGradients && (active) ? Services.Colors.accentGradient : null
                             Behavior on color { ColorAnimation { duration: 150 } }
                             RowLayout {
                                 id: dynRow
@@ -631,6 +553,24 @@ Item {
         }
     }
 
+
+        Divider {}
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+            Text { text: "\ue3e9"; font.family: "Material Symbols Rounded"; font.pixelSize: 18; color: Services.Colors.ghost }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Text { text: "Gradient Accents"; color: Services.Colors.snow; font.pixelSize: 13; font.bold: true; font.family: "JetBrainsMono NF" }
+                Text { text: "Subtle gradient on active buttons & pills (scheme tones)"; color: Services.Colors.ash; font.pixelSize: 10; font.family: "JetBrainsMono NF" }
+            }
+            Toggle {
+                checked: Services.Prefs.useGradients
+                onToggled: Services.Prefs.useGradients = !Services.Prefs.useGradients
+            }
+        }
 
     Item { Layout.preferredHeight: 8 }
         }

@@ -3,6 +3,7 @@ import Quickshell.Bluetooth
 import QtQuick
 import QtQuick.Layouts
 import "root:/services" as Services
+import "root:/modules/settings/components"
 import "root:/modules/net" as Net
 
 Item {
@@ -48,6 +49,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Text {
+                visible: false   // the drawer header carries the section name
                 text: "Bluetooth"
                 color: Services.Colors.snow
                 font.pixelSize: 20
@@ -75,23 +77,10 @@ Item {
                     onClicked: tab.startScan()
                 }
             }
-            Rectangle {
-                width: 52; height: 28; radius: 14
-                color: (tab.adapter && tab.adapter.enabled) ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.25)
-                Behavior on color { ColorAnimation { duration: 200 } }
-                Rectangle {
-                    width: 20; height: 20; radius: 10
-                    color: Services.Colors.snow
-                    anchors.verticalCenter: parent.verticalCenter
-                    x: (tab.adapter && tab.adapter.enabled) ? parent.width - width - 4 : 4
-                    Behavior on x { NumberAnimation { duration: 200 } }
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    enabled: tab.adapter !== null
-                    onClicked: { if (tab.adapter) tab.adapter.enabled = !tab.adapter.enabled }
-                }
+            Toggle {
+                checked: tab.adapter !== null && tab.adapter.enabled
+                enabled: tab.adapter !== null
+                onToggled: if (tab.adapter) tab.adapter.enabled = !tab.adapter.enabled
             }
         }
 
@@ -100,9 +89,10 @@ Item {
             height: Services.Network.btDevice !== "" ? 64 : 0
             visible: Services.Network.btDevice !== ""
             radius: 8
+            // Filled, not outlined: the accent border read as a glow and
+            // nothing else in the shell outlines a selection.
             color: Services.Colors.ghostAlpha(0.2)
-            border.color: Services.Colors.ghost
-            border.width: 1
+            border.width: 0
             RowLayout {
                 anchors.fill: parent
                 anchors.margins: 12

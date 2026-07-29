@@ -3,6 +3,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import "root:/services" as Services
+import "root:/modules/settings/components"
 
 ColumnLayout {
     id: tab
@@ -123,6 +124,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         Text {
+            visible: false   // the drawer header carries the section name
             text: "About"
             color: Services.Colors.snow
             font.pixelSize: 20
@@ -135,6 +137,7 @@ ColumnLayout {
             height: 32
             radius: 8
             color: tab.copied ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.15)
+            gradient: Services.Prefs.useGradients && (tab.copied) ? Services.Colors.accentGradient : null
             Behavior on color { ColorAnimation { duration: 150 } }
             RowLayout {
                 id: copyRow
@@ -160,6 +163,40 @@ ColumnLayout {
             }
         }
     }
+
+
+    // The face the lock screen and the launcher show. It belongs with who
+    // the machine is, not with how it is painted.
+    PreviewCard {
+        source: Services.AppState.facePath
+        fallbackGlyph: "\uf0d3"
+        title: "Profile Picture"
+        subtitle: Services.AppState.userLabel
+        action: "Change"
+        onTriggered: facePickProc.running = true
+    }
+
+    Process {
+        id: facePickProc
+        command: ["sh", "-c", "zenity --file-selection --title='Choose profile picture' --file-filter='Images | *.png *.jpg *.jpeg' 2>/dev/null"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let path = text.trim()
+                if (path.length > 0 && Services.AppState.homeDir !== "") {
+                    faceCopyProc.command = ["cp", path, Services.AppState.homeDir + "/.face"]
+                    faceCopyProc.running = true
+                }
+            }
+        }
+    }
+    Process {
+        id: faceCopyProc
+        running: false
+        onExited: Services.AppState.faceVersion = Date.now()
+    }
+
+    Divider {}
 
     ColumnLayout {
         Layout.topMargin: 6
@@ -203,7 +240,7 @@ ColumnLayout {
         }
     }
 
-    Rectangle { Layout.fillWidth: true; height: 1; color: Services.Colors.ghostAlpha(0.15); Layout.topMargin: 10; Layout.bottomMargin: 4 }
+    Divider { Layout.topMargin: 10; Layout.bottomMargin: 4 }
 
     ColumnLayout {
         spacing: 4
