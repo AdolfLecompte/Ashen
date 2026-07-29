@@ -17,6 +17,7 @@ PanelWindow {
         right: true
         bottom: true
     }
+    screen: Services.Screens.active
 
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
@@ -103,10 +104,9 @@ PanelWindow {
 
     // Main panel
     Rectangle {
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.rightMargin: 12
-        anchors.topMargin: 64
+        // Hangs off the network chip, whichever edge the bar is on
+        x: Services.Sizes.panelX(parent.width, width, Services.AppState.networkPillCenterX)
+        y: Services.Sizes.panelY(parent.height, height, Services.AppState.networkPillCenterY)
         width: 420
         radius: 14
         height: Math.min(panelCol.implicitHeight + 28, root.height - 80)
@@ -116,11 +116,18 @@ PanelWindow {
         clip: true
         visible: !root.showConnectDialog
 
+        id: netCard
+        // Origin-anchored open: grows out of the top-right network pill + fades.
+        property real openAmt: Services.AppState.networkVisible ? 1.0 : 0.0
+        Behavior on openAmt { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
+
         opacity: Services.AppState.networkVisible && !root.showConnectDialog ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-        transform: Translate {
-            x: Services.AppState.networkVisible ? 0 : -24
-            Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        transform: Scale {
+            origin.x: Services.Sizes.originX(netCard.x, netCard.width, Services.AppState.networkPillCenterX)
+            origin.y: Services.Sizes.originY(netCard.y, netCard.height, Services.AppState.networkPillCenterY)
+            xScale: 0.55 + 0.45 * netCard.openAmt
+            yScale: 0.55 + 0.45 * netCard.openAmt
         }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
@@ -152,6 +159,7 @@ PanelWindow {
                         color: Services.AppState.networkTab === modelData.id
                             ? Services.Colors.ghost
                             : Services.Colors.ghostAlpha(0.15)
+                        gradient: Services.Prefs.useGradients && Services.AppState.networkTab === modelData.id ? Services.Colors.accentGradient : null
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Row {
@@ -218,6 +226,7 @@ PanelWindow {
                     Rectangle {
                         width: 52; height: 28; radius: 14
                         color: root.wifiEnabled ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.25)
+                        gradient: Services.Prefs.useGradients && (root.wifiEnabled) ? Services.Colors.accentGradient : null
                         Behavior on color { ColorAnimation { duration: 200 } }
                         Rectangle {
                             width: 20; height: 20; radius: 10
@@ -243,9 +252,10 @@ PanelWindow {
                     height: Services.Network.wifiSsid !== "" ? 64 : 0
                     visible: Services.Network.wifiSsid !== ""
                     radius: 8
+                    // Filled, not outlined: the accent border read as a glow and
+                    // nothing else in the shell outlines a selection.
                     color: Services.Colors.ghostAlpha(0.2)
-                    border.color: Services.Colors.ghost
-                    border.width: 1
+                    border.width: 0
                     RowLayout {
                         anchors.fill: parent
                         anchors.margins: 12
@@ -446,10 +456,9 @@ PanelWindow {
 
     // Connection dialog
     Rectangle {
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.rightMargin: 12
-        anchors.topMargin: 64
+        // Hangs off the network chip, whichever edge the bar is on
+        x: Services.Sizes.panelX(parent.width, width, Services.AppState.networkPillCenterX)
+        y: Services.Sizes.panelY(parent.height, height, Services.AppState.networkPillCenterY)
         width: 380
         height: connectCol.implicitHeight + 32
         radius: 14
@@ -617,6 +626,7 @@ PanelWindow {
                     Layout.fillWidth: true
                     height: 40; radius: 8
                     color: Services.Colors.ghost
+                    gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
 
                     function connect() {
                         // argv, not a shell string: an SSID or password holding a
@@ -629,6 +639,14 @@ PanelWindow {
                         Services.AppState.networkVisible = false
                     }
 
+                    // Hover keeps the accent and just lifts it with a white veil.
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: parent.radius
+                        color: Services.Colors.snowAlpha(0.16)
+                        opacity: connectMouse.containsMouse ? 1 : 0
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                    }
                     Text {
                         anchors.centerIn: parent
                         text: "Connect"
@@ -638,11 +656,10 @@ PanelWindow {
                         font.bold: true
                     }
                     MouseArea {
+                        id: connectMouse
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         hoverEnabled: true
-                        onEntered: parent.color = Services.Colors.shade
-                        onExited: parent.color = Services.Colors.ghost
                         onClicked: connectBtn.connect()
                     }
                 }

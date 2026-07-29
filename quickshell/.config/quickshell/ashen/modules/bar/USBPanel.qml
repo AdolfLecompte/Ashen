@@ -10,6 +10,7 @@ import "root:/services" as Services
 PanelWindow {
     id: root
     anchors { top: true; left: true; right: true; bottom: true }
+    screen: Services.Screens.active
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     // stays mapped through the close animation, so the exit plays in reverse
@@ -27,10 +28,10 @@ PanelWindow {
     }
 
     Rectangle {
-        anchors.top: parent.top
-        anchors.topMargin: 64
         width: 360
-        x: Math.max(12, Math.min(parent.width - width - 12, Services.AppState.usbPillCenterX - width / 2))
+        // Follows its pill along the bar, and the bar around the screen
+        x: Services.Sizes.panelX(parent.width, width, Services.AppState.usbPillCenterX)
+        y: Services.Sizes.panelY(parent.height, height, Services.AppState.usbPillCenterY)
         radius: 14
         height: Math.min(panelCol.implicitHeight + 28, root.height - 80)
         color: Services.Colors.surfaceAlpha(0.95)
@@ -38,11 +39,19 @@ PanelWindow {
         border.width: 0
         clip: true
 
+        id: card
+        // Origin-anchored open: grows out of its bar pill + fades, smooth settle.
+        property real openAmt: Services.AppState.usbVisible ? 1.0 : 0.0
+        Behavior on openAmt { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
+
         opacity: Services.AppState.usbVisible ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-        transform: Translate {
-            x: Services.AppState.usbVisible ? 0 : -24
-            Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+        transform: Scale {
+            origin.x: Services.Sizes.originX(card.x, card.width, Services.AppState.usbPillCenterX)
+            origin.y: Services.Sizes.originY(card.y, card.height, Services.AppState.usbPillCenterY)
+            xScale: 0.55 + 0.45 * card.openAmt
+            yScale: 0.55 + 0.45 * card.openAmt
         }
 
         MouseArea { anchors.fill: parent; onClicked: {} }

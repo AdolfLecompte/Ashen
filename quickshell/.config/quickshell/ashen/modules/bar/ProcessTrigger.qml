@@ -9,7 +9,11 @@ import "root:/services" as Services
 PanelWindow {
     id: root
     anchors { bottom: true; left: true; right: true }
-    implicitHeight: 62
+    screen: Services.Screens.active
+    // Tall enough to still hold the sliver once it has been pushed up over a
+    // bottom bar: anything laid out past the surface bounds is clipped out of
+    // the input region and stops arming the peek.
+    implicitHeight: 62 + (Services.Sizes.barPosition === "bottom" ? Services.Sizes.barH : 0)
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
 
@@ -18,8 +22,6 @@ PanelWindow {
 
     property bool revealed: false
 
-    // Only the strip (or the button, once revealed) takes pointer input, so
-    // the rest of the bottom edge keeps working normally.
     // Only the strip (or the button, once revealed) takes pointer input, so
     // the rest of the bottom edge keeps working normally.
     mask: Region {
@@ -48,6 +50,7 @@ PanelWindow {
     Item {
         id: strip
         anchors.bottom: parent.bottom
+        anchors.bottomMargin: Services.Sizes.barPosition === "bottom" ? Services.Sizes.barH : 0
         anchors.horizontalCenter: parent.horizontalCenter
         width: 220
         height: 8

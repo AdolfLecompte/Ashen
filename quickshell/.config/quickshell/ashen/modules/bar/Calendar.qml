@@ -1,443 +1,349 @@
 import Quickshell
 import QtQuick
-import QtQuick.Layouts
-
 import "root:/services" as Services
+import "root:/modules/widgets" as Widgets
 
+// The clock pill's panel, built the same way the media one is: the pill does
+// not open a card next to itself, it BECOMES the card. See MediaPanel for the
+// long version of why each driver exists — this file is that pattern applied
+// to Widgets.ClockCard, whose shared pieces are the time, the date, the
+// weather glyph and the temperature.
 PanelWindow {
     id: root
-
-    anchors {
-        top: true
-        left: true
-        right: true
-        bottom: true
-    }
-
+    anchors { top: true; left: true; right: true; bottom: true }
+    screen: Services.Screens.active
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
-    // stays mapped through the close animation, so the exit plays in reverse
     readonly property bool shown: Services.AppState.calendarVisible
     visible: shown || closeDelay.running
-    onShownChanged: if (!shown) closeDelay.restart()
-    Timer { id: closeDelay; interval: 300 }
 
-    // The big clock stacks hour over minute, so the parts are kept separate
-    // instead of split() off a formatted string -- under 24h there is no " AP"
-    // to split on and the old surgery produced "undefined".
-    // Qt's "hh"/"h" only mean 12-hour when an AP/ap token sits in the SAME
-    // format string; formatting the hour alone with "hh" silently yields 24h,
-    // so the 12/24 split is computed by hand to match the bar pill.
-    function hourText(d) {
-        if (Services.Prefs.clock24h)
-            return Qt.formatDateTime(d, "HH")
-        let h = d.getHours() % 12
-        if (h === 0) h = 12
-        return (h < 10 ? "0" : "") + h
-    }
-    property string currentHour: hourText(new Date())
-    property string currentMinute: Qt.formatDateTime(new Date(), "mm")
-    property string currentSecs: Qt.formatDateTime(new Date(), "ss")
-    property string currentAmPm: Services.Prefs.clock24h ? "" : Qt.formatDateTime(new Date(), "AP")
-    property string currentDate: Qt.formatDateTime(new Date(), "MMMM d, yyyy")
-    property string currentDayName: Qt.locale().dayName(new Date().getDay())
-
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: {
-            let now = new Date()
-            root.currentHour = root.hourText(now)
-            root.currentMinute = Qt.formatDateTime(now, "mm")
-            root.currentSecs = Qt.formatDateTime(now, "ss")
-            root.currentAmPm = Services.Prefs.clock24h ? "" : Qt.formatDateTime(now, "AP")
-            root.currentDate = Qt.formatDateTime(now, "MMMM d, yyyy")
-            root.currentDayName = Qt.locale().dayName(now.getDay())
+    // A layer surface is not presented on the frame it is asked for, so hold
+    // the pill until the surface has actually landed, then run.
+    onShownChanged: {
+        if (shown) {
+            arm.restart()
+        } else {
+            arm.stop()
+            Services.AppState.clockMorphing = false
+            openAnim.stop()
+            closeAnim.start()
+            closeDelay.restart()
         }
     }
+    Timer {
+        id: arm
+        interval: 200
+        onTriggered: {
+            Services.AppState.clockMorphing = true
+            closeAnim.stop()
+            openAnim.start()
+        }
+    }
+    Timer { id: closeDelay; interval: 560 }
+
+    readonly property bool opening: Services.AppState.clockMorphing
+
+    // Card size comes from the shared item, so widening a column there widens
+    // the panel here and the two can never disagree.
+    readonly property real openW: panelRef.contentW + panelRef.pad * 2
+    readonly property real openH: panelRef.contentH + panelRef.pad * 2
+    readonly property real pillW: Math.max(1, Services.AppState.clockPillW)
+    readonly property real pillH: Math.max(1, Services.AppState.clockPillH)
+    readonly property real pillCX: Services.AppState.clockPillCenterX
+    readonly property real pillCY: Services.AppState.clockPillCenterY
 
     MouseArea {
         anchors.fill: parent
+        z: -1
         onClicked: Services.AppState.calendarVisible = false
     }
 
-    readonly property int boxHeight: 320
+    FocusScope {
+        anchors.fill: parent
+        focus: root.shown
+        Keys.onEscapePressed: Services.AppState.calendarVisible = false
+    }
 
-    Row {
-        anchors.top: parent.top
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.topMargin: 64
-        spacing: 10
-        opacity: Services.AppState.calendarVisible ? 1.0 : 0.0
-        scale: Services.AppState.calendarVisible ? 1.0 : 0.92
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+    // The goo bridge tying the drop to the bar until it pinches off
+    Canvas {
+        id: neck
 
-        transform: Translate {
-            y: Services.AppState.calendarVisible ? 0 : -24
-            Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        readonly property bool horizontalBar: !Services.Sizes.barVertical
+        readonly property real pinch: Math.max(0, Math.min(1, card.fall / 0.55))
+        readonly property real cx: root.pillCX
+        readonly property real barEdge: Services.Sizes.barPosition === "bottom"
+            ? parent.height - Services.Sizes.barH : Services.Sizes.barH
+        readonly property real cardEdge: Services.Sizes.barPosition === "bottom"
+            ? card.y + card.height : card.y
+        readonly property real span: Math.abs(cardEdge - barEdge)
+        readonly property bool detached: Services.Sizes.barPosition === "bottom"
+            ? cardEdge < barEdge : cardEdge > barEdge
+
+        visible: horizontalBar && detached && pinch > 0.001 && pinch < 1 && span > 1
+        opacity: 1 - Math.pow(pinch, 2)
+
+        x: cx - root.pillW
+        width: root.pillW * 2
+        y: Math.min(barEdge, cardEdge)
+        height: Math.max(0, span)
+
+        onPinchChanged: requestPaint()
+        onHeightChanged: requestPaint()
+
+        onPaint: {
+            const ctx = getContext("2d")
+            ctx.reset()
+            if (height <= 0) return
+            const mid = width / 2
+            const wBar = root.pillW / 2 * 0.72
+            const wCard = Math.min(card.width / 2, root.pillW / 2)
+            const waist = Math.min(wBar, wCard) * (1 - pinch)
+            const top = Services.Sizes.barPosition === "bottom" ? wCard : wBar
+            const bottom = Services.Sizes.barPosition === "bottom" ? wBar : wCard
+
+            ctx.fillStyle = Services.Colors.surfaceAlpha(0.95)
+            ctx.beginPath()
+            ctx.moveTo(mid - top, 0)
+            ctx.quadraticCurveTo(mid - waist, height / 2, mid - bottom, height)
+            ctx.lineTo(mid + bottom, height)
+            ctx.quadraticCurveTo(mid + waist, height / 2, mid + top, 0)
+            ctx.closePath()
+            ctx.fill()
+        }
+    }
+
+    Rectangle {
+        id: card
+
+        readonly property real openX: Services.Sizes.panelX(parent.width, root.openW, root.pillCX)
+        readonly property real openY: Services.Sizes.panelY(parent.height, root.openH, root.pillCY)
+
+        visible: root.opening || closeDelay.running
+
+        function lerp(a, b, t) { return a + (b - a) * t }
+        function mix(c1, c2, t) {
+            return Qt.rgba(c1.r + (c2.r - c1.r) * t,
+                           c1.g + (c2.g - c1.g) * t,
+                           c1.b + (c2.b - c1.b) * t,
+                           c1.a + (c2.a - c1.a) * t)
         }
 
-        // -- Center column: Time --
-        Rectangle {
-            width: 185
-            height: root.boxHeight
-            radius: 14
-            color: Services.Colors.surfaceAlpha(0.95)
-            border.color: Services.Colors.ghostAlpha(0.2)
-            border.width: 0
-            MouseArea { anchors.fill: parent; onClicked: {} }
+        property real fall: 0
+        property real stretch: 0
+        property real spread: 0
+        property real morph: 0
+        property real contentAmt: 0
 
-            Column {
-                anchors.centerIn: parent
-                spacing: 18
-
-                Column {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: -6
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: root.currentHour
-                        color: Services.Colors.ghost
-                        font.pixelSize: 68
-                        font.family: "JetBrainsMono NF"
-                        font.bold: true
-                        lineHeight: 0.9
-                    }
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: root.currentMinute
-                        color: Services.Colors.snow
-                        font.pixelSize: 68
-                        font.family: "JetBrainsMono NF"
-                        font.bold: true
-                        lineHeight: 0.9
-                    }
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        // Either part can be switched off in Settings; with both
-                        // gone the row collapses instead of leaving a stray gap.
-                        text: [root.currentAmPm, Services.Prefs.clockSeconds ? root.currentSecs : ""]
-                            .filter(s => s !== "").join("  ")
-                        visible: text !== ""
-                        color: Services.Colors.mist
-                        font.pixelSize: 12
-                        font.family: "JetBrainsMono NF"
-                        font.bold: true
-                        topPadding: 8
-                    }
+        ParallelAnimation {
+            id: openAnim
+            NumberAnimation {
+                target: card; property: "fall"; to: 1
+                duration: 460; easing.type: Easing.OutCubic
+            }
+            NumberAnimation {
+                target: card; property: "stretch"; to: 1
+                duration: 360; easing.type: Easing.OutCubic
+            }
+            NumberAnimation {
+                target: card; property: "spread"; to: 1
+                duration: 560; easing.type: Easing.OutBack; easing.overshoot: 0.7
+            }
+            // Box first, contents after
+            SequentialAnimation {
+                PauseAnimation { duration: 200 }
+                NumberAnimation {
+                    target: card; property: "morph"; to: 1
+                    duration: 340; easing.type: Easing.OutCubic
                 }
+            }
+            SequentialAnimation {
+                PauseAnimation { duration: 380 }
+                NumberAnimation { target: card; property: "contentAmt"; to: 1; duration: 200 }
+            }
+        }
 
-                Rectangle { width: 40; height: 1; anchors.horizontalCenter: parent.horizontalCenter; color: Services.Colors.ghostAlpha(0.25) }
-
-                Column {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 4
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: root.currentDayName.toUpperCase()
-                        color: Services.Colors.ash
-                        font.pixelSize: 10
-                        font.family: "JetBrainsMono NF"
-                        font.bold: true
-                        font.letterSpacing: 2
+        ParallelAnimation {
+            id: closeAnim
+            NumberAnimation { target: card; property: "contentAmt"; to: 0; duration: 90 }
+            SequentialAnimation {
+                PauseAnimation { duration: 40 }
+                NumberAnimation {
+                    target: card; property: "morph"; to: 0
+                    duration: 260; easing.type: Easing.InOutCubic
+                }
+            }
+            SequentialAnimation {
+                PauseAnimation { duration: 160 }
+                ParallelAnimation {
+                    NumberAnimation {
+                        target: card; property: "fall"; to: 0
+                        duration: 340; easing.type: Easing.InOutCubic
                     }
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: root.currentDate
-                        color: Services.Colors.snow
-                        font.pixelSize: 12
-                        font.family: "JetBrainsMono NF"
-                        font.bold: true
-                        horizontalAlignment: Text.AlignHCenter
-                        width: 120
-                        wrapMode: Text.WordWrap
+                    NumberAnimation {
+                        target: card; property: "stretch"; to: 0
+                        duration: 300; easing.type: Easing.InOutCubic
+                    }
+                    NumberAnimation {
+                        target: card; property: "spread"; to: 0
+                        duration: 300; easing.type: Easing.InOutCubic
                     }
                 }
             }
         }
 
-        // -- Left column: Calendar --
-        Rectangle {
-            width: 360
-            height: root.boxHeight
-            radius: 14
-            color: Services.Colors.surfaceAlpha(0.95)
-            border.color: Services.Colors.ghostAlpha(0.2)
-            border.width: 0
-            MouseArea { anchors.fill: parent; onClicked: {} }
+        width: root.pillW + (root.openW - root.pillW) * spread
+        height: root.pillH + (root.openH - root.pillH) * stretch
+        x: root.pillCX + (openX + root.openW / 2 - root.pillCX) * fall - width / 2
+        y: root.pillCY + (openY + root.openH / 2 - root.pillCY) * fall - height / 2
+
+        radius: Services.Sizes.pillR + (20 - Services.Sizes.pillR) * Math.min(1, spread)
+        color: Services.Colors.surfaceAlpha(0.95)
+        clip: true
+
+        MouseArea { anchors.fill: parent; onClicked: {} }
+
+        // ── Reference layout A: the pill ────────────────────────────────
+        // A structural copy of Clock.qml's row, laid out but never drawn, so
+        // the flying pieces start exactly where the real pill has them.
+        // Centred because the pill is its row plus 20 px either side.
+        Row {
+            id: pillRef
+            opacity: 0
+            anchors.centerIn: parent
+            spacing: 16
 
             Column {
-                id: calCol
-                anchors.centerIn: parent
-                spacing: 10
-                width: parent.width - 32
-
-                RowLayout {
-                    width: parent.width
-
-                    Rectangle {
-                        width: 26; height: 26; radius: 8; color: "transparent"
-                        Text {
-                            anchors.centerIn: parent
-                            text: "\u2039"
-                            color: Services.Colors.ghost
-                            font.pixelSize: 18
-                            font.family: "JetBrainsMono NF"
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            hoverEnabled: true
-                            onEntered: parent.color = Services.Colors.ghostAlpha(0.15)
-                            onExited: parent.color = "transparent"
-                            onClicked: {
-                                if (calRoot.currentMonth === 0) { calRoot.currentMonth = 11; calRoot.currentYear-- }
-                                else calRoot.currentMonth--
-                            }
-                        }
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        horizontalAlignment: Text.AlignHCenter
-                        text: Qt.locale().monthName(calRoot.currentMonth) + " " + calRoot.currentYear
-                        color: Services.Colors.snow
-                        font.pixelSize: 14
-                        font.family: "JetBrainsMono NF"
-                        font.bold: true
-                    }
-
-                    Rectangle {
-                        width: 26; height: 26; radius: 8; color: "transparent"
-                        Text {
-                            anchors.centerIn: parent
-                            text: "\u203a"
-                            color: Services.Colors.ghost
-                            font.pixelSize: 18
-                            font.family: "JetBrainsMono NF"
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            hoverEnabled: true
-                            onEntered: parent.color = Services.Colors.ghostAlpha(0.15)
-                            onExited: parent.color = "transparent"
-                            onClicked: {
-                                if (calRoot.currentMonth === 11) { calRoot.currentMonth = 0; calRoot.currentYear++ }
-                                else calRoot.currentMonth++
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        width: 26; height: 26; radius: 8; color: "transparent"
-                        Text {
-                            anchors.centerIn: parent
-                            text: ""
-                            color: Services.Colors.ghost
-                            font.pixelSize: 15
-                            font.family: "Material Symbols Rounded"
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            hoverEnabled: true
-                            onEntered: parent.color = Services.Colors.ghostAlpha(0.15)
-                            onExited: parent.color = "transparent"
-                            onClicked: {
-                                calRoot.currentMonth = calRoot.todayMonth
-                                calRoot.currentYear = calRoot.todayYear
-                            }
-                        }
-                    }
+                id: refStack
+                spacing: 1
+                Text {
+                    id: refTime
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: panelRef.timeText
+                    font.pixelSize: 15
+                    font.bold: true
+                    font.family: "JetBrainsMono NF"
                 }
-
-                Row {
-                    width: parent.width
-                    Repeater {
-                        model: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
-                        Text {
-                            width: calCol.width / 7
-                            horizontalAlignment: Text.AlignHCenter
-                            text: modelData
-                            color: Services.Colors.ash
-                            font.pixelSize: 11
-                            font.family: "JetBrainsMono NF"
-                        }
-                    }
+                Text {
+                    id: refDate
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: Qt.formatDateTime(panelRef.now, "ddd, MMM d")
+                    font.pixelSize: 10
+                    font.bold: true
+                    font.family: "JetBrainsMono NF"
                 }
+            }
 
-                Grid {
-                    id: calRoot
-                    width: parent.width
-                    columns: 7
-                    spacing: 3
-
-                    // fixed cell size + a reserved height of 6 rows, so a 5-week
-                    // month doesn't shrink the grid and shift the whole (centered)
-                    // calendar column up/down when flipping months.
-                    readonly property int cellSize: Math.min(calCol.width / 7 - 3, 32)
-                    height: 6 * cellSize + 5 * spacing
-
-                    property int currentMonth: new Date().getMonth()
-                    property int currentYear: new Date().getFullYear()
-                    property int today: new Date().getDate()
-                    property int todayMonth: new Date().getMonth()
-                    property int todayYear: new Date().getFullYear()
-                    property int firstDay: new Date(currentYear, currentMonth, 1).getDay()
-                    property int daysInMonth: new Date(currentYear, currentMonth + 1, 0).getDate()
-
-                    Repeater {
-                        model: calRoot.firstDay + calRoot.daysInMonth
-                        delegate: Rectangle {
-                            required property int index
-                            property int day: index - calRoot.firstDay + 1
-                            property bool isValid: index >= calRoot.firstDay
-                            property bool isToday: isValid && day === calRoot.today && calRoot.currentMonth === calRoot.todayMonth && calRoot.currentYear === calRoot.todayYear
-
-                            width: calCol.width / 7 - 3
-                            height: calRoot.cellSize
-                            radius: 6
-                            color: isToday ? Services.Colors.ghost : "transparent"
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: parent.isValid ? parent.day : ""
-                                color: parent.isToday ? Services.Colors.abyss : Services.Colors.snow
-                                font.pixelSize: 12
-                                font.family: "JetBrainsMono NF"
-                                font.bold: parent.isToday
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                hoverEnabled: true
-                                onEntered: if (!parent.isToday) parent.color = Services.Colors.ghostAlpha(0.15)
-                                onExited: if (!parent.isToday) parent.color = "transparent"
-                            }
-                        }
-                    }
+            Row {
+                id: refWx
+                spacing: 4
+                anchors.verticalCenter: parent.verticalCenter
+                Text {
+                    id: refIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Services.Weather.icon
+                    font.pixelSize: 22
+                    font.family: "Material Symbols Rounded"
+                }
+                Text {
+                    id: refTemp
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Services.Weather.temp
+                    font.pixelSize: 13
+                    font.bold: true
+                    font.family: "JetBrainsMono NF"
                 }
             }
         }
 
-        // -- Right column: Weather --
-        Rectangle {
-            width: 185
-            height: root.boxHeight
-            radius: 14
-            color: Services.Colors.surfaceAlpha(0.95)
-            border.color: Services.Colors.ghostAlpha(0.2)
-            border.width: 0
-            MouseArea { anchors.fill: parent; onClicked: {} }
+        // ── Reference layout B: the card ────────────────────────────────
+        Widgets.ClockCard {
+            id: panelRef
+            anchors.centerIn: parent
+            ghostShared: true
+            extrasOpacity: card.contentAmt
+        }
 
-            Column {
-                anchors.centerIn: parent
-                spacing: 14
-                width: parent.width - 24
+        // ── The shared pieces ───────────────────────────────────────────
+        // Each is drawn once, at its final size, and scaled down to the pill's
+        // size — stepping font.pixelSize instead would reflow the glyphs in
+        // integer jumps and read as a stutter. Positioned by centre so the
+        // scaling never drags the item sideways.
 
-                // Current conditions: big glyph beside the temperature, condition
-                // under it, city name centered below.
-                Column {
-                    width: parent.width
-                    spacing: 6
+        Text {
+            id: flyTime
+            readonly property real s: card.lerp(15 / panelRef.clockPx, 1, card.morph)
+            text: panelRef.timeText
+            color: Services.Colors.snow
+            font.pixelSize: panelRef.clockPx
+            font.bold: true
+            font.family: "JetBrainsMono NF"
+            x: card.lerp(pillRef.x + refStack.x + refTime.x + refTime.width / 2,
+                         panelRef.x + panelRef.timeCX, card.morph) - width / 2
+            y: card.lerp(pillRef.y + refStack.y + refTime.y + refTime.height / 2,
+                         panelRef.y + panelRef.timeCY, card.morph) - height / 2
+            transform: Scale {
+                origin.x: flyTime.width / 2
+                origin.y: flyTime.height / 2
+                xScale: flyTime.s
+                yScale: flyTime.s
+            }
+        }
 
-                    RowLayout {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        spacing: 10
-                        Text {
-                            text: Services.Weather.icon
-                            color: Services.Colors.ghost
-                            font.pixelSize: 54
-                            font.family: "Material Symbols Rounded"
-                        }
-                        ColumnLayout {
-                            spacing: 0
-                            Text {
-                                text: Services.Weather.temp
-                                color: Services.Colors.snow
-                                font.pixelSize: 32
-                                font.bold: true
-                                font.family: "JetBrainsMono NF"
-                            }
-                            Text {
-                                text: Services.Weather.condition
-                                color: Services.Colors.mist
-                                font.pixelSize: 10
-                                font.family: "JetBrainsMono NF"
-                            }
-                        }
-                    }
-                    // City name (blank until located); full width so it never clips
-                    Text {
-                        width: parent.width
-                        horizontalAlignment: Text.AlignHCenter
-                        text: Services.Weather.city
-                        visible: text !== ""
-                        color: Services.Colors.ash
-                        font.pixelSize: 9
-                        font.family: "JetBrainsMono NF"
-                        elide: Text.ElideRight
-                    }
-                }
+        // Only 10 -> 13 px: three integer steps, small enough to grow the font
+        // directly without the scaling dance.
+        Text {
+            id: flyDate
+            text: card.morph < 0.5
+                ? Qt.formatDateTime(panelRef.now, "ddd, MMM d")
+                : panelRef.dateText
+            color: Services.Colors.mist
+            font.pixelSize: card.lerp(10, 13, card.morph)
+            font.bold: true
+            font.family: "JetBrainsMono NF"
+            x: card.lerp(pillRef.x + refStack.x + refDate.x + refDate.width / 2,
+                         panelRef.x + panelRef.dateCX, card.morph) - width / 2
+            y: card.lerp(pillRef.y + refStack.y + refDate.y + refDate.height / 2,
+                         panelRef.y + panelRef.dateCY, card.morph) - height / 2
+        }
 
-                Rectangle { width: parent.width; height: 1; color: Services.Colors.ghostAlpha(0.15) }
+        Text {
+            id: flyIcon
+            readonly property real s: card.lerp(22 / 48, 1, card.morph)
+            text: Services.Weather.icon
+            color: Services.Colors.neutral
+            font.pixelSize: 48
+            font.family: "Material Symbols Rounded"
+            x: card.lerp(pillRef.x + refWx.x + refIcon.x + refIcon.width / 2,
+                         panelRef.x + panelRef.wIconCX, card.morph) - width / 2
+            y: card.lerp(pillRef.y + refWx.y + refIcon.y + refIcon.height / 2,
+                         panelRef.y + panelRef.wIconCY, card.morph) - height / 2
+            transform: Scale {
+                origin.x: flyIcon.width / 2
+                origin.y: flyIcon.height / 2
+                xScale: flyIcon.s
+                yScale: flyIcon.s
+            }
+        }
 
-                // Following days as side-by-side columns (Today is already the header
-                // above, so it's skipped here via slice(1)).
-                RowLayout {
-                    width: parent.width
-                    spacing: 4
-                    Repeater {
-                        model: Services.Weather.forecast.slice(1)
-                        delegate: ColumnLayout {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1     // equal share regardless of content
-                            spacing: 3
-
-                            Text {
-                                Layout.fillWidth: true
-                                horizontalAlignment: Text.AlignHCenter
-                                text: modelData.label
-                                color: Services.Colors.mist
-                                font.pixelSize: 10
-                                font.bold: true
-                                font.family: "JetBrainsMono NF"
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                horizontalAlignment: Text.AlignHCenter
-                                text: modelData.icon
-                                color: Services.Colors.ghost
-                                font.pixelSize: 20
-                                font.family: "Material Symbols Rounded"
-                                topPadding: 2
-                                bottomPadding: 2
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                horizontalAlignment: Text.AlignHCenter
-                                text: Services.Weather.degrees(modelData.maxC)
-                                color: Services.Colors.snow
-                                font.pixelSize: 11
-                                font.bold: true
-                                font.family: "JetBrainsMono NF"
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                horizontalAlignment: Text.AlignHCenter
-                                text: Services.Weather.degrees(modelData.minC)
-                                color: Services.Colors.ash
-                                font.pixelSize: 11
-                                font.family: "JetBrainsMono NF"
-                            }
-                        }
-                    }
-                }
+        Text {
+            id: flyTemp
+            readonly property real s: card.lerp(13 / 30, 1, card.morph)
+            text: Services.Weather.temp
+            // Dim in the bar, bright in the card: it is the headline number
+            // there and only a footnote here.
+            color: card.mix(Services.Colors.mist, Services.Colors.snow, card.morph)
+            font.pixelSize: 30
+            font.bold: true
+            font.family: "JetBrainsMono NF"
+            x: card.lerp(pillRef.x + refWx.x + refTemp.x + refTemp.width / 2,
+                         panelRef.x + panelRef.wTempCX, card.morph) - width / 2
+            y: card.lerp(pillRef.y + refWx.y + refTemp.y + refTemp.height / 2,
+                         panelRef.y + panelRef.wTempCY, card.morph) - height / 2
+            transform: Scale {
+                origin.x: flyTemp.width / 2
+                origin.y: flyTemp.height / 2
+                xScale: flyTemp.s
+                yScale: flyTemp.s
             }
         }
     }

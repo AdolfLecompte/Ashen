@@ -6,10 +6,12 @@ import QtQuick.Layouts
 import QtQuick.Controls
 
 import "root:/services" as Services
+import "root:/modules/widgets" as Widgets
 
 PanelWindow {
     id: root
     anchors { top: true; left: true; right: true; bottom: true }
+    screen: Services.Screens.active
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     // stay mapped through the close animation
@@ -17,11 +19,6 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-
-    IpcHandler {
-        target: "process"
-        function toggle() { Services.AppState.toggleOverlay("processVisible") }
-    }
 
     readonly property bool shown: Services.AppState.processVisible
 
@@ -42,7 +39,7 @@ PanelWindow {
     Rectangle {
         id: card
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 68
+        anchors.bottomMargin: Math.max(68, Services.Sizes.marginBottom + 18)
         anchors.horizontalCenter: parent.horizontalCenter
         width: 720
         height: Math.min(700, root.height - 120)
@@ -52,14 +49,13 @@ PanelWindow {
         border.width: 0
         clip: true
 
+        // Origin-anchored open: grows up from its bottom-centre trigger + fades.
+        property real openAmt: root.shown ? 1.0 : 0.0
+        Behavior on openAmt { NumberAnimation { duration: 320; easing.type: Easing.OutQuint } }
         opacity: root.shown ? 1.0 : 0.0
-        scale: root.shown ? 1.0 : 0.97
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-        transform: Translate {
-            y: root.shown ? 0 : 20
-            Behavior on y { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-        }
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        transformOrigin: Item.Bottom
+        scale: 0.9 + 0.1 * card.openAmt
 
         MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -145,6 +141,19 @@ PanelWindow {
                                 font.family: "JetBrainsMono NF"
                             }
                         }
+
+                        // Download over upload. Rates have no ceiling, so the
+                        // window's own peak scales the plot.
+                        Widgets.Sparkline {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 64
+                            height: 26
+                            primary: Services.SysMon.netRxHistory
+                            secondary: Services.SysMon.netTxHistory
+                            autoScale: true
+                            minTop: 64
+                            lineWidth: 1.5
+                        }
                     }
                 }
             }
@@ -229,45 +238,12 @@ PanelWindow {
                     }
 
                     // filled sparkline: cpu over ram
-                    Canvas {
-                        id: graph
+                    Widgets.Sparkline {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        property var cpuHist: Services.SysMon.cpuHistory
-                        property var ramHist: Services.SysMon.ramHistory
-                        onCpuHistChanged: requestPaint()
-                        onRamHistChanged: requestPaint()
-
-                        function series(ctx, h, stroke, fill) {
-                            if (!h || h.length < 2) return
-                            let step = width / (h.length - 1)
-                            ctx.beginPath()
-                            ctx.moveTo(0, height - (h[0] / 100) * height)
-                            for (let i = 1; i < h.length; i++)
-                                ctx.lineTo(i * step, height - (h[i] / 100) * height)
-                            ctx.strokeStyle = stroke
-                            ctx.lineWidth = 2
-                            ctx.stroke()
-                            ctx.lineTo(width, height)
-                            ctx.lineTo(0, height)
-                            ctx.closePath()
-                            ctx.fillStyle = fill
-                            ctx.fill()
-                        }
-
-                        onPaint: {
-                            let ctx = getContext("2d")
-                            ctx.reset()
-                            ctx.clearRect(0, 0, width, height)
-                            ctx.strokeStyle = Services.Colors.ghostAlpha(0.08)
-                            ctx.lineWidth = 1
-                            for (let g = 1; g < 4; g++) {
-                                let y = (height / 4) * g
-                                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke()
-                            }
-                            graph.series(ctx, ramHist, Services.Colors.mist, Services.Colors.ghostAlpha(0.07))
-                            graph.series(ctx, cpuHist, Services.Colors.ghost, Services.Colors.ghostAlpha(0.16))
-                        }
+                        primary: Services.SysMon.cpuHistory
+                        secondary: Services.SysMon.ramHistory
+                        gridLines: 3
                     }
                 }
             }
@@ -288,18 +264,23 @@ PanelWindow {
                         id: statCard
                         required property var modelData
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 92
+                        Layout.preferredHeight: 110
                         radius: 16
                         color: Services.Colors.ghostAlpha(0.06)
 
                         readonly property real percent: {
                             let m = Services.SysMon
                             if (modelData.key === "ram") return m.ramTotalMB > 0 ? (m.ramUsedMB / m.ramTotalMB) * 100 : 0
-                            // dGPU asleep: show how hard the iGPU is clocking instead
-                            if (modelData.key === "gpu") return m.dgpuAwake
-                                ? m.gpuUsage
-                                : (m.igpuMaxFreq > 0 ? (m.igpuFreq / m.igpuMaxFreq) * 100 : 0)
+                            if (modelData.key === "gpu") return m.gpuPercent
                             return m.diskPercent
+                        }
+                        // Storage barely moves, so it keeps the plain bar; the live
+                        // stats get their own sparkline instead.
+                        readonly property var hist: {
+                            let m = Services.SysMon
+                            if (modelData.key === "ram") return m.ramHistory
+                            if (modelData.key === "gpu") return m.gpuHistory
+                            return null
                         }
                         readonly property string detail: {
                             let m = Services.SysMon
@@ -342,17 +323,33 @@ PanelWindow {
                                 }
                             }
 
-                            Rectangle {
+                            Item {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 8
-                                radius: 4
-                                color: Services.Colors.ghostAlpha(0.12)
+                                Layout.fillHeight: true
+
+                                Widgets.Sparkline {
+                                    anchors.fill: parent
+                                    visible: statCard.hist !== null
+                                    primary: statCard.hist || []
+                                    primaryStroke: statCard.accent
+                                    gridLines: 1
+                                }
+
                                 Rectangle {
-                                    width: parent.width * Math.max(0, Math.min(1, statCard.percent / 100))
-                                    height: parent.height
+                                    visible: statCard.hist === null
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: 8
                                     radius: 4
-                                    color: statCard.accent
-                                    Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+                                    color: Services.Colors.ghostAlpha(0.12)
+                                    Rectangle {
+                                        width: parent.width * Math.max(0, Math.min(1, statCard.percent / 100))
+                                        height: parent.height
+                                        radius: 4
+                                        color: statCard.accent
+                                        Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+                                    }
                                 }
                             }
 

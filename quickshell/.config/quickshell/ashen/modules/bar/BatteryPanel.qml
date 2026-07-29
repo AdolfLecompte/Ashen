@@ -7,6 +7,7 @@ import "root:/services" as Services
 PanelWindow {
     id: win
     anchors { top: true; left: true; right: true; bottom: true }
+    screen: Services.Screens.active
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     // stays mapped through the close animation, so the exit plays in reverse
@@ -34,13 +35,6 @@ PanelWindow {
         if (!win.availableProfiles.includes(name)) return
         Quickshell.execDetached(["sh", "-c", "powerprofilesctl set " + name])
         win.activeProfile = name
-    }
-
-    function profileDescription(name) {
-        if (name === "power-saver") return "Power Saver reduces performance to maximize battery life."
-        if (name === "balanced") return "Balanced mode adjusts system resources based on current activity to optimize endurance."
-        if (name === "performance") return "Performance mode prioritizes speed and responsiveness over battery life."
-        return ""
     }
 
     Process {
@@ -90,23 +84,26 @@ PanelWindow {
 
     Rectangle {
         id: card
-        anchors.top: parent.top
-        anchors.topMargin: 64
         width: 440
         height: 330
-        x: Math.max(12, Math.min(parent.width - width - 12, Services.AppState.batteryPillCenterX - width / 2))
+        // Follows its pill along the bar, and the bar around the screen
+        x: Services.Sizes.panelX(parent.width, width, Services.AppState.batteryPillCenterX)
+        y: Services.Sizes.panelY(parent.height, height, Services.AppState.batteryPillCenterY)
         radius: 18
         color: Services.Colors.surfaceAlpha(0.95)
-        border.color: Services.Colors.ghostAlpha(0.2)
-        border.width: 0
+
+        // Origin-anchored open: grows out of its bar pill + fades, smooth settle.
+        property real openAmt: Services.AppState.batteryVisible ? 1.0 : 0.0
+        Behavior on openAmt { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
 
         opacity: Services.AppState.batteryVisible ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-        transform: Translate {
-            id: slideT
-            x: Services.AppState.batteryVisible ? 0 : -24
-            Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        transform: Scale {
+            origin.x: Services.Sizes.originX(card.x, card.width, Services.AppState.batteryPillCenterX)
+            origin.y: Services.Sizes.originY(card.y, card.height, Services.AppState.batteryPillCenterY)
+            xScale: 0.55 + 0.45 * card.openAmt
+            yScale: 0.55 + 0.45 * card.openAmt
         }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
@@ -126,7 +123,20 @@ PanelWindow {
 
                 // Live charge as a 0..1 fraction; `frac` is what the canvas
                 // actually strokes, so it can animate independently of the level.
-                property real target: Services.Battery.level / 100
+                // Stepped by range (mirrors the glyph thresholds below) so the
+                // trace reads in sections and only reaches the end when full,
+                // instead of nearly filling the whole border at any high level.
+                property real target: {
+                    var l = Services.Battery.level
+                    if (l >= 95) return 1.0
+                    if (l >= 85) return 0.86
+                    if (l >= 70) return 0.72
+                    if (l >= 55) return 0.58
+                    if (l >= 40) return 0.44
+                    if (l >= 25) return 0.30
+                    if (l >= 10) return 0.16
+                    return 0.06
+                }
                 property real frac: 0
                 // Canvas keeps its last rendered image as a texture: on re-map
                 // it flashes that stale (full) buffer before the sweep repaints.
@@ -147,7 +157,12 @@ PanelWindow {
                     NumberAnimation {
                         target: battBox; property: "frac"
                         to: battBox.target
-                        duration: 6500; easing.type: Easing.OutCubic
+                        // Duration scales with how far the trace travels so the
+                        // sweep speed is constant at any level (a short low-battery
+                        // fill no longer takes the same time as a full loop). Floor
+                        // keeps very low levels from finishing in a blink.
+                        duration: Math.round(Math.max(450, 1500 * battBox.target))
+                        easing.type: Easing.Linear
                     }
                     // The sweep's end value is captured when it starts; if the
                     // async battery refresh landed a fresher level mid-sweep, the
@@ -171,7 +186,7 @@ PanelWindow {
                     onPaint: {
                         var ctx = getContext("2d")
                         ctx.reset()
-                        var lw = 7
+                        var lw = 11
                         var r = 22
                         var x = lw / 2, y = lw / 2
                         var w = width - lw, h = height - lw
@@ -197,15 +212,49 @@ PanelWindow {
                         path()
                         ctx.strokeStyle = Services.Colors.ghostAlpha(0.15)
                         ctx.stroke()
-                        // Accent fill: one dash covering frac of the perimeter
+                        // Accent fill: trace only `frac` of the perimeter as an
+                        // OPEN sub-path from top-centre clockwise, stopping partway
+                        // so the bar reads as progress. (setLineDash on the closed
+                        // path() drew the whole loop regardless of dash length, so
+                        // the trace always looked full.) Walk the border segments
+                        // accumulating length until frac*perimeter is consumed,
+                        // drawing a partial line/arc on the segment where it runs out.
                         var frac = Math.max(0, Math.min(1, battBox.frac))
                         if (frac > 0) {
                             var perim = 2 * (w + h) - 8 * r + 2 * Math.PI * r
-                            path()
+                            var half = Math.PI / 2
+                            var segs = [
+                                { t: "l", x1: x + w / 2, y1: y,         x2: x + w - r, y2: y },
+                                { t: "a", cx: x + w - r, cy: y + r,     a0: -half,     a1: 0 },
+                                { t: "l", x1: x + w,     y1: y + r,     x2: x + w,     y2: y + h - r },
+                                { t: "a", cx: x + w - r, cy: y + h - r, a0: 0,         a1: half },
+                                { t: "l", x1: x + w - r, y1: y + h,     x2: x + r,     y2: y + h },
+                                { t: "a", cx: x + r,     cy: y + h - r, a0: half,      a1: Math.PI },
+                                { t: "l", x1: x,         y1: y + h - r, x2: x,         y2: y + r },
+                                { t: "a", cx: x + r,     cy: y + r,     a0: Math.PI,   a1: 3 * half },
+                                { t: "l", x1: x + r,     y1: y,         x2: x + w / 2, y2: y },
+                            ]
+                            var rem = perim * frac
+                            ctx.beginPath()
+                            ctx.moveTo(x + w / 2, y)
+                            for (var i = 0; i < segs.length && rem > 0; i++) {
+                                var s = segs[i]
+                                var segLen = s.t === "l"
+                                    ? Math.hypot(s.x2 - s.x1, s.y2 - s.y1)
+                                    : r * Math.abs(s.a1 - s.a0)
+                                if (rem >= segLen) {
+                                    if (s.t === "l") ctx.lineTo(s.x2, s.y2)
+                                    else ctx.arc(s.cx, s.cy, r, s.a0, s.a1, false)
+                                    rem -= segLen
+                                } else {
+                                    var f = rem / segLen
+                                    if (s.t === "l") ctx.lineTo(s.x1 + (s.x2 - s.x1) * f, s.y1 + (s.y2 - s.y1) * f)
+                                    else ctx.arc(s.cx, s.cy, r, s.a0, s.a0 + (s.a1 - s.a0) * f, false)
+                                    rem = 0
+                                }
+                            }
                             ctx.strokeStyle = Services.Colors.ghost
-                            ctx.setLineDash([perim * frac, perim])
                             ctx.stroke()
-                            ctx.setLineDash([])
                         }
                     }
                 }
@@ -299,6 +348,7 @@ PanelWindow {
                     height: 64
                     radius: 12
                     color: Services.Colors.ghost
+                    gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                     Behavior on x { SmoothedAnimation { duration: 250 } }
                 }
 

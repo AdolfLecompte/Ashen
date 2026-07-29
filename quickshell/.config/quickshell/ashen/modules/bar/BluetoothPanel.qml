@@ -15,6 +15,7 @@ PanelWindow {
         right: true
         bottom: true
     }
+    screen: Services.Screens.active
 
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
@@ -69,10 +70,9 @@ PanelWindow {
     }
 
     Rectangle {
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.topMargin: 64
-        anchors.rightMargin: 12
+        // Hangs off the bluetooth chip, whichever edge the bar is on
+        x: Services.Sizes.panelX(parent.width, width, Services.AppState.bluetoothPillCenterX)
+        y: Services.Sizes.panelY(parent.height, height, Services.AppState.bluetoothPillCenterY)
         width: 340
         radius: 14
         height: Math.min(panelCol.implicitHeight + 28, root.height - 80)
@@ -81,11 +81,18 @@ PanelWindow {
         border.width: 0
         clip: true
 
+        id: btCard
+        // Origin-anchored open: grows out of its bar pill + fades, smooth settle.
+        property real openAmt: Services.AppState.bluetoothVisible ? 1.0 : 0.0
+        Behavior on openAmt { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
+
         opacity: Services.AppState.bluetoothVisible ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-        transform: Translate {
-            x: Services.AppState.bluetoothVisible ? 0 : -24
-            Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        transform: Scale {
+            origin.x: Services.Sizes.originX(btCard.x, btCard.width, Services.AppState.bluetoothPillCenterX)
+            origin.y: Services.Sizes.originY(btCard.y, btCard.height, Services.AppState.bluetoothPillCenterY)
+            xScale: 0.55 + 0.45 * btCard.openAmt
+            yScale: 0.55 + 0.45 * btCard.openAmt
         }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
@@ -141,6 +148,7 @@ PanelWindow {
                 Rectangle {
                     width: 52; height: 28; radius: 14
                     color: (root.adapter && root.adapter.enabled) ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.25)
+                    gradient: Services.Prefs.useGradients && ((root.adapter && root.adapter.enabled)) ? Services.Colors.accentGradient : null
                     Behavior on color { ColorAnimation { duration: 200 } }
 
                     Rectangle {
@@ -168,9 +176,10 @@ PanelWindow {
                 height: Services.Network.btDevice !== "" ? 64 : 0
                 visible: Services.Network.btDevice !== ""
                 radius: 8
+                // Filled, not outlined: the accent border read as a glow and
+                // nothing else in the shell outlines a selection.
                 color: Services.Colors.ghostAlpha(0.2)
-                border.color: Services.Colors.ghost
-                border.width: 1
+                border.width: 0
 
                 RowLayout {
                     anchors.fill: parent

@@ -6,20 +6,22 @@ import "root:/services" as Services
 
 Rectangle {
     id: root
-    height: 44
-    radius: 10
+    readonly property bool vertical: Services.Sizes.barVertical
+    height: root.vertical ? trayRow.height + 16 : Services.Sizes.pillH
+    radius: Services.Sizes.pillR
     color: Services.Colors.surfaceAlpha(0.82)
     border.color: Services.Colors.ghostAlpha(0.2)
     border.width: 0
-    width: trayRow.width + 16
-    visible: SystemTray.items.values.filter(i => !isSystemItem(i.id)).length > 0
+    width: root.vertical ? Services.Sizes.pillH : trayRow.width + 16
+    // Hidden from Settings > Bar > Pills
+    visible: Services.Prefs.pillVisible("tray") && (SystemTray.items.values.filter(i => !isSystemItem(i.id)).length > 0)
 
     function isSystemItem(id) {
         let excluded = ["blueman", "nm-applet", "networkmanager", "bluetooth", "pulseaudio", "pipewire"]
         return excluded.some(e => id.toLowerCase().includes(e))
     }
 
-    Row {
+    BarStrip {
         id: trayRow
         anchors.centerIn: parent
         spacing: 6
@@ -35,7 +37,7 @@ Rectangle {
                 Rectangle {
                     anchors.centerIn: parent
                     width: 28; height: 28
-                    radius: 8
+                    radius: Services.Sizes.innerR
                     color: trayHover.containsMouse ? Services.Colors.ghostAlpha(0.2) : "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
                 }
@@ -62,7 +64,7 @@ Rectangle {
                         // has to open the menu too or they do nothing at all
                         let wantsMenu = mouse.button === Qt.RightButton || modelData.onlyMenu
                         if (wantsMenu && modelData.hasMenu)
-                            Services.AppState.openTrayMenu(modelData, g.x)
+                            Services.AppState.openTrayMenu(modelData, g.x, g.y + parent.height / 2)
                         else if (mouse.button === Qt.LeftButton)
                             modelData.activate()
                     }

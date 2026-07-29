@@ -8,19 +8,10 @@ import "root:/services" as Services
 Scope {
     id: root
 
-    IpcHandler {
-        target: "notifications"
-        function toggle() {
-            Services.AppState.notificationsVisible = !Services.AppState.notificationsVisible
-        }
-        function screenshot() {
-            Services.Notifications.addSystemToast("SCREENSHOT SAVED", "\uf727", false, "screenshot")
-        }
-    }
-
     PanelWindow {
     id: win
     anchors { top: true; left: true; right: true; bottom: true }
+    screen: Services.Screens.active
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     // stays mapped through the close animation, so the exit plays in reverse
@@ -63,11 +54,14 @@ Scope {
     Rectangle {
         id: card
         anchors.top: parent.top
-        anchors.left: parent.left
         anchors.bottom: parent.bottom
-        anchors.topMargin: 64
-        anchors.bottomMargin: 12
-        anchors.leftMargin: 12
+        // Follows the bell: right-hand bar puts its pills on the right edge
+        anchors.topMargin: Services.Sizes.marginTop
+        anchors.bottomMargin: Services.Sizes.marginBottom
+        // Sits on the same side as the bell it belongs to
+        x: Services.Sizes.barPosition === "right"
+           ? parent.width - width - Services.Sizes.marginRight
+           : Services.Sizes.marginLeft
         width: 400
         radius: 18
         color: Services.Colors.surfaceAlpha(0.96)
@@ -75,12 +69,19 @@ Scope {
         border.width: 0
         clip: true
 
-        opacity: Services.AppState.notificationsVisible ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+        // Origin-anchored open: grows out of the LEFT side (mid-height, not a
+        // corner) so it reads as sliding open from the edge + fades.
+        property real openAmt: Services.AppState.notificationsVisible ? 1.0 : 0.0
+        Behavior on openAmt { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
 
-        transform: Translate {
-            x: Services.AppState.notificationsVisible ? 0 : -24
-            Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        opacity: Services.AppState.notificationsVisible ? 1.0 : 0.0
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+        transform: Scale {
+            origin.x: Services.Sizes.barPosition === "right" ? card.width : 0
+            origin.y: card.height / 2
+            xScale: 0.55 + 0.45 * card.openAmt
+            yScale: 0.55 + 0.45 * card.openAmt
         }
 
         MouseArea { anchors.fill: parent; onClicked: {} }

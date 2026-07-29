@@ -48,6 +48,7 @@ Scope {
     PanelWindow {
         id: win
         anchors { top: true; right: true; bottom: true }
+        screen: Services.Screens.active
         implicitWidth: 90
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
@@ -75,9 +76,10 @@ Scope {
         }
 
         Rectangle {
+            // Clears whichever edge the bar is on
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            anchors.rightMargin: 20
+            anchors.rightMargin: Math.max(20, Services.Sizes.marginRight)
             width: 48
             height: 250
             radius: 14
@@ -115,6 +117,7 @@ Scope {
                         width: parent.width
                         radius: 4
                         color: Services.Colors.ghost
+                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                         height: parent.height * Math.max(0, Math.min(1, win.level))
                         Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
                     }

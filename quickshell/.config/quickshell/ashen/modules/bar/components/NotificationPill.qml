@@ -4,20 +4,28 @@ import "root:/services" as Services
 
 Rectangle {
     id: root
-    readonly property int pillH: 44
+    // Hidden from Settings > Bar > Pills
+    visible: Services.Prefs.pillVisible("notifications")
+    // Subtle hover grow
+    scale: hover.containsMouse ? 1.05 : 1.0
+    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+    readonly property int pillH: Services.Sizes.pillH
     readonly property bool open: Services.AppState.notificationsVisible
     readonly property bool dnd: Services.AppState.doNotDisturb
 
     width: pillH; height: pillH
-    radius: 10
+    radius: Services.Sizes.pillR
     // Whole containment pill fills with the accent while the panel is open, the
     // same inversion every other active pill uses (see RecordingPill / LocksPill).
     // No inner box.
     color: open ? Services.Colors.ghost
                 : (hover.containsMouse ? Services.Colors.ghostAlpha(0.3)
                                        : Services.Colors.surfaceAlpha(0.82))
+    gradient: Services.Prefs.useGradients && (open) ? Services.Colors.accentGradient : null
     border.width: 0
     Behavior on color { ColorAnimation { duration: 300 } }
+
+    PillCenter { key: "notification" }
 
     Text {
         id: bell

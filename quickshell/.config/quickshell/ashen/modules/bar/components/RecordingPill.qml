@@ -4,19 +4,29 @@ import "root:/services" as Services
 
 Rectangle {
     id: root
+    // Hidden from Settings > Bar > Pills
+    visible: Services.Prefs.pillVisible("recording")
+    // Subtle hover grow
+    scale: hover.containsMouse ? 1.05 : 1.0
+    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
     readonly property bool active: Services.AppState.recording
 
     // Idle it is a square icon-only pill like the ones on the right; while
     // recording it grows to fit the elapsed time and fills with the accent,
     // the same inversion every other active pill uses (see SystemPill).
-    width: active ? row.width + 20 : 44
-    height: 44
-    radius: 10
+    readonly property bool vertical: Services.Sizes.barVertical
+
+    // On a side bar there is no room for the elapsed time, so it stays a square
+    // icon pill and only the glyph reports that a recording is running.
+    width: (active && !vertical) ? row.width + 20 : Services.Sizes.pillH
+    height: Services.Sizes.pillH
+    radius: Services.Sizes.pillR
     clip: true
     color: active ? Services.Colors.ghost
                   : (hover.containsMouse ? Services.Colors.ghostAlpha(0.3)
                                          : Services.Colors.surfaceAlpha(0.82))
+    gradient: Services.Prefs.useGradients && (active) ? Services.Colors.accentGradient : null
     border.color: active ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.2)
     border.width: 0
 
@@ -45,12 +55,13 @@ Rectangle {
         Text {
             text: "\uf679"
             color: (root.active || hover.containsMouse) ? Services.Colors.abyss : Services.Colors.mist
-            font.pixelSize: root.active ? 16 : 22
+            font.pixelSize: (root.active && !root.vertical) ? 16 : 22
             font.family: "Material Symbols Rounded"
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
-            visible: root.active
+            // no room for a timer on a side bar
+            visible: root.active && !root.vertical
             width: visible ? implicitWidth : 0
             text: root.elapsed
             color: Services.Colors.abyss

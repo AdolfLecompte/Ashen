@@ -1,92 +1,76 @@
 import Quickshell
 import Quickshell.Widgets
-import Quickshell.Services.Mpris
-import Qt5Compat.GraphicalEffects
 import QtQuick
-import QtQuick.Layouts
 import "root:/services" as Services
+import "root:/modules/widgets" as Widgets
 
 PanelWindow {
     id: root
     anchors { top: true; left: true; right: true; bottom: true }
+    screen: Services.Screens.active
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     // stays mapped through the close animation, so the exit plays in reverse
     readonly property bool shown: Services.AppState.mediaVisible
     visible: shown || closeDelay.running
-    onShownChanged: if (!shown) closeDelay.restart()
-    Timer { id: closeDelay; interval: 300 }
 
-    // Raw MPRIS read: drops to null for a few ms while the player changes track
-    property var livePlayer: {
-        let list = Mpris.players.values.filter(p => p.playbackState !== MprisPlaybackState.Stopped)
-        if (list.length === 0) return null
-        let playing = list.find(p => p.isPlaying)
-        return playing !== undefined ? playing : list[0]
-    }
-
-    // Held across that gap so the panel does not flip to "Nothing playing"
-    property var activePlayer: null
-    property bool hasPlayer: activePlayer !== null
-
-    onLivePlayerChanged: {
-        if (livePlayer !== null) {
-            dropTimer.stop()
-            activePlayer = livePlayer
+    // A layer surface is not presented on the frame it is asked for, so a morph
+    // started at click time spends its first ~200 ms off screen and only its
+    // tail is ever seen. Hold the pill, let the surface land, then run.
+    onShownChanged: {
+        if (shown) {
+            arm.restart()
         } else {
-            dropTimer.restart()
+            arm.stop()
+            Services.AppState.mediaMorphing = false
+            openAnim.stop()
+            closeAnim.start()
+            closeDelay.restart()
         }
     }
-
     Timer {
-        id: dropTimer
-        interval: 5000
-        onTriggered: if (root.livePlayer === null) root.activePlayer = null
-    }
-
-    // Cache the values the browser sends intermittently
-    // (they sometimes arrive empty for an instant before coming back)
-    property string stableArtUrl: ""
-    property string stableArtist: ""
-    property string stableAlbum: ""
-    function updateTrackInfo() {
-        if (!root.hasPlayer) {
-            root.stableArtUrl = ""
-            root.stableArtist = ""
-            root.stableAlbum = ""
-            return
-        }
-        if (root.activePlayer.trackArtUrl !== "") root.stableArtUrl = root.activePlayer.trackArtUrl
-        if (root.activePlayer.trackArtist !== "") root.stableArtist = root.activePlayer.trackArtist
-        if (root.activePlayer.trackAlbum !== "") root.stableAlbum = root.activePlayer.trackAlbum
-    }
-    onActivePlayerChanged: {
-        root.stableArtist = ""
-        root.stableAlbum = ""
-        updateTrackInfo()
-    }
-    Component.onCompleted: { activePlayer = livePlayer; updateTrackInfo() }
-    Connections {
-        target: root.activePlayer
-        ignoreUnknownSignals: true
-        function onTrackArtUrlChanged() { root.updateTrackInfo() }
-        function onTrackArtistChanged() { root.updateTrackInfo() }
-        function onTrackAlbumChanged() { root.updateTrackInfo() }
-        function onTrackTitleChanged() {
-            // new title = possibly a new song, so reset the old artist/album
-            // to avoid carrying the previous one over if the new one is slow
-            root.stableArtist = ""
-            root.stableAlbum = ""
-            root.updateTrackInfo()
+        id: arm
+        interval: 200
+        onTriggered: {
+            Services.AppState.mediaMorphing = true
+            closeAnim.stop()
+            openAnim.start()
         }
     }
+    // Long enough to cover the slowest leg of the morph back into the pill
+    Timer { id: closeDelay; interval: 560 }
 
-    function formatTime(seconds) {
-        if (!seconds || seconds <= 0) return "0:00"
-        let m = Math.floor(seconds / 60)
-        let s = Math.floor(seconds % 60)
-        return m + ":" + (s < 10 ? "0" : "") + s
-    }
+    readonly property bool opening: Services.AppState.mediaMorphing
+
+    // ── Dynamic-island morph ────────────────────────────────────────────
+    // This panel is not a card that appears next to the pill: it IS the pill,
+    // grown up. It starts as an exact copy of the pill's rect and swells into
+    // the full card, so the two read as one object changing size.
+    //
+    // The droplet comes from animating the axes apart instead of together: the
+    // blob stretches downward first (it falls out of the bar), then the width
+    // catches up and spreads with a hair of overshoot, the way a drop flattens
+    // when it lands. A goo neck keeps it tied to the bar until it pinches off.
+    //
+    // What the card actually shows is Widgets.MediaCard, the same item the lock
+    // screen mounts. This file only owns the blob and the trip: everything the
+    // pill and the card have in common — cover, title, times, the three
+    // transport chips — is ONE item that travels between the two layouts,
+    // while the card's own extras fade in behind it.
+    //
+    // The card's size comes from the shared item, so growing the cover there
+    // grows the panel here and the two can never disagree.
+    readonly property real openW: panelRef.contentW + panelRef.pad * 2
+    readonly property real openH: panelRef.artSize + panelRef.pad * 2
+    readonly property real pillW: Math.max(1, Services.AppState.mediaPillW)
+    readonly property real pillH: Math.max(1, Services.AppState.mediaPillH)
+    readonly property real pillCX: Services.AppState.mediaPillCenterX
+    readonly property real pillCY: Services.AppState.mediaPillCenterY
+
+    // The player state lives in the shared card; everything here reads it back
+    // out rather than keeping a second copy in step.
+    readonly property bool hasPlayer: panelRef.hasPlayer
+    readonly property var activePlayer: panelRef.activePlayer
 
     MouseArea {
         anchors.fill: parent
@@ -100,318 +84,408 @@ PanelWindow {
         Keys.onEscapePressed: Services.AppState.mediaVisible = false
     }
 
-    Timer {
-        interval: 1000
-        repeat: true
-        running: root.hasPlayer && root.activePlayer.isPlaying
-        onTriggered: if (root.hasPlayer) root.activePlayer.positionChanged()
+    // The goo bridge, drawn under the card so the card's own edge hides where
+    // the two meet. Alive only while the blob is on its way out of the bar.
+    Canvas {
+        id: neck
+
+        readonly property bool horizontalBar: !Services.Sizes.barVertical
+        // 0 = still fused to the bar, 1 = snapped off
+        readonly property real pinch: Math.max(0, Math.min(1, card.fall / 0.55))
+        readonly property real cx: root.pillCX
+        // Bar edge the drop hangs from, and the card edge facing it
+        readonly property real barEdge: Services.Sizes.barPosition === "bottom"
+            ? parent.height - Services.Sizes.barH : Services.Sizes.barH
+        readonly property real cardEdge: Services.Sizes.barPosition === "bottom"
+            ? card.y + card.height : card.y
+        readonly property real span: Math.abs(cardEdge - barEdge)
+
+        // Only once the card edge is actually past the bar edge — while the
+        // blob is still inside the bar the bridge would be drawn upside down,
+        // over the bar itself.
+        readonly property bool detached: Services.Sizes.barPosition === "bottom"
+            ? cardEdge < barEdge : cardEdge > barEdge
+
+        visible: horizontalBar && detached && pinch > 0.001 && pinch < 1 && span > 1
+        opacity: 1 - Math.pow(pinch, 2)
+
+        x: cx - root.pillW
+        width: root.pillW * 2
+        y: Math.min(barEdge, cardEdge)
+        height: Math.max(0, span)
+
+        onPinchChanged: requestPaint()
+        onHeightChanged: requestPaint()
+
+        onPaint: {
+            const ctx = getContext("2d")
+            ctx.reset()
+            if (height <= 0) return
+            const mid = width / 2
+            // Wide where it meets the bar, card width where it meets the card,
+            // and squeezed to nothing at the waist as the drop pulls away
+            const wBar = root.pillW / 2 * 0.72
+            const wCard = Math.min(card.width / 2, root.pillW / 2)
+            const waist = Math.min(wBar, wCard) * (1 - pinch)
+            const top = Services.Sizes.barPosition === "bottom" ? wCard : wBar
+            const bottom = Services.Sizes.barPosition === "bottom" ? wBar : wCard
+
+            ctx.fillStyle = Services.Colors.surfaceAlpha(0.95)
+            ctx.beginPath()
+            ctx.moveTo(mid - top, 0)
+            ctx.quadraticCurveTo(mid - waist, height / 2, mid - bottom, height)
+            ctx.lineTo(mid + bottom, height)
+            ctx.quadraticCurveTo(mid + waist, height / 2, mid + top, 0)
+            ctx.closePath()
+            ctx.fill()
+        }
     }
 
     Rectangle {
         id: card
-        anchors.top: parent.top
-        anchors.topMargin: 64
-        width: 520
-        height: 210
-        x: Math.max(12, Math.min(parent.width - width - 12, Services.AppState.mediaPillCenterX - width / 2))
-        radius: 16
-        color: Services.Colors.surfaceAlpha(0.95)
-        border.color: Services.Colors.ghostAlpha(0.2)
-        border.width: 0
-        clip: true
 
-        opacity: Services.AppState.mediaVisible ? 1.0 : 0.0
-        scale: Services.AppState.mediaVisible ? 1.0 : 0.92
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+        // Where the grown-up card wants to end up: same placement rules as
+        // before, so it still tracks its pill and follows the bar around.
+        readonly property real openX: Services.Sizes.panelX(parent.width, root.openW, root.pillCX)
+        readonly property real openY: Services.Sizes.panelY(parent.height, root.openH, root.pillCY)
 
-        transform: Translate {
-            y: Services.AppState.mediaVisible ? 0 : -24
-            Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        // Only drawn once the morph is actually armed, so the pill never has to
+        // share the screen with a copy of itself.
+        visible: root.opening || closeDelay.running
+
+        function lerp(a, b, t) { return a + (b - a) * t }
+
+        // Three drivers rather than one, so the shape lags behind the motion
+        // and the blob deforms on the way instead of scaling rigidly.
+        property real fall: 0      // travel from the bar to the resting spot
+        property real stretch: 0   // height
+        property real spread: 0    // width
+        // 0 = shared items sit in the pill's arrangement, 1 = the card's.
+        // Deliberately started late: the box opens first and the contents
+        // rearrange inside it afterwards, never both at once.
+        property real morph: 0
+        // Fade for everything that exists only in the card
+        property real contentAmt: 0
+
+        // Origin of the pill reference layout, in card coordinates
+        readonly property real prColX: pillRef.x + refCol.x
+        readonly property real prColY: pillRef.y + refCol.y
+
+        // Chip sizes at each end of the trip
+        readonly property real chipSm: Services.Sizes.innerH
+        readonly property real playSm: Services.Sizes.innerH
+
+        // Explicit animations rather than Behaviors with direction-dependent
+        // durations: a `root.opening ? a : b` inside a Behavior is read with
+        // the *old* value of the flag, so the close silently ran with the open
+        // timings. Two named animations leave no room for that.
+        ParallelAnimation {
+            id: openAnim
+            NumberAnimation {
+                target: card; property: "fall"; to: 1
+                duration: 460; easing.type: Easing.OutCubic
+            }
+            // Height leads: the drop elongates as it detaches from the bar
+            NumberAnimation {
+                target: card; property: "stretch"; to: 1
+                duration: 360; easing.type: Easing.OutCubic
+            }
+            // Width trails and lands wide: the flatten-on-impact part. The
+            // overshoot is tiny (~5 px) — a real bounce reads as a pop.
+            NumberAnimation {
+                target: card; property: "spread"; to: 1
+                duration: 560; easing.type: Easing.OutBack; easing.overshoot: 0.7
+            }
+            // Box first, contents after: the shared items hold the pill's
+            // arrangement while the blob grows around them, then travel.
+            SequentialAnimation {
+                PauseAnimation { duration: 200 }
+                NumberAnimation {
+                    target: card; property: "morph"; to: 1
+                    duration: 340; easing.type: Easing.OutCubic
+                }
+            }
+            // The card-only extras arrive last, filling the gaps the travelling
+            // items have opened up by then.
+            SequentialAnimation {
+                PauseAnimation { duration: 380 }
+                NumberAnimation { target: card; property: "contentAmt"; to: 1; duration: 200 }
+            }
         }
+
+        // Closing is not the opening backwards: the extras leave, the items
+        // regroup into the pill, and only then does the shape collapse — the
+        // same order, mirrored, so the box is never smaller than its contents.
+        ParallelAnimation {
+            id: closeAnim
+            NumberAnimation { target: card; property: "contentAmt"; to: 0; duration: 90 }
+            SequentialAnimation {
+                PauseAnimation { duration: 40 }
+                NumberAnimation {
+                    target: card; property: "morph"; to: 0
+                    duration: 260; easing.type: Easing.InOutCubic
+                }
+            }
+            SequentialAnimation {
+                PauseAnimation { duration: 160 }
+                ParallelAnimation {
+                    NumberAnimation {
+                        target: card; property: "fall"; to: 0
+                        duration: 340; easing.type: Easing.InOutCubic
+                    }
+                    NumberAnimation {
+                        target: card; property: "stretch"; to: 0
+                        duration: 300; easing.type: Easing.InOutCubic
+                    }
+                    NumberAnimation {
+                        target: card; property: "spread"; to: 0
+                        duration: 300; easing.type: Easing.InOutCubic
+                    }
+                }
+            }
+        }
+
+        width: root.pillW + (root.openW - root.pillW) * spread
+        height: root.pillH + (root.openH - root.pillH) * stretch
+        x: root.pillCX + (openX + root.openW / 2 - root.pillCX) * fall - width / 2
+        y: root.pillCY + (openY + root.openH / 2 - root.pillCY) * fall - height / 2
+
+        // Pill corner while small, card corner once open
+        radius: Services.Sizes.pillR + (20 - Services.Sizes.pillR) * Math.min(1, spread)
+        color: Services.Colors.surfaceAlpha(0.95)
+        clip: true
 
         MouseArea { anchors.fill: parent; onClicked: {} }
 
-        // Cava backdrop, clipped to the card's rounded corners so the bars
-        // don't poke out at the sides.
-        ClippingRectangle {
-            anchors.fill: parent
-            radius: 16
-            color: "transparent"
-            Canvas {
-                id: cavaCanvas
-                anchors.fill: parent
-                opacity: Services.Cava.isActive ? 1.0 : 0.0
-                Behavior on opacity { NumberAnimation { duration: 400 } }
-                Connections {
-                    target: Services.Cava
-                    function onBarValuesChanged() { cavaCanvas.requestPaint() }
-                }
-                onPaint: {
-                    var ctx = getContext("2d")
-                    ctx.reset()
-                    let vals = Services.Cava.barValues
-                    if (!vals || vals.length === 0) return
-                    var n = vals.length
-                    var barW = width / n
-                    ctx.fillStyle = Services.Colors.ghostAlpha(0.10)
-                    for (var i = 0; i < n; i++) {
-                        var v = Math.max(0, Math.min(100, vals[i])) / 100.0
-                        var h = v * height * 0.6
-                        ctx.fillRect(i * barW, height - h, Math.max(1, barW - 1), h)
-                    }
-                }
-            }
-        }
+        // ── Reference layout A: the pill ────────────────────────────────
+        // An exact structural copy of MediaPill's row, laid out but never
+        // drawn. It exists so the shared items know where the pill puts
+        // them, to the pixel, without anyone maintaining a second set of
+        // coordinates by hand.
+        //
+        // Centred, not left-anchored: the real pill is exactly its row plus 10
+        // px of margin either side, so centring lands on the same pixels while
+        // the card still matches the pill — and once the box starts inflating
+        // the contents hold the middle instead of being dragged along by the
+        // left edge. The box grows around them; they only move when told to.
+        Row {
+            id: pillRef
+            opacity: 0
+            anchors.centerIn: parent
+            spacing: 8
 
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 20
-            spacing: 18
-
-            // Square art with rounded corners
             Item {
-                width: 130; height: 130
-                Layout.alignment: Qt.AlignVCenter
-
-                Image {
-                    id: art
-                    anchors.fill: parent
-                    source: root.stableArtUrl
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    visible: false
-                }
-
-                Rectangle {
-                    id: artMask
-                    anchors.fill: parent
-                    radius: 16
-                    visible: false
-                }
-
-                OpacityMask {
-                    anchors.fill: parent
-                    source: art
-                    maskSource: artMask
-                    visible: art.status === Image.Ready
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 16
-                    color: Services.Colors.abyss
-                    visible: art.status !== Image.Ready
-                    Text {
-                        anchors.centerIn: parent
-                        text: ""
-                        color: Services.Colors.ash
-                        font.family: "Material Symbols Rounded"
-                        font.pixelSize: 28
-                    }
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 16
-                    color: "transparent"
-                    border.color: Services.Colors.ghostAlpha(0.2)
-                    border.width: 0
-                }
+                id: refArt
+                width: Services.Sizes.pillH - 10
+                height: Services.Sizes.pillH - 10
+                anchors.verticalCenter: parent.verticalCenter
             }
 
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 8
+            Column {
+                id: refCol
+                width: 120
+                spacing: 3
+                anchors.verticalCenter: parent.verticalCenter
 
                 Text {
-                    text: root.hasPlayer ? (root.activePlayer.trackTitle || "Untitled") : "Nothing playing"
-                    color: Services.Colors.snow
-                    font.pixelSize: 18
+                    id: refTitle
+                    width: parent.width
+                    text: panelRef.titleText
+                    font.pixelSize: 11
                     font.bold: true
                     font.family: "JetBrainsMono NF"
                     elide: Text.ElideRight
-                    Layout.fillWidth: true
                 }
-                Text {
-                    visible: root.stableArtist !== ""
-                    text: root.stableArtist
-                    color: Services.Colors.mist
-                    font.pixelSize: 12
-                    font.family: "JetBrainsMono NF"
-                    elide: Text.ElideRight
-                    Layout.fillWidth: true
-                }
-                Text {
-                    visible: root.stableAlbum !== ""
-                    text: root.stableAlbum
-                    color: Services.Colors.ash
-                    font.pixelSize: 10
-                    font.family: "JetBrainsMono NF"
-                    elide: Text.ElideRight
-                    Layout.fillWidth: true
-                }
-
-                Item { Layout.fillHeight: true }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-
-                    // Snake progress: a sine wave whose played portion glows in
-                    // the accent and scrolls while the track plays; the rest is
-                    // a dim static wave. A dot rides the crest at the playhead.
-                    Item {
-                        id: snake
-                        Layout.fillWidth: true
-                        height: 22
-
-                        property real progress: (root.hasPlayer && root.activePlayer.length > 0)
-                            ? Math.max(0, Math.min(1, root.activePlayer.position / root.activePlayer.length)) : 0
-                        Behavior on progress { NumberAnimation { duration: 300 } }
-                        property real phase: 0
-                        readonly property bool playing: root.hasPlayer && root.activePlayer.isPlaying
-
-                        // 0 = flat line (paused), 1 = full wave (playing). Animated
-                        // so the straight<->snake transition morphs smoothly.
-                        property real ampFactor: playing ? 1 : 0
-                        Behavior on ampFactor { NumberAnimation { duration: 550; easing.type: Easing.InOutCubic } }
-
-                        onProgressChanged: waveCanvas.requestPaint()
-                        onPhaseChanged: waveCanvas.requestPaint()
-                        onAmpFactorChanged: waveCanvas.requestPaint()
-                        NumberAnimation on phase {
-                            running: snake.playing
-                            from: 0; to: 2 * Math.PI
-                            duration: 1600; loops: Animation.Infinite
-                        }
-
-                        Canvas {
-                            id: waveCanvas
-                            anchors.fill: parent
-                            readonly property real amp: height * 0.30
-                            readonly property real waves: 3.5
-                            function trace(ctx) {
-                                var mid = height / 2
-                                ctx.beginPath()
-                                for (var px = 0; px <= width; px += 2) {
-                                    var y = mid + amp * parent.ampFactor * Math.sin((px / width) * waves * 2 * Math.PI + parent.phase)
-                                    if (px === 0) ctx.moveTo(px, y); else ctx.lineTo(px, y)
-                                }
-                            }
-                            onPaint: {
-                                var ctx = getContext("2d")
-                                ctx.reset()
-                                ctx.lineWidth = 5
-                                ctx.lineCap = "round"
-                                // Dim full wave
-                                ctx.strokeStyle = Services.Colors.ghostAlpha(0.18)
-                                trace(ctx); ctx.stroke()
-                                // Accent wave, clipped to the played fraction
-                                var pw = width * parent.progress
-                                if (pw > 0) {
-                                    ctx.save()
-                                    ctx.beginPath(); ctx.rect(0, 0, pw, height); ctx.clip()
-                                    ctx.strokeStyle = Services.Colors.ghost
-                                    trace(ctx); ctx.stroke()
-                                    ctx.restore()
-                                }
-                            }
-                        }
-
-                        // Dot rides the wave at the playhead
-                        Rectangle {
-                            width: 9; height: 9; radius: 5
-                            color: Services.Colors.snow
-                            x: Math.max(0, parent.width * parent.progress - width / 2)
-                            y: parent.height / 2 - height / 2
-                                + waveCanvas.amp * parent.ampFactor * Math.sin(parent.progress * waveCanvas.waves * 2 * Math.PI + parent.phase)
-                            Behavior on x { NumberAnimation { duration: 300 } }
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text {
-                            text: root.hasPlayer ? root.formatTime(root.activePlayer.position) : "0:00"
-                            color: Services.Colors.ash
-                            font.pixelSize: 10
-                            font.family: "JetBrainsMono NF"
-                        }
-                        Item { Layout.fillWidth: true }
-                        Text {
-                            text: root.hasPlayer ? root.formatTime(root.activePlayer.length) : "0:00"
-                            color: Services.Colors.ash
-                            font.pixelSize: 10
-                            font.family: "JetBrainsMono NF"
-                        }
-                    }
-                }
-
-                // Controls: prev/next enabled ONLY if the player really
-                // supports skipping tracks (no seek fallback)
-                RowLayout {
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: 20
-
+                // The pill's single "0:12/3:45" as three pieces at zero
+                // spacing: in a monospaced face that lays out identically to
+                // the joined string, and it lets the two numbers walk apart.
+                Row {
+                    id: refTimes
+                    spacing: 0
                     Text {
-                        text: ""
-                        font.family: "Material Symbols Rounded"
-                        font.pixelSize: 16
-                        color: Services.Colors.mist
-                        MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor }
+                        id: refPos
+                        text: panelRef.posText
+                        font.pixelSize: 10; font.bold: true
+                        font.family: "JetBrainsMono NF"
                     }
                     Text {
-                        text: ""
-                        font.family: "Material Symbols Rounded"
-                        font.pixelSize: 20
-                        color: root.hasPlayer && root.activePlayer.canGoPrevious ? Services.Colors.snow : Services.Colors.ash
-                        MouseArea {
-                            anchors.fill: parent; anchors.margins: -6
-                            cursorShape: Qt.PointingHandCursor
-                            enabled: root.hasPlayer && root.activePlayer.canGoPrevious
-                            onClicked: root.activePlayer.previous()
-                        }
-                    }
-                    Rectangle {
-                        width: 44; height: 44; radius: 14
-                        color: Services.Colors.ghost
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.hasPlayer && root.activePlayer.isPlaying ? "" : ""
-                            font.family: "Material Symbols Rounded"
-                            font.pixelSize: 20
-                            color: Services.Colors.abyss
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            enabled: root.hasPlayer
-                            onClicked: root.activePlayer.togglePlaying()
-                        }
+                        id: refSep
+                        text: "/"
+                        font.pixelSize: 10; font.bold: true
+                        font.family: "JetBrainsMono NF"
                     }
                     Text {
-                        text: ""
-                        font.family: "Material Symbols Rounded"
-                        font.pixelSize: 20
-                        color: root.hasPlayer && root.activePlayer.canGoNext ? Services.Colors.snow : Services.Colors.ash
-                        MouseArea {
-                            anchors.fill: parent; anchors.margins: -6
-                            cursorShape: Qt.PointingHandCursor
-                            enabled: root.hasPlayer && root.activePlayer.canGoNext
-                            onClicked: root.activePlayer.next()
-                        }
-                    }
-                    Text {
-                        text: ""
-                        font.family: "Material Symbols Rounded"
-                        font.pixelSize: 16
-                        color: Services.Colors.mist
-                        MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor }
+                        id: refLen
+                        text: panelRef.lenText
+                        font.pixelSize: 10; font.bold: true
+                        font.family: "JetBrainsMono NF"
                     }
                 }
             }
+
+            Row {
+                id: refCtl
+                spacing: 4
+                anchors.verticalCenter: parent.verticalCenter
+
+                Item { id: refPrev; width: card.chipSm; height: card.chipSm }
+                Item { id: refPlay; width: card.playSm; height: card.playSm }
+                Item { id: refNext; width: card.chipSm; height: card.chipSm }
+            }
+        }
+
+        // ── Reference layout B: the card ────────────────────────────────
+        // The real thing, the same item the lock screen shows. `ghostShared`
+        // leaves the pieces the morph flies in laid out but undrawn, so they
+        // are targets rather than duplicates; `extrasOpacity` holds back what
+        // the pill has no counterpart for until the blob has finished opening.
+        Widgets.MediaCard {
+            id: panelRef
+            anchors.centerIn: parent
+            ghostShared: true
+            extrasOpacity: card.contentAmt
+        }
+
+        // ── The shared items ────────────────────────────────────────────
+        // One of each, drawn on top of both refs, walking from slot A to slot
+        // B. These are the only transport controls the user can click.
+
+        // Album art: 34 px pill chip to the card's cover, growing about its own
+        // centre so it reads as the same square swelling.
+        ClippingRectangle {
+            id: flyArt
+            readonly property real size: card.lerp(refArt.width, panelRef.artSize, card.morph)
+            width: size
+            height: size
+            radius: card.lerp(Services.Sizes.innerR, 28, card.morph)
+            color: Services.Colors.abyss
+            x: card.lerp(pillRef.x + refArt.x + refArt.width / 2,
+                         panelRef.x + panelRef.artCX, card.morph) - width / 2
+            y: card.lerp(pillRef.y + refArt.y + refArt.height / 2,
+                         panelRef.y + panelRef.artCY, card.morph) - height / 2
+
+            Image {
+                id: flyImg
+                anchors.fill: parent
+                source: panelRef.stableArtUrl
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                visible: status === Image.Ready
+            }
+            Text {
+                anchors.centerIn: parent
+                visible: flyImg.status !== Image.Ready
+                text: ""
+                color: Services.Colors.ash
+                font.family: "Material Symbols Rounded"
+                font.pixelSize: card.lerp(18, 40, card.morph)
+            }
+        }
+
+        // Title. Scaled rather than re-sized: stepping font.pixelSize from 11
+        // to 18 reflows the glyphs in integer jumps and reads as a stutter.
+        // Laid out at the big size and shrunk, so the elide width has to be
+        // divided back out to keep the visible width honest.
+        Text {
+            id: flyTitle
+            readonly property real s: card.lerp(11 / 18, 1, card.morph)
+            readonly property real visW: card.lerp(refCol.width, panelRef.titleW, card.morph)
+            text: panelRef.titleText
+            color: Services.Colors.snow
+            font.pixelSize: 18
+            font.bold: true
+            font.family: "JetBrainsMono NF"
+            elide: Text.ElideRight
+            width: visW / s
+            x: card.lerp(card.prColX + refTitle.x, panelRef.x + panelRef.titleX, card.morph)
+            y: card.lerp(card.prColY + refTitle.y + refTitle.height / 2,
+                         panelRef.y + panelRef.titleCY, card.morph) - height / 2
+            transform: Scale {
+                origin.x: 0
+                origin.y: flyTitle.height / 2
+                xScale: flyTitle.s
+                yScale: flyTitle.s
+            }
+        }
+
+        // Elapsed and total. Same size at both ends, so they only travel: in
+        // the pill they are welded either side of a slash, in the card they
+        // stand at opposite ends of the wave.
+        Text {
+            id: flyPos
+            text: panelRef.posText
+            color: Services.Colors.mist
+            font.pixelSize: 10; font.bold: true
+            font.family: "JetBrainsMono NF"
+            x: card.lerp(card.prColX + refTimes.x + refPos.x,
+                         panelRef.x + panelRef.posX, card.morph)
+            y: card.lerp(card.prColY + refTimes.y + refPos.y + refPos.height / 2,
+                         panelRef.y + panelRef.posCY, card.morph) - height / 2
+        }
+        // The slash has nowhere to go once the numbers separate, so it is the
+        // one shared piece that does fade — quickly, before the gap opens.
+        Text {
+            id: flySep
+            text: "/"
+            color: Services.Colors.mist
+            font.pixelSize: 10; font.bold: true
+            font.family: "JetBrainsMono NF"
+            opacity: 1 - Math.min(1, card.morph * 4)
+            visible: opacity > 0.01
+            x: card.lerp(card.prColX + refTimes.x + refSep.x, flyPos.x + flyPos.width, card.morph)
+            y: flyPos.y
+        }
+        Text {
+            id: flyLen
+            text: panelRef.lenText
+            color: Services.Colors.mist
+            font.pixelSize: 10; font.bold: true
+            font.family: "JetBrainsMono NF"
+            x: card.lerp(card.prColX + refTimes.x + refLen.x,
+                         panelRef.x + panelRef.lenX, card.morph)
+            y: card.lerp(card.prColY + refTimes.y + refLen.y + refLen.height / 2,
+                         panelRef.y + panelRef.lenCY, card.morph) - height / 2
+        }
+
+        // Transport chips: the same three plates the bar shows, grown and
+        // respaced. Everything about their look lives in CtlChip, so hover
+        // behaves identically at either size.
+        Widgets.CtlChip {
+            id: flyPrev
+            glyph: ""
+            size: card.lerp(card.chipSm, panelRef.chipLg, card.morph)
+            glyphSize: card.lerp(18, 20, card.morph)
+            available: root.hasPlayer && root.activePlayer.canGoPrevious
+            onTriggered: root.activePlayer.previous()
+            x: card.lerp(pillRef.x + refCtl.x + refPrev.x + refPrev.width / 2,
+                         panelRef.x + panelRef.prevCX, card.morph) - width / 2
+            y: card.lerp(pillRef.y + refCtl.y + refPrev.y + refPrev.height / 2,
+                         panelRef.y + panelRef.prevCY, card.morph) - height / 2
+        }
+        Widgets.CtlChip {
+            id: flyPlay
+            glyph: panelRef.playGlyph
+            size: card.lerp(card.playSm, panelRef.playLg, card.morph)
+            glyphSize: card.lerp(20, 24, card.morph)
+            available: root.hasPlayer
+            active: root.hasPlayer && root.activePlayer.isPlaying
+            onTriggered: root.activePlayer.togglePlaying()
+            x: card.lerp(pillRef.x + refCtl.x + refPlay.x + refPlay.width / 2,
+                         panelRef.x + panelRef.playCX, card.morph) - width / 2
+            y: card.lerp(pillRef.y + refCtl.y + refPlay.y + refPlay.height / 2,
+                         panelRef.y + panelRef.playCY, card.morph) - height / 2
+        }
+        Widgets.CtlChip {
+            id: flyNext
+            glyph: ""
+            size: card.lerp(card.chipSm, panelRef.chipLg, card.morph)
+            glyphSize: card.lerp(18, 20, card.morph)
+            available: root.hasPlayer && root.activePlayer.canGoNext
+            onTriggered: root.activePlayer.next()
+            x: card.lerp(pillRef.x + refCtl.x + refNext.x + refNext.width / 2,
+                         panelRef.x + panelRef.nextCX, card.morph) - width / 2
+            y: card.lerp(pillRef.y + refCtl.y + refNext.y + refNext.height / 2,
+                         panelRef.y + panelRef.nextCY, card.morph) - height / 2
         }
     }
 }

@@ -4,16 +4,22 @@ import "root:/services" as Services
 
 Rectangle {
     id: root
-    readonly property int pillH: 44
+    // Hidden from Settings > Bar > Pills
+    visible: Services.Prefs.pillVisible("launcher")
+    // Subtle hover grow
+    scale: hover.containsMouse ? 1.05 : 1.0
+    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+    readonly property int pillH: Services.Sizes.pillH
     readonly property bool active: Services.AppState.launcherVisible
 
     width: pillH; height: pillH
-    radius: 10
+    radius: Services.Sizes.pillR
     // Fills with the accent while open, ghost tint on hover, the same inversion
     // every other toggle pill uses (see NotificationPill / RecordingPill).
     color: active ? Services.Colors.ghost
                   : (hover.containsMouse ? Services.Colors.ghostAlpha(0.3)
                                          : Services.Colors.surfaceAlpha(0.82))
+    gradient: Services.Prefs.useGradients && (active) ? Services.Colors.accentGradient : null
     border.width: 0
     Behavior on color { ColorAnimation { duration: 200 } }
 

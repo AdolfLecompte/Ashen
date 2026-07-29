@@ -7,6 +7,7 @@ import "root:/services" as Services
 PanelWindow {
     id: win
     anchors { top: true; right: true; bottom: true }
+    screen: Services.Screens.active
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     implicitWidth: 360
@@ -24,10 +25,13 @@ PanelWindow {
 
     Column {
         id: col
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.topMargin: 64
-        anchors.rightMargin: 12
+        // Opposite corner from the notification rail, so both can be open
+        x: Services.Sizes.barPosition === "right"
+           ? Services.Sizes.marginLeft
+           : parent.width - width - Services.Sizes.marginRight
+        y: Services.Sizes.pinBottom
+           ? parent.height - height - Services.Sizes.marginBottom
+           : Services.Sizes.marginTop
         spacing: 8
         width: 340
 
@@ -36,7 +40,7 @@ PanelWindow {
         }
 
         Repeater {
-            model: Services.Notifications.activePopups
+            model: Services.Notifications.shownPopups
 
             delegate: Rectangle {
                 id: card
@@ -78,7 +82,7 @@ PanelWindow {
                 }
 
                 Timer {
-                    interval: card.isSystem ? 1800 : 6000
+                    interval: card.isSystem ? 1800 : Services.Prefs.toastSeconds * 1000
                     running: true
                     onTriggered: card.dismiss()
                 }
@@ -238,5 +242,69 @@ PanelWindow {
                 }
             }
         }
+
+        // Tail of a burst: how many toasts are queued, and a way to sweep them.
+        // Two compact buttons tucked against the edge the stack hugs.
+        Row {
+            visible: Services.Notifications.hiddenPopupCount > 0
+            spacing: 6
+            x: Services.Sizes.barPosition === "right" ? 0 : parent.width - width
+
+            Rectangle {
+                width: 46
+                height: 30
+                radius: 9
+                color: countHover.containsMouse ? Services.Colors.ghostAlpha(0.35)
+                                                : Services.Colors.surfaceAlpha(0.9)
+                Behavior on color { ColorAnimation { duration: 150 } }
+                border.width: 0
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "+" + Services.Notifications.hiddenPopupCount
+                    color: countHover.containsMouse ? Services.Colors.snow : Services.Colors.mist
+                    font.pixelSize: 11
+                    font.bold: true
+                    font.family: "JetBrainsMono NF"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+
+                MouseArea {
+                    id: countHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Services.AppState.notificationsVisible = true
+                }
+            }
+
+            Rectangle {
+                width: 34
+                height: 30
+                radius: 9
+                color: sweepHover.containsMouse ? Services.Colors.ghostAlpha(0.35)
+                                                : Services.Colors.surfaceAlpha(0.9)
+                Behavior on color { ColorAnimation { duration: 150 } }
+                border.width: 0
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "\ue0b8"                 // clear_all
+                    color: sweepHover.containsMouse ? Services.Colors.snow : Services.Colors.mist
+                    font.pixelSize: 15
+                    font.family: "Material Symbols Rounded"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+
+                MouseArea {
+                    id: sweepHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Services.Notifications.dismissAllPopups()
+                }
+            }
+        }
+
     }
 }

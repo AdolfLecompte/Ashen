@@ -12,6 +12,7 @@ PanelWindow {
         right: true
         bottom: true
     }
+    screen: Services.Screens.active
 
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
@@ -20,13 +21,6 @@ PanelWindow {
     visible: shown || closeDelay.running
     onShownChanged: if (!shown) closeDelay.restart()
     Timer { id: closeDelay; interval: 300 }
-
-    IpcHandler {
-        target: "power"
-        function toggle() {
-            Services.AppState.powerMenuVisible = !Services.AppState.powerMenuVisible
-        }
-    }
 
     Rectangle {
         anchors.fill: parent
@@ -40,18 +34,21 @@ PanelWindow {
     }
 
     Column {
-        anchors.right: parent.right
+        // Follows the power pill: end of the bar, whichever edge that is
         anchors.verticalCenter: parent.verticalCenter
-        anchors.rightMargin: 16
+        x: Services.Sizes.barPosition === "left"
+           ? Math.max(16, Services.Sizes.marginLeft)
+           : parent.width - width - Math.max(16, Services.Sizes.marginRight)
         spacing: 12
+        id: powerCol
         opacity: Services.AppState.powerMenuVisible ? 1.0 : 0.0
         visible: Services.AppState.powerMenuVisible || opacity > 0
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-
-        transform: Translate {
-            x: Services.AppState.powerMenuVisible ? 0 : 24
-            Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-        }
+        // Origin-anchored open: grows out of the right edge (power pill) + fades.
+        property real openAmt: Services.AppState.powerMenuVisible ? 1.0 : 0.0
+        Behavior on openAmt { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        transformOrigin: Item.Right
+        scale: 0.7 + 0.3 * powerCol.openAmt
 
         Repeater {
             model: [
