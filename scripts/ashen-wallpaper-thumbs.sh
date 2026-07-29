@@ -6,7 +6,9 @@
 # ─────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
-DIR="$HOME/Pictures/Wallpapers"
+# The folder is settable from Settings > Appearance; the default stays put
+# so the script keeps working when run by hand with no arguments.
+DIR="${1:-$HOME/Pictures/Wallpapers}"
 THUMBS="$HOME/.cache/ashen_wall_thumbs"
 mkdir -p "$THUMBS"
 

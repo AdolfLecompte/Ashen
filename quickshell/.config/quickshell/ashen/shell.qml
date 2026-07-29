@@ -3,6 +3,7 @@
 //   Root of the shell: wires every module (bar, lock, launcher, …) together.
 // ══════════════════════════════════════════════════════════════════════════
 import Quickshell
+import Quickshell.Io
 import QtQuick
 
 import "root:/modules/bar"
@@ -13,29 +14,120 @@ import "root:/modules/settings"
 import "root:/modules/emojis"
 import "root:/modules/glyph"
 import "root:/modules/clipboard"
+import "root:/modules/widgets" as Widgets
+import "root:/services" as Services
 
 ShellRoot {
+    // ── IPC ───────────────────────────────────────────────────────────────
+    // Handlers live here rather than inside the panels: a lazily loaded panel
+    // does not exist while it is closed, and its handler would vanish with it.
+    // All a handler does is flip state; panels react in their onShownChanged.
+    IpcHandler {
+        target: "launcher"
+        function toggle() { Services.AppState.toggleOverlay("launcherVisible") }
+    }
+    IpcHandler {
+        target: "settings"
+        function toggle() { Services.AppState.toggleOverlay("settingsVisible") }
+        // Jump straight to a section:
+        // system|bar|display|sound|network|input|notifications|theme|about
+        function tab(name: string) {
+            // Wi-Fi and Bluetooth used to be tabs of their own; keep the old
+            // names working now that they share the Network tab.
+            const id = (name === "wifi" || name === "bluetooth") ? "network" : name
+            Services.AppState.settingsTab = id
+            Services.AppState.settingsVisible = true
+        }
+    }
+    IpcHandler {
+        target: "clipboard"
+        function toggle() { Services.AppState.toggleOverlay("clipboardVisible") }
+    }
+    IpcHandler {
+        target: "emojis"
+        function toggle() { Services.AppState.toggleOverlay("emojisVisible") }
+    }
+    IpcHandler {
+        target: "glyph"
+        function toggle() { Services.AppState.toggleOverlay("glyphVisible") }
+    }
+    IpcHandler {
+        target: "process"
+        function toggle() { Services.AppState.toggleOverlay("processVisible") }
+    }
+    IpcHandler {
+        target: "power"
+        function toggle() { Services.AppState.powerMenuVisible = !Services.AppState.powerMenuVisible }
+    }
+    IpcHandler {
+        target: "media"
+        function toggle() { Services.AppState.mediaVisible = !Services.AppState.mediaVisible }
+    }
+    IpcHandler {
+        target: "calendar"
+        function toggle() { Services.AppState.calendarVisible = !Services.AppState.calendarVisible }
+    }
+    IpcHandler {
+        target: "notifications"
+        function toggle() { Services.AppState.notificationsVisible = !Services.AppState.notificationsVisible }
+        function screenshot() { Services.Notifications.addSystemToast("SCREENSHOT SAVED", "\uf727", false, "screenshot") }
+    }
+    IpcHandler {
+        target: "bar"
+        // Moving the bar is animated by Sizes, so a keybind gets the same
+        // slide-out/slide-in as the Settings picker.
+        function position(edge: string) {
+            if (["top", "bottom", "left", "right"].indexOf(edge) === -1) return
+            Services.Prefs.barPosition = edge
+        }
+        function cycle() {
+            const order = ["top", "right", "bottom", "left"]
+            const i = order.indexOf(Services.Prefs.barPosition)
+            Services.Prefs.barPosition = order[(i + 1) % order.length]
+        }
+    }
+    IpcHandler {
+        target: "wallpaper"
+        // Scanning and positioning are driven by the picker's onShownChanged, so
+        // both entry points (this keybind and the Settings tab) behave the same.
+        function open() {
+            Services.AppState.closeBigOverlays()
+            Services.AppState.wallpaperVisible = true
+        }
+        function close() { Services.AppState.wallpaperVisible = false }
+        function toggle() {
+            if (Services.AppState.wallpaperVisible) close()
+            else open()
+        }
+    }
+
+    // ── Always resident ───────────────────────────────────────────────────
+    // The bar is the shell; the rest of this list has to answer a key press or
+    // a system event instantly, so none of it can be built on demand.
     Bar {}
-    MediaPanel {}
     OsdPanel {}
-    VolumePanel {}
-    BrightnessPanel {}
-    BatteryPanel {}
-    NotificationPanel {}
     NotificationToast {}
-    SettingsPanel {}
-    PowerMenu {}
-    Calendar {}
-    NetworkPanel {}
-    BluetoothPanel {}
-    USBPanel {}
-    TrayMenu {}
     ProcessTrigger {}
-    ProcessPanel {}
     LockScreen {}
-    Launcher {}
-    WallpaperPicker {}
-    Emojis {}
-    Glyph {}
-    Clipboard {}
+
+    // ── Built on demand ───────────────────────────────────────────────────
+    Widgets.LazyPanel { preloadMs: 1320; shown: Services.AppState.volumeVisible;        panel: Component { VolumePanel {} } }
+    Widgets.LazyPanel { preloadMs: 1440; shown: Services.AppState.brightnessVisible;    panel: Component { BrightnessPanel {} } }
+    Widgets.LazyPanel { preloadMs: 1560; shown: Services.AppState.batteryVisible;       panel: Component { BatteryPanel {} } }
+    Widgets.LazyPanel { preloadMs: 1680; shown: Services.AppState.mediaVisible;         panel: Component { MediaPanel {} } }
+    Widgets.LazyPanel { preloadMs: 1800; shown: Services.AppState.notificationsVisible; panel: Component { NotificationPanel {} } }
+    Widgets.LazyPanel { preloadMs: 1920; shown: Services.AppState.settingsVisible;      panel: Component { SettingsPanel {} } }
+    Widgets.LazyPanel { preloadMs: 2040; shown: Services.AppState.powerMenuVisible;     panel: Component { PowerMenu {} } }
+    Widgets.LazyPanel { preloadMs: 2160; shown: Services.AppState.calendarVisible;      panel: Component { Calendar {} } }
+    Widgets.LazyPanel { preloadMs: 2400; shown: Services.AppState.wsPreviewId !== 0;   panel: Component { WorkspacePreview {} } }
+    Widgets.LazyPanel { preloadMs: 2280; shown: Services.AppState.networkVisible;       panel: Component { NetworkPanel {} } }
+    Widgets.LazyPanel { preloadMs: 2400; shown: Services.AppState.bluetoothVisible;     panel: Component { BluetoothPanel {} } }
+    Widgets.LazyPanel { preloadMs: 2520; shown: Services.AppState.usbVisible;           panel: Component { USBPanel {} } }
+    Widgets.LazyPanel { preloadMs: 2640; shown: Services.AppState.trayMenuVisible;      panel: Component { TrayMenu {} } }
+    Widgets.LazyPanel { preloadMs: 2760; shown: Services.AppState.processVisible;       panel: Component { ProcessPanel {} } }
+    Widgets.LazyPanel { preloadMs: 2880; shown: Services.AppState.launcherVisible;      panel: Component { Launcher {} } }
+    Widgets.LazyPanel { preloadMs: 3000; shown: Services.AppState.wallpaperVisible;     panel: Component { WallpaperPicker {} } }
+    Widgets.LazyPanel { preloadMs: 3120; shown: Services.AppState.emojisVisible;        panel: Component { Emojis {} } }
+    Widgets.LazyPanel { preloadMs: 3240; shown: Services.AppState.glyphVisible;         panel: Component { Glyph {} } }
+    Widgets.LazyPanel { preloadMs: 3360; shown: Services.AppState.clipboardVisible;     panel: Component { Clipboard {} } }
 }

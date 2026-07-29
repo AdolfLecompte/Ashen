@@ -11,23 +11,19 @@ import "root:/services" as Services
 Scope {
     id: root
 
-    IpcHandler {
-        target: "clipboard"
-        function toggle() {
-            Services.AppState.toggleOverlay("clipboardVisible")
-            if (Services.AppState.clipboardVisible) win.refresh()
-        }
-    }
-
     PanelWindow {
         id: win
         anchors { top: true; left: true; right: true; bottom: true }
+        screen: Services.Screens.active
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
         // stays mapped through the close animation, so the exit plays in reverse
         readonly property bool shown: Services.AppState.clipboardVisible
         visible: shown || closeDelay.running
-        onShownChanged: if (!shown) closeDelay.restart()
+        onShownChanged: {
+            if (!shown) { closeDelay.restart(); return }
+            win.refresh()
+        }
         Timer { id: closeDelay; interval: 300 }
 
         WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
@@ -166,6 +162,7 @@ Scope {
                         height: 30
                         radius: 8
                         color: Services.Colors.ghost
+                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                         Behavior on x { SmoothedAnimation { duration: 250 } }
                         Behavior on width { SmoothedAnimation { duration: 220 } }
                     }

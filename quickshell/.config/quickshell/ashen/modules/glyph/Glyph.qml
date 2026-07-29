@@ -10,28 +10,22 @@ import "root:/services" as Services
 Scope {
     id: root
 
-    IpcHandler {
-        target: "glyph"
-        function toggle() {
-            Services.AppState.toggleOverlay("glyphVisible")
-            if (Services.AppState.glyphVisible) {
-                searchField.text = ""
-                searchField.forceActiveFocus()
-                if (win.nerdFontIcons.length === 0) nerdFontLoader.running = true
-                if (win.materialIcons.length === 0) materialLoader.running = true
-            }
-        }
-    }
-
     PanelWindow {
         id: win
         anchors { top: true; left: true; right: true; bottom: true }
+        screen: Services.Screens.active
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
         // stays mapped through the close animation, so the exit plays in reverse
         readonly property bool shown: Services.AppState.glyphVisible
         visible: shown || closeDelay.running
-        onShownChanged: if (!shown) closeDelay.restart()
+        onShownChanged: {
+            if (!shown) { closeDelay.restart(); return }
+            searchField.text = ""
+            searchField.forceActiveFocus()
+            if (win.nerdFontIcons.length === 0) nerdFontLoader.running = true
+            if (win.materialIcons.length === 0) materialLoader.running = true
+        }
         Timer { id: closeDelay; interval: 300 }
 
         WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
@@ -162,6 +156,7 @@ Scope {
                         height: 32
                         radius: 8
                         color: Services.Colors.ghost
+                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                         Behavior on x { SmoothedAnimation { duration: 250 } }
                         Behavior on width { SmoothedAnimation { duration: 220 } }
                     }

@@ -12,29 +12,23 @@ Scope {
 
     Component.onCompleted: appLoader.running = true
 
-    IpcHandler {
-        target: "launcher"
-        function toggle() {
-            Services.AppState.toggleOverlay("launcherVisible")
-            if (Services.AppState.launcherVisible) {
-                searchField.text = ""
-                searchField.forceActiveFocus()
-                // Rescan every open, not just the first: picks up installs/uninstalls
-                // without needing a shell restart. Guard against overlapping runs.
-                if (!appLoader.running) appLoader.running = true
-            }
-        }
-    }
-
     PanelWindow {
         id: win
         anchors { top: true; left: true; right: true; bottom: true }
+        screen: Services.Screens.active
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
         // stays mapped through the close animation, so the exit plays in reverse
         readonly property bool shown: Services.AppState.launcherVisible
         visible: shown || closeDelay.running
-        onShownChanged: if (!shown) closeDelay.restart()
+        onShownChanged: {
+            if (!shown) { closeDelay.restart(); return }
+            searchField.text = ""
+            searchField.forceActiveFocus()
+            // Rescan every open, not just the first: picks up installs/uninstalls
+            // without needing a shell restart. Guard against overlapping runs.
+            if (!appLoader.running) appLoader.running = true
+        }
         Timer { id: closeDelay; interval: 300 }
 
         WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
@@ -61,6 +55,7 @@ Scope {
             { id: "power",     icon: "\uf8c7", label: "Power",           action: "power" },
             { id: "caffeine",  icon: "\uefef", label: "Keep Awake",      action: "caffeine" },
             { id: "dnd",       icon: "\uf08f", label: "Do Not Disturb",  action: "dnd" },
+            { id: "nightlight", icon: "\ue51c", label: "Night Light",    action: "nightlight" },
         ]
         property var filteredCommands: {
             if (commandQuery.length === 0) return commandActions
@@ -96,6 +91,7 @@ Scope {
                 case "lock":      Quickshell.execDetached(["loginctl", "lock-session"]); break
                 case "caffeine":  Services.AppState.keepAwake = !Services.AppState.keepAwake; break
                 case "dnd":       Services.AppState.doNotDisturb = !Services.AppState.doNotDisturb; break
+                case "nightlight": Services.NightLight.toggle(); break
             }
         }
         function launchSelected() {
@@ -332,6 +328,7 @@ Scope {
                         height: 30
                         radius: 8
                         color: Services.Colors.ghost
+                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                         Behavior on x { SmoothedAnimation { duration: 250 } }
                     }
 
@@ -409,9 +406,10 @@ Scope {
                             width: appList.width
                             height: 60
                             radius: 8
+                            // Fill alone marks the selection; the outline read as
+                            // a glow and nothing else in the shell frames a row.
                             color: index === win.selectedIndex ? Services.Colors.ghostAlpha(0.18) : "transparent"
-                            border.color: index === win.selectedIndex ? Services.Colors.ghostAlpha(0.4) : "transparent"
-                            border.width: 1
+                            border.width: 0
                             Behavior on color { ColorAnimation { duration: 100 } }
 
                             RowLayout {

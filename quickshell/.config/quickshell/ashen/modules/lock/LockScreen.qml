@@ -2,12 +2,12 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
-import Quickshell.Services.Mpris
 import Quickshell.Services.Pam
 import Qt5Compat.GraphicalEffects
 import QtQuick
 import QtQuick.Layouts
 import "root:/services" as Services
+import "root:/modules/widgets" as Widgets
 
 Scope {
     id: root
@@ -49,40 +49,6 @@ Scope {
             property bool introDone: false
             property bool lockShut: false
 
-            property var activePlayer: {
-                let list = Mpris.players.values.filter(p => p.playbackState !== MprisPlaybackState.Stopped)
-                if (list.length === 0) return null
-                let playing = list.find(p => p.isPlaying)
-                return playing !== undefined ? playing : list[0]
-            }
-            property bool hasPlayer: activePlayer !== null
-            property string stableArtUrl: ""
-            function updateArt() {
-                if (!surface.hasPlayer) { surface.stableArtUrl = ""; return }
-                if (surface.activePlayer.trackArtUrl !== "") surface.stableArtUrl = surface.activePlayer.trackArtUrl
-            }
-            onActivePlayerChanged: updateArt()
-            Connections {
-                target: surface.activePlayer
-                ignoreUnknownSignals: true
-                function onTrackArtUrlChanged() { surface.updateArt() }
-            }
-
-            function formatTime(seconds) {
-                if (!seconds || seconds <= 0) return "0:00"
-                let m = Math.floor(seconds / 60)
-                let s = Math.floor(seconds % 60)
-                return m + ":" + (s < 10 ? "0" : "") + s
-            }
-
-            // MPRIS only emits position on demand
-            Timer {
-                interval: 1000
-                repeat: true
-                running: surface.hasPlayer && surface.activePlayer.isPlaying
-                onTriggered: if (surface.hasPlayer) surface.activePlayer.positionChanged()
-            }
-
             property var availableProfiles: []
             property string activeProfile: ""
             function refreshProfiles() { profProc.running = true }
@@ -95,7 +61,6 @@ Scope {
             color: Services.Colors.abyss
 
             Component.onCompleted: {
-                surface.updateArt()
                 surface.refreshProfiles()
                 introAnim.start()
             }
@@ -380,6 +345,7 @@ Scope {
                                         anchors.centerIn: parent
                                         width: 6; height: 6; radius: 3
                                         color: Services.Colors.ghost
+                                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                                         visible: notifIcon.status !== Image.Ready
                                     }
                                 }
@@ -538,6 +504,7 @@ Scope {
                                                 delegate: Rectangle {
                                                     width: 11; height: 11; radius: 5
                                                     color: Services.Colors.ghost
+                                                    gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                                                     anchors.verticalCenter: parent.verticalCenter
                                                     // Fade in (no bounce): OutBack scale felt springy
                                                     NumberAnimation on opacity {
@@ -628,262 +595,33 @@ Scope {
                         }
                     }
 
-                    // ── Music card (top right; leaves room for future lyrics) ──
+                    // ── Music card (top right) ──
+                    // The very same item the bar's media panel morphs into, so
+                    // the two never drift apart: this screen just puts a plate
+                    // behind it and lets it be.
                     Rectangle {
                         id: musicCard
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.margins: 48
-                        width: 460
-                        height: 146
-                        radius: 16
+                        width: lockMedia.contentW + lockMedia.pad * 2
+                        height: lockMedia.artSize + lockMedia.pad * 2
+                        radius: 20
                         clip: true
                         color: Services.Colors.surfaceAlpha(0.85)
 
-                        opacity: surface.hasPlayer ? 1.0 : 0.0
-                        visible: opacity > 0
+                        opacity: lockMedia.hasPlayer ? 1.0 : 0.0
+                        // Settings > System > Lock Screen can drop the card
+                        visible: Services.Prefs.lockShowMedia && opacity > 0
                         Behavior on opacity { NumberAnimation { duration: 250 } }
                         transform: Translate {
-                            y: surface.hasPlayer ? 0 : -16
+                            y: lockMedia.hasPlayer ? 0 : -16
                             Behavior on y { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
                         }
 
-                        // Same Cava service the bar uses, drawn as the card's backdrop.
-                        // Wrapped in a ClippingRectangle so the bars follow the card's
-                        // rounded corners instead of poking out at the sides.
-                        ClippingRectangle {
-                            anchors.fill: parent
-                            radius: 16
-                            color: "transparent"
-                            Canvas {
-                                id: cavaCanvas
-                                anchors.fill: parent
-                                opacity: Services.Cava.isActive ? 1.0 : 0.0
-                                Behavior on opacity { NumberAnimation { duration: 400 } }
-                                Connections {
-                                    target: Services.Cava
-                                    function onBarValuesChanged() { cavaCanvas.requestPaint() }
-                                }
-                                onPaint: {
-                                    var ctx = getContext("2d")
-                                    ctx.reset()
-                                    let vals = Services.Cava.barValues
-                                    if (!vals || vals.length === 0) return
-                                    var n = vals.length
-                                    var barW = width / n
-                                    ctx.fillStyle = Services.Colors.ghostAlpha(0.16)
-                                    for (var i = 0; i < n; i++) {
-                                        var v = Math.max(0, Math.min(100, vals[i])) / 100.0
-                                        var h = v * height * 0.75
-                                        ctx.fillRect(i * barW, height - h, Math.max(1, barW - 1), h)
-                                    }
-                                }
-                            }
-                        }
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 14
-                            spacing: 14
-
-                            Item {
-                                width: 68; height: 68
-                                Layout.alignment: Qt.AlignVCenter
-
-                                Image {
-                                    id: lockArtImg
-                                    anchors.fill: parent
-                                    source: surface.stableArtUrl
-                                    fillMode: Image.PreserveAspectCrop
-                                    asynchronous: true
-                                    visible: false
-                                }
-                                Rectangle {
-                                    id: lockArtMask
-                                    anchors.fill: parent
-                                    radius: 12
-                                    visible: false
-                                }
-                                OpacityMask {
-                                    anchors.fill: parent
-                                    source: lockArtImg
-                                    maskSource: lockArtMask
-                                    visible: lockArtImg.status === Image.Ready
-                                }
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: 12
-                                    color: Services.Colors.abyss
-                                    visible: lockArtImg.status !== Image.Ready
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "\uE405"
-                                        color: Services.Colors.ghost
-                                        font.pixelSize: 24
-                                        font.family: "Material Symbols Rounded"
-                                    }
-                                }
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: 12
-                                    color: "transparent"
-                                    border.color: Services.Colors.ghostAlpha(0.2)
-                                    border.width: 1
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                spacing: 3
-
-                                Text {
-                                    text: surface.hasPlayer ? (surface.activePlayer.trackTitle || "Untitled") : ""
-                                    color: Services.Colors.snow
-                                    font.pixelSize: 13
-                                    font.bold: true
-                                    font.family: "JetBrainsMono NF"
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                }
-                                Text {
-                                    text: surface.hasPlayer ? (surface.activePlayer.trackArtist || "") : ""
-                                    color: Services.Colors.mist
-                                    font.pixelSize: 10
-                                    font.family: "JetBrainsMono NF"
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                }
-
-                                Item { Layout.fillHeight: true }
-
-                                // Progress: snake wave while playing, flat when paused
-                                Item {
-                                    id: lockSnake
-                                    Layout.fillWidth: true
-                                    height: 14
-
-                                    property real progress: (surface.hasPlayer && surface.activePlayer.length > 0)
-                                        ? Math.max(0, Math.min(1, surface.activePlayer.position / surface.activePlayer.length)) : 0
-                                    Behavior on progress { NumberAnimation { duration: 300 } }
-                                    property real phase: 0
-                                    readonly property bool playing: surface.hasPlayer && surface.activePlayer.isPlaying
-                                    property real ampFactor: playing ? 1 : 0
-                                    Behavior on ampFactor { NumberAnimation { duration: 550; easing.type: Easing.InOutCubic } }
-
-                                    onProgressChanged: lockWave.requestPaint()
-                                    onPhaseChanged: lockWave.requestPaint()
-                                    onAmpFactorChanged: lockWave.requestPaint()
-                                    NumberAnimation on phase {
-                                        running: lockSnake.playing
-                                        from: 0; to: 2 * Math.PI
-                                        duration: 1600; loops: Animation.Infinite
-                                    }
-
-                                    Canvas {
-                                        id: lockWave
-                                        anchors.fill: parent
-                                        readonly property real amp: height * 0.30
-                                        readonly property real waves: 3.5
-                                        function trace(ctx) {
-                                            var mid = height / 2
-                                            ctx.beginPath()
-                                            for (var px = 0; px <= width; px += 2) {
-                                                var y = mid + amp * parent.ampFactor * Math.sin((px / width) * waves * 2 * Math.PI + parent.phase)
-                                                if (px === 0) ctx.moveTo(px, y); else ctx.lineTo(px, y)
-                                            }
-                                        }
-                                        onPaint: {
-                                            var ctx = getContext("2d")
-                                            ctx.reset()
-                                            ctx.lineWidth = 3
-                                            ctx.lineCap = "round"
-                                            ctx.strokeStyle = Services.Colors.ghostAlpha(0.18)
-                                            trace(ctx); ctx.stroke()
-                                            var pw = width * parent.progress
-                                            if (pw > 0) {
-                                                ctx.save()
-                                                ctx.beginPath(); ctx.rect(0, 0, pw, height); ctx.clip()
-                                                ctx.strokeStyle = Services.Colors.ghost
-                                                trace(ctx); ctx.stroke()
-                                                ctx.restore()
-                                            }
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        width: 7; height: 7; radius: 4
-                                        color: Services.Colors.snow
-                                        x: Math.max(0, parent.width * parent.progress - width / 2)
-                                        y: parent.height / 2 - height / 2
-                                            + lockWave.amp * parent.ampFactor * Math.sin(parent.progress * lockWave.waves * 2 * Math.PI + parent.phase)
-                                        Behavior on x { NumberAnimation { duration: 300 } }
-                                    }
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 8
-
-                                    Text {
-                                        text: surface.hasPlayer ? surface.formatTime(surface.activePlayer.position) : "0:00"
-                                        color: Services.Colors.ash
-                                        font.pixelSize: 9
-                                        font.family: "JetBrainsMono NF"
-                                    }
-                                    Item { Layout.fillWidth: true }
-
-                                    Text {
-                                        text: "\uE045"
-                                        font.family: "Material Symbols Rounded"
-                                        font.pixelSize: 15
-                                        color: surface.hasPlayer && surface.activePlayer.canGoPrevious ? Services.Colors.snow : Services.Colors.ash
-                                        MouseArea {
-                                            anchors.fill: parent; anchors.margins: -6
-                                            cursorShape: Qt.PointingHandCursor
-                                            enabled: surface.hasPlayer && surface.activePlayer.canGoPrevious
-                                            onClicked: surface.activePlayer.previous()
-                                        }
-                                    }
-                                    Rectangle {
-                                        width: 30; height: 30; radius: 9
-                                        color: Services.Colors.ghost
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: surface.hasPlayer && surface.activePlayer.isPlaying ? "\uE034" : "\uE037"
-                                            font.family: "Material Symbols Rounded"
-                                            font.pixelSize: 15
-                                            color: Services.Colors.abyss
-                                        }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            enabled: surface.hasPlayer
-                                            onClicked: surface.activePlayer.togglePlaying()
-                                        }
-                                    }
-                                    Text {
-                                        text: "\uE044"
-                                        font.family: "Material Symbols Rounded"
-                                        font.pixelSize: 15
-                                        color: surface.hasPlayer && surface.activePlayer.canGoNext ? Services.Colors.snow : Services.Colors.ash
-                                        MouseArea {
-                                            anchors.fill: parent; anchors.margins: -6
-                                            cursorShape: Qt.PointingHandCursor
-                                            enabled: surface.hasPlayer && surface.activePlayer.canGoNext
-                                            onClicked: surface.activePlayer.next()
-                                        }
-                                    }
-
-                                    Item { Layout.fillWidth: true }
-                                    Text {
-                                        text: surface.hasPlayer ? surface.formatTime(surface.activePlayer.length) : "0:00"
-                                        color: Services.Colors.ash
-                                        font.pixelSize: 9
-                                        font.family: "JetBrainsMono NF"
-                                    }
-                                }
-                            }
+                        Widgets.MediaCard {
+                            id: lockMedia
+                            anchors.centerIn: parent
                         }
                     }
 
@@ -1053,6 +791,7 @@ Scope {
                                 id: profSlide
                                 width: 34; height: 34; radius: 8
                                 color: Services.Colors.ghost
+                                gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                                 y: (parent.height - height) / 2
                                 x: 8 + profileCapsule.activeIdx * (34 + 4)
                                 opacity: profileCapsule.activeIdx >= 0 ? 1 : 0
@@ -1079,6 +818,7 @@ Scope {
                                         anchors.fill: parent
                                         radius: 8
                                         color: Services.Colors.ghost
+                                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                                         opacity: profHover.containsMouse && profItem.available && !profItem.isActive ? 0.2 : 0
                                         Behavior on opacity { NumberAnimation { duration: 150 } }
                                     }

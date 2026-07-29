@@ -10,29 +10,10 @@ import "root:/services" as Services
 Scope {
     id: root
 
-    IpcHandler {
-        target: "wallpaper"
-
-        function open() {
-            Services.AppState.closeBigOverlays()
-            Services.AppState.wallpaperVisible = true
-            // Scan + positioning is driven by onShownChanged, so both entry
-            // points (this keybind and the Settings tab) behave identically.
-        }
-
-        function close() {
-            Services.AppState.wallpaperVisible = false
-        }
-
-        function toggle() {
-            if (Services.AppState.wallpaperVisible) close()
-            else open()
-        }
-    }
-
     PanelWindow {
         id: win
         anchors { top: true; left: true; right: true; bottom: true }
+        screen: Services.Screens.active
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
         // stays mapped through the close animation, so the exit plays in reverse
@@ -136,7 +117,9 @@ Scope {
 
         Process {
             id: wallpaperScanner
-            command: [Quickshell.env("HOME") + "/ashen/scripts/ashen-wallpaper-thumbs.sh"]
+            // The folder is a setting now, so it rides as an argument
+            command: [Quickshell.env("HOME") + "/ashen/scripts/ashen-wallpaper-thumbs.sh",
+                      Services.Prefs.wallpaperDir !== "" ? Services.Prefs.wallpaperDir : Services.Paths.wallpapers]
             running: false
             stdout: StdioCollector {
                 onStreamFinished: {
@@ -189,8 +172,8 @@ Scope {
             anchors.bottom: band.top
             anchors.bottomMargin: 14
             anchors.horizontalCenter: parent.horizontalCenter
-            width: tabs.width
-            height: 32
+            width: container.width
+            height: container.height
             z: 30
             property Item activeTab: null
 
@@ -201,21 +184,36 @@ Scope {
                 Behavior on y { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
             }
 
-            // Sliding highlight behind the active tab (workspace-style)
+            // One container pill holding both tabs, so the labels always sit on
+            // a solid backdrop (readable over any wallpaper) -- workspace style.
             Rectangle {
-                visible: tabsWrap.activeTab !== null
-                x: tabsWrap.activeTab ? tabsWrap.activeTab.x : 0
-                width: tabsWrap.activeTab ? tabsWrap.activeTab.width : 0
-                height: 32
-                radius: 10
-                color: Services.Colors.ghost
-                Behavior on x { SmoothedAnimation { duration: 250 } }
-                Behavior on width { SmoothedAnimation { duration: 220 } }
-            }
+                id: container
+                anchors.centerIn: parent
+                width: tabs.width + 8
+                height: 34
+                radius: 12
+                color: Services.Colors.surfaceAlpha(0.82)
 
-            Row {
-            id: tabs
-            spacing: 8
+                // Sliding highlight behind the active tab (workspace-style)
+                Rectangle {
+                    visible: tabsWrap.activeTab !== null
+                    x: 4 + (tabsWrap.activeTab ? tabsWrap.activeTab.x : 0)
+                    width: tabsWrap.activeTab ? tabsWrap.activeTab.width : 0
+                    height: 26
+                    anchors.verticalCenter: parent.verticalCenter
+                    radius: 9
+                    color: Services.Colors.ghost
+                    gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
+                    Behavior on x { SmoothedAnimation { duration: 250 } }
+                    Behavior on width { SmoothedAnimation { duration: 220 } }
+                }
+
+                Row {
+                id: tabs
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                anchors.leftMargin: 4
+                spacing: 8
 
 
             Repeater {
@@ -231,9 +229,9 @@ Scope {
                     onActiveChanged: if (active) tabsWrap.activeTab = this
                     Component.onCompleted: if (active) tabsWrap.activeTab = this
 
-                    height: 32
-                    width: tabRow.implicitWidth + 22
-                    radius: 10
+                    height: 26
+                    width: tabRow.implicitWidth + 20
+                    radius: 9
                     // Only the sliding indicator carries the active fill;
                     // idle tabs are bare (hover just brightens them).
                     color: active ? "transparent"
@@ -274,13 +272,18 @@ Scope {
             }
         }
         }
+        }
 
         // Message shown when the category is empty
         Text {
             anchors.centerIn: band
             z: 20
             visible: win.scanned && win.wallpapers.length === 0
-            text: win.category === "animated" ? "No animated wallpapers (gif / mp4 / webm) in ~/Pictures/Wallpapers" : "No wallpapers in ~/Pictures/Wallpapers"
+            readonly property string dir: Services.Prefs.wallpaperDir !== ""
+                ? Services.Prefs.wallpaperDir : Services.Paths.wallpapers
+            text: win.category === "animated"
+                ? "No animated wallpapers (gif / mp4 / webm) in " + dir
+                : "No wallpapers in " + dir
             color: Services.Colors.mist
             font.pixelSize: 12
             font.family: "JetBrainsMono NF"
@@ -291,7 +294,7 @@ Scope {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 56
+            anchors.bottomMargin: Math.max(56, Services.Sizes.marginBottom)
             height: win.bandHeight
             clip: true
             z: 10
@@ -468,6 +471,7 @@ Scope {
                     width: win.currentIndex === index ? 20 : 7
                     height: 7; radius: 4
                     color: win.currentIndex === index ? Services.Colors.ghost : Qt.rgba(1,1,1,0.2)
+                    gradient: Services.Prefs.useGradients && (win.currentIndex === index) ? Services.Colors.accentGradient : null
                     Behavior on width { NumberAnimation { duration: 200 } }
                     Behavior on color { ColorAnimation { duration: 200 } }
                     MouseArea {

@@ -12,6 +12,8 @@ start("awww-daemon")
 -- Brings back the last wallpaper: awww for images/gif, mpvpaper for video
 start("$HOME/ashen/scripts/ashen-wallpaper-restore.sh")
 start("quickshell -c ashen")
-start("hypridle")
+-- Ashen generates ~/.config/ashen/hypridle.conf from Settings; the shipped
+-- one is only the fallback for the very first boot.
+start("sh -c 'CFG=\"$HOME/.config/ashen/hypridle.conf\"; [ -f \"$CFG\" ] || CFG=\"$HOME/.config/hypr/hypridle.conf\"; exec hypridle -c \"$CFG\"'")
 start("wl-paste --type text --watch cliphist store")
 start("wl-paste --type image --watch cliphist store")

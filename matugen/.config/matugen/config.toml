@@ -9,6 +9,12 @@ output_path = "~/.cache/ashen_scheme.json"
 [templates.gtk3]
 input_path = "~/.config/matugen/templates/gtk3.css"
 output_path = "~/.config/gtk-3.0/gtk.css"
+# xdg-desktop-portal-gtk renders the file dialogs Brave/Chromium open for
+# downloads. GTK reads gtk.css once at process start and caches it, so that
+# long-lived portal keeps the palette from login and its dialogs show the old
+# wallpaper's colours. Restart it after the new gtk.css lands; it is D-Bus
+# activated, so the next dialog respawns it and reads the fresh file.
+post_hook = "systemctl --user restart xdg-desktop-portal-gtk.service"
 [templates.gtk4]
 input_path = "~/.config/matugen/templates/gtk4.css"
 output_path = "~/.config/gtk-4.0/gtk.css"
