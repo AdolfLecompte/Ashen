@@ -36,9 +36,16 @@ Singleton {
     property bool dgpuAwake: false
     property real igpuFreq: 0
     property real igpuMaxFreq: 0
+    // dGPU asleep: report how hard the iGPU is clocking instead
+    readonly property real gpuPercent: dgpuAwake
+        ? gpuUsage
+        : (igpuMaxFreq > 0 ? (igpuFreq / igpuMaxFreq) * 100 : 0)
+    property var gpuHistory: []
 
     property real netRxKBs: 0
     property real netTxKBs: 0
+    property var netRxHistory: []
+    property var netTxHistory: []
     property real prevRxBytes: -1
     property real prevTxBytes: -1
 
@@ -204,6 +211,7 @@ Singleton {
                 }
                 root.igpuFreq = lines.length > 1 ? (parseFloat(lines[1]) || 0) : 0
                 root.igpuMaxFreq = lines.length > 2 ? (parseFloat(lines[2]) || 0) : 0
+                root.gpuHistory = root.pushHistory(root.gpuHistory, root.gpuPercent)
             }
         }
     }
@@ -221,6 +229,8 @@ Singleton {
                     if (root.prevRxBytes >= 0) {
                         root.netRxKBs = Math.max(0, (rx - root.prevRxBytes) / 1024 / 1.5)
                         root.netTxKBs = Math.max(0, (tx - root.prevTxBytes) / 1024 / 1.5)
+                        root.netRxHistory = root.pushHistory(root.netRxHistory, root.netRxKBs)
+                        root.netTxHistory = root.pushHistory(root.netTxHistory, root.netTxKBs)
                     }
                     root.prevRxBytes = rx
                     root.prevTxBytes = tx

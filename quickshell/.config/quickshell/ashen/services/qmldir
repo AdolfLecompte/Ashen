@@ -12,3 +12,12 @@ singleton SysMon 1.0 SysMon.qml
 singleton Keyboard 1.0 Keyboard.qml
 singleton Prefs 1.0 Prefs.qml
 singleton Wallpaper 1.0 Wallpaper.qml
+singleton NightLight 1.0 NightLight.qml
+singleton Sizes 1.0 Sizes.qml
+singleton Paths 1.0 Paths.qml
+singleton Screens 1.0 Screens.qml
+singleton Idle 1.0 Idle.qml
+singleton Keybinds 1.0 Keybinds.qml
+singleton Windows 1.0 Windows.qml
+singleton Stopwatch 1.0 Stopwatch.qml
+singleton Countdown 1.0 Countdown.qml

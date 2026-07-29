@@ -8,14 +8,25 @@ import "root:/services" as Services
 Singleton {
     id: root
 
-    readonly property string historyPath: (Quickshell.env("HOME") || "/home/adolf") + "/.local/state/ashen/notifications.json"
+    readonly property string historyPath: Paths.notificationHistory
 
     property var history: []
     property var activePopups: []
 
+    // A burst of notifications used to stack toasts until they covered the
+    // screen. Only the newest few are drawn; the rest are counted.
+    readonly property int maxPopups: Prefs.maxToasts
+    readonly property var shownPopups: activePopups.slice(0, maxPopups)
+    readonly property int hiddenPopupCount: Math.max(0, activePopups.length - maxPopups)
+
     function pushPopup(entry) {
         let popupEntry = Object.assign({}, entry)
         root.activePopups = [popupEntry].concat(root.activePopups)
+    }
+
+    // Sweeps the toast stack only; the history keeps every entry
+    function dismissAllPopups() {
+        root.activePopups = []
     }
 
     function dismissPopup(id) {
@@ -102,10 +113,13 @@ Singleton {
         saveHistory()
     }
 
+    // The JSON travels as an argv entry, never through the shell's parser: the
+    // old route base64-encoded it with Qt.btoa, which Qt deprecated and warned
+    // about on every write.
     function saveHistory() {
-        let json = JSON.stringify(root.history)
-        let b64 = Qt.btoa(json)
-        saveProc.command = ["sh", "-c", "mkdir -p \"$HOME\"/.local/state/ashen && echo '" + b64 + "' | base64 -d > " + root.historyPath]
+        saveProc.running = false
+        saveProc.command = ["sh", "-c", "mkdir -p \"$(dirname \"$2\")\" && printf %s \"$1\" > \"$2\"",
+                            "sh", JSON.stringify(root.history), root.historyPath]
         saveProc.running = true
     }
 

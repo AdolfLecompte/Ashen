@@ -11,6 +11,41 @@ Singleton {
     property int tempC: 0
     property string icon: ""
     property var forecast: []
+
+    // Conditions beyond the headline number. All from the same single request.
+    property bool isDay: true
+    property int feelsC: 0
+    property int humidity: 0
+    property int windKph: 0
+    property int windDir: 0      // degrees the wind blows FROM
+    property int uvMax: 0
+    property int rainProb: 0     // highest chance of rain today, percent
+    property string sunrise: ""
+    property string sunset: ""
+    // Next 24 h: { label, tempC, rain, icon, now }
+    property var hourly: []
+
+    readonly property string feels: tempString(feelsC)
+
+    // "2026-07-28T06:12" -> "6:12 AM" or "06:12", following the clock setting.
+    function clockOf(stamp) {
+        let hm = String(stamp).split("T")[1]
+        if (!hm) return ""
+        let p = hm.split(":")
+        let h = parseInt(p[0])
+        if (Services.Prefs.clock24h) return p[0] + ":" + p[1]
+        let ap = h >= 12 ? "PM" : "AM"
+        let h12 = h % 12
+        if (h12 === 0) h12 = 12
+        return h12 + ":" + p[1] + " " + ap
+    }
+
+    // Wind direction as a compass point; the panel also rotates an arrow by
+    // the raw degrees, but the letters are what you actually read.
+    function windCompass(deg) {
+        const pts = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        return pts[Math.round((deg % 360) / 45) % 8]
+    }
     // Set true by cityProc when a typed city can't be geocoded, so Settings can
     // show "not found". Cleared on the next successful lookup.
     property bool cityError: false
@@ -111,8 +146,12 @@ Singleton {
 
     // Open-Meteo speaks WMO weather codes (ints), not text, so both the glyph
     // and the human label are derived from the code here.
-    function codeToIcon(code, hour) {
-        let night = hour < 6 || hour >= 19
+    //
+    // Day/night comes from the API's own `is_day`, never from the local clock:
+    // with several saved cities "our" hour says nothing about whether the sun
+    // is up over Tokyo, and the icon used to lie about exactly that.
+    function codeToIcon(code, daylight) {
+        let night = !daylight
         if (code === 0) return night ? "\uf159" : "\uf157"              // clear
         if (code === 1 || code === 2) return night ? "\uf174" : "\uf172" // partly
         if (code === 3) return "\uf15c"                                 // overcast
@@ -164,10 +203,16 @@ Singleton {
     }
 
     function fetchForecast(lat, lon) {
+        // One request carries the whole panel: conditions now, the next 24 h,
+        // and five days. Open-Meteo charges nothing extra for the wider set,
+        // so there is no reason to ask twice.
         let url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat
             + "&longitude=" + lon
-            + "&current=temperature_2m,weather_code"
+            + "&current=temperature_2m,weather_code,is_day,apparent_temperature"
+            + ",relative_humidity_2m,wind_speed_10m,wind_direction_10m"
+            + "&hourly=temperature_2m,precipitation_probability,weather_code,is_day"
             + "&daily=weather_code,temperature_2m_max,temperature_2m_min"
+            + ",sunrise,sunset,precipitation_probability_max,uv_index_max"
             + "&timezone=auto&forecast_days=5"
         fcProc.command = ["sh", "-c", "curl -s --max-time 10 '" + url + "'"]
         fcProc.running = true
@@ -247,8 +292,13 @@ Singleton {
                     let d = JSON.parse(text)
                     let cur = d.current
                     root.tempC = Math.round(cur.temperature_2m)
+                    root.isDay = cur.is_day === 1
                     root.condition = root.codeToText(cur.weather_code)
-                    root.icon = root.codeToIcon(cur.weather_code, new Date().getHours())
+                    root.icon = root.codeToIcon(cur.weather_code, root.isDay)
+                    root.feelsC = Math.round(cur.apparent_temperature)
+                    root.humidity = Math.round(cur.relative_humidity_2m)
+                    root.windKph = Math.round(cur.wind_speed_10m)
+                    root.windDir = Math.round(cur.wind_direction_10m)
 
                     let days = []
                     let dy = d.daily
@@ -257,10 +307,36 @@ Singleton {
                             label: root.dayLabel(dy.time[i], i),
                             maxC: Math.round(dy.temperature_2m_max[i]),
                             minC: Math.round(dy.temperature_2m_min[i]),
-                            icon: root.codeToIcon(dy.weather_code[i], 12)
+                            // Daylight icon: a row of five day summaries reading
+                            // as night would be nonsense
+                            icon: root.codeToIcon(dy.weather_code[i], true)
                         })
                     }
                     root.forecast = days
+                    root.rainProb = Math.round(dy.precipitation_probability_max[0] || 0)
+                    root.uvMax = Math.round(dy.uv_index_max[0] || 0)
+                    root.sunrise = root.clockOf(dy.sunrise[0])
+                    root.sunset = root.clockOf(dy.sunset[0])
+
+                    // The next 24 hours starting at the city's current hour.
+                    // `timezone=auto` means these stamps are local to the city,
+                    // so our own clock must not be used to find "now" — the
+                    // API's `current.time` is the only honest cursor.
+                    let hr = d.hourly
+                    let cursor = String(cur.time).slice(0, 13)
+                    let at = hr.time.findIndex(t => String(t).slice(0, 13) === cursor)
+                    if (at < 0) at = 0
+                    let hours = []
+                    for (let i = at; i < Math.min(at + 24, hr.time.length); i++) {
+                        hours.push({
+                            label: root.clockOf(hr.time[i]),
+                            tempC: Math.round(hr.temperature_2m[i]),
+                            rain: Math.round(hr.precipitation_probability[i] || 0),
+                            icon: root.codeToIcon(hr.weather_code[i], hr.is_day[i] === 1),
+                            now: i === at
+                        })
+                    }
+                    root.hourly = hours
                 } catch (e) { console.log("[Weather] forecast error:", e) }
             }
         }

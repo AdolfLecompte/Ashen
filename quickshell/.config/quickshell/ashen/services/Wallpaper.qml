@@ -10,7 +10,7 @@ import QtQuick
 Singleton {
     id: root
 
-    readonly property string home: Quickshell.env("HOME") || "/home/adolf"
+    readonly property string home: Paths.home
 
     // Raw path as written by the wallpaper script ("" = nothing chosen yet)
     property string path: ""

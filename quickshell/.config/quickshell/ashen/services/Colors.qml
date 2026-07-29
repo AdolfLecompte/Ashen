@@ -24,12 +24,23 @@ Singleton {
     function surfaceAlpha(a) { return Qt.rgba(surface.r, surface.g, surface.b, a) }
     function snowAlpha(a) { return Qt.rgba(snow.r, snow.g, snow.b, a) }
 
+    // Accent gradient for interactive/active fills, used only when the user
+    // enables gradients (Theme tab). Two neighbouring scheme tones (primary ->
+    // its darker sibling) so it stays subtle and on-palette; backgrounds never
+    // use this. Reactive: ghost/shade update on recolour, so does the gradient.
+    readonly property Gradient accentGradient: Gradient {
+        orientation: Gradient.Vertical
+        GradientStop { position: 0.0; color: root.ghost }
+        GradientStop { position: 0.55; color: root.ghost }
+        GradientStop { position: 1.0; color: root.shade }
+    }
+
     // ── Live reload: the JSON is written by applyScheme() (Theme tab) or matugen
     //    (Dynamic mode). As soon as the file changes, every component using
     //    Services.Colors.* updates itself -- no quickshell restart needed.
     FileView {
         id: schemeFile
-        path: (Quickshell.env("HOME") || "/home/adolf") + "/.cache/ashen_scheme.json"
+        path: Paths.scheme
         watchChanges: true
         onFileChanged: reload()
         onLoaded: {
