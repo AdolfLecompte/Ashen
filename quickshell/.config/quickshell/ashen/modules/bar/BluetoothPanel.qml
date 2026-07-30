@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 
 import "root:/services" as Services
+import "root:/modules/widgets" as Widgets
 import "root:/modules/net" as Net
 
 PanelWindow {
@@ -22,7 +23,8 @@ PanelWindow {
     // stays mapped through the close animation, so the exit plays in reverse
     readonly property bool shown: Services.AppState.bluetoothVisible
     visible: shown || closeDelay.running
-    Timer { id: closeDelay; interval: 300 }
+    // Mapped until the drop is all the way home; see DropCard.closeMs.
+    Timer { id: closeDelay; interval: btCard.closeMs }
 
     property var adapter: Bluetooth.defaultAdapter
 
@@ -69,33 +71,21 @@ PanelWindow {
         onClicked: Services.AppState.bluetoothVisible = false
     }
 
-    Rectangle {
-        // Hangs off the bluetooth chip, whichever edge the bar is on
-        x: Services.Sizes.panelX(parent.width, width, Services.AppState.bluetoothPillCenterX)
-        y: Services.Sizes.panelY(parent.height, height, Services.AppState.bluetoothPillCenterY)
-        width: 340
-        radius: 14
-        height: Math.min(panelCol.implicitHeight + 28, root.height - 80)
-        color: Services.Colors.surfaceAlpha(0.95)
-        border.color: Services.Colors.ghostAlpha(0.2)
-        border.width: 0
-        clip: true
-
+    // Falls out of the bluetooth chip like a drop, same as the network card.
+    Widgets.DropCard {
         id: btCard
-        // Origin-anchored open: grows out of its bar pill + fades, smooth settle.
-        property real openAmt: Services.AppState.bluetoothVisible ? 1.0 : 0.0
-        Behavior on openAmt { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
-
-        opacity: Services.AppState.bluetoothVisible ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-        transform: Scale {
-            origin.x: Services.Sizes.originX(btCard.x, btCard.width, Services.AppState.bluetoothPillCenterX)
-            origin.y: Services.Sizes.originY(btCard.y, btCard.height, Services.AppState.bluetoothPillCenterY)
-            xScale: 0.55 + 0.45 * btCard.openAmt
-            yScale: 0.55 + 0.45 * btCard.openAmt
-        }
-
-        MouseArea { anchors.fill: parent; onClicked: {} }
+        shown: Services.AppState.bluetoothVisible
+        pillCX: Services.AppState.bluetoothPillCenterX
+        pillCY: Services.AppState.bluetoothPillCenterY
+        pillActive: Services.Network.btEnabled
+        pillGlyph: Services.AppState.pillGlyph("bluetooth")
+        pillLabel: Services.AppState.pillLabel("bluetooth")
+        glyphTarget: graph.hubGlyphItem
+        labelTarget: graph.hubLabelItem
+        pillW: Services.AppState.bluetoothPillW
+        pillH: Services.AppState.bluetoothPillH
+        openW: 680
+        openH: Math.min(panelCol.implicitHeight + 28, root.height - 80)
 
         Column {
             id: panelCol
@@ -125,26 +115,10 @@ PanelWindow {
                     leftPadding: 8
                 }
 
-                Rectangle {
-                    width: 28; height: 28; radius: 8; color: "transparent"
-                    Text {
-                        anchors.centerIn: parent
-                        text: ""
-                        color: root.adapter && root.adapter.discovering ? Services.Colors.ghost : Services.Colors.mist
-                        font.pixelSize: 16
-                        font.family: "Material Symbols Rounded"
-                        Behavior on color { ColorAnimation { duration: 200 } }
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        hoverEnabled: true
-                        onEntered: parent.color = Services.Colors.ghostAlpha(0.15)
-                        onExited: parent.color = "transparent"
-                        onClicked: root.startScan()
-                    }
-                }
-
+                // No refresh icon up here: the scan button at the foot of
+                // the card is the only place a scan starts from. Two
+                // buttons doing the same thing just made you wonder how
+                // they differed.
                 Rectangle {
                     width: 52; height: 28; radius: 14
                     color: (root.adapter && root.adapter.enabled) ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.25)
@@ -170,110 +144,135 @@ PanelWindow {
                 }
             }
 
-            // Connected device
-            Rectangle {
+            // ── The ring ────────────────────────────────────────────
+            // Connected in the middle, everything you have paired orbiting it.
+            // Strangers are not here: they live in the scan list below, so the
+            // ring only ever holds devices that mean something to you and the
+            // slots stay put.
+            Widgets.NodeGraph {
+                id: graph
                 width: parent.width
-                height: Services.Network.btDevice !== "" ? 64 : 0
-                visible: Services.Network.btDevice !== ""
-                radius: 8
-                // Filled, not outlined: the accent border read as a glow and
-                // nothing else in the shell outlines a selection.
-                color: Services.Colors.ghostAlpha(0.2)
-                border.width: 0
+                // Fixed. The ring keeps its room whether six networks are
+                // in range or none: a card that shrinks to fit whatever the
+                // radio happens to see reads as cut off, and the wires to
+                // the top and bottom slots had nowhere to run.
+                height: 360
+                // Radio off folds the ring into the hub instead of blanking it.
+                live: root.adapter !== null && root.adapter.enabled
+                handOverGlyph: btCard.morphingGlyph
+                handOverLabel: btCard.morphingLabel
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 10
-                    Text {
-                        text: ""
-                        color: Services.Colors.ghost
-                        font.pixelSize: 22
-                        font.family: "Material Symbols Rounded"
-                    }
-                    Column {
-                        Layout.fillWidth: true
-                        spacing: 2
-                        Text {
-                            text: Services.Network.btDevice
-                            color: Services.Colors.snow
-                            font.pixelSize: 14
-                            font.family: "JetBrainsMono NF"
-                            font.bold: true
-                        }
-                        Text {
-                            text: "Connected"
-                            color: Services.Colors.ghost
-                            font.pixelSize: 11
-                            font.family: "JetBrainsMono NF"
-                        }
-                    }
-                    Text {
-                        text: ""
-                        color: Services.Colors.ghost
-                        font.pixelSize: 22
-                        font.family: "Material Symbols Rounded"
-                    }
+                readonly property var known: root.adapter
+                    ? root.adapter.devices.values.filter(d => d.paired || d.bonded || d.connected)
+                    : []
+                readonly property var linked: graph.known.find(d => d.connected) || null
+
+                hubActive: graph.linked !== null
+                // With nothing paired the hub has to wear the chip's face,
+                // or its icon and word have nowhere to land. It was showing
+                // the struck-through icon and "Not connected" while the bar
+                // said the plain one and "Scanning": two different pieces.
+                hubGlyph: graph.linked ? "\ue1a8"
+                        : (Services.Network.btEnabled ? "\ue1a7" : "\ue1a9")
+                // Connected, prefer the exact string the chip is showing — the
+                // graph's own name for the device usually matches it but is not
+                // the same source, and a piece only flies on an exact match.
+                hubLabel: graph.linked
+                        ? (Services.Network.btDevice !== "" ? Services.Network.btDevice
+                                                            : graph.linked.name)
+                        : (Services.Network.btEnabled ? "Scanning" : "Disabled")
+                hubSub: graph.linked
+                    ? (graph.linked.batteryAvailable
+                        ? Math.round(graph.linked.battery * 100) + "%" : "Connected")
+                    : ""
+                emptyHint: !(root.adapter && root.adapter.enabled) ? "Bluetooth is off"
+                    : graph.scanMode ? "Nothing in range"
+                    : "No paired devices yet \u2014 press Scan"
+
+                // Same scan chip as Wi-Fi, in the same slot: press it and the
+                // ring fills with everything the radio can see. Strangers get
+                // no wire — nothing is paired with them yet.
+                scanEnabled: true
+                scanGlyph: "\ue8b6"
+                scanLabel: "Scan"
+                scanSub: graph.scanMode
+                    ? (root.adapter && root.adapter.discovering
+                        ? "Scanning\u2026" : graph.strangers.length + " nearby")
+                    : "Nearby"
+                readonly property var strangers: root.adapter
+                    ? root.adapter.devices.values
+                        .filter(d => !(d.paired || d.bonded || d.trusted || d.connected))
+                        .slice().sort((a, b) => String(a.name).localeCompare(String(b.name)))
+                    : []
+                scanNodes: graph.strangers.slice(0, 6).map(d => ({
+                    id: d.address,
+                    glyph: "\ue1a8",
+                    label: d.name,
+                    sub: d.pairing ? "Pairing\u2026" : "",
+                    active: false
+                }))
+                onScanActivated: root.startScan()
+                onScanNodeActivated: function(id) {
+                    const d = graph.strangers.find(x => x.address === id)
+                    if (!d) return
+                    // BlueZ rejects connect() without prior bonding
+                    d.trusted = true
+                    d.pair()
                 }
+                onScanClosed: if (root.adapter && root.adapter.discovering) {
+                    scanTimer.stop()
+                    root.adapter.discovering = false
+                }
+
+                // The hub is already the connected one, so it does not get a
+                // slot as well.
+                nodes: graph.known.filter(d => !d.connected).map(d => ({
+                    id: d.address,
+                    glyph: "\ue1a8",
+                    label: d.name,
+                    sub: d.paired || d.bonded ? "Paired" : "",
+                    active: false
+                }))
+
+                onNodeActivated: function(id) {
+                    const d = graph.known.find(x => x.address === id)
+                    if (d) d.connect()
+                }
+                onHubActivated: if (graph.linked) graph.linked.disconnect()
             }
 
-            // Device list
+            // Whatever the ring could not hold — six slots is its limit by
+            // design. Only up while you are actually looking, and the scan chip
+            // in the ring is the one place a scan is started from.
             Column {
                 width: parent.width
                 spacing: 4
-                visible: root.adapter && root.adapter.devices.values.length > 0
+                visible: graph.scanMode && overflowList.count > 0
 
                 Text {
-                    text: root.adapter && root.adapter.discovering ? "Scanning..." : "Devices"
+                    text: "More devices"
                     color: Services.Colors.mist
                     font.pixelSize: 10
                     font.family: "JetBrainsMono NF"
                     leftPadding: 4
                 }
 
-                // Cap at 5 rows (row 54 + spacing 4); scroll if there are more.
                 ListView {
-                    id: btList
+                    id: overflowList
                     width: parent.width
-                    readonly property int rowH: 54
-                    readonly property int gap: 4
-                    height: Math.min(count, 5) * rowH + Math.max(count - 1, 0) * gap
-                    spacing: gap
+                    model: graph.strangers.slice(6)
+                    // Three rows, not four: past that the list makes the card
+                    // taller than it is wide and the landscape shape is lost.
+                    height: Math.min(count, 3) * 46 + Math.max(Math.min(count, 3) - 1, 0) * 4
+                    spacing: 4
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
-                    model: root.adapter ? root.adapter.devices.values : []
+                    Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+
                     delegate: Net.BtDeviceRow {
                         required property var modelData
-                        width: btList.width
+                        width: overflowList.width
                         device: modelData
-                    }
-                }
-            }
-
-            // No devices
-            Rectangle {
-                width: parent.width
-                height: 60
-                radius: 8
-                color: Services.Colors.ghostAlpha(0.08)
-                visible: !root.adapter || root.adapter.devices.values.length === 0
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 10
-                    Text {
-                        text: root.adapter && root.adapter.discovering ? "" : ""
-                        color: Services.Colors.ash
-                        font.pixelSize: 22
-                        font.family: "Material Symbols Rounded"
-                    }
-                    Text {
-                        text: root.adapter && root.adapter.discovering ? "Scanning..." : (root.adapter ? "No devices found" : "No adapter")
-                        color: Services.Colors.ash
-                        font.pixelSize: 13
-                        font.family: "JetBrainsMono NF"
-                        Layout.fillWidth: true
                     }
                 }
             }

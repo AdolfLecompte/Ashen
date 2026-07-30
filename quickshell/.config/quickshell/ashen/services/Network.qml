@@ -8,6 +8,9 @@ import QtQuick
 Singleton {
     id: root
     property string wifiSsid: ""
+    // The NetworkManager profile behind it ("SSID", "SSID 1", …), which is what
+    // `connection up id` wants and is NOT what the user calls the network.
+    property string wifiProfile: ""
     property int wifiSignal: 0
     property bool wifiEnabled: false
     property string ethConnection: ""
@@ -47,13 +50,24 @@ Singleton {
                         ethDev = device
                     }
                 }
-                root.wifiSsid = ssid
+                // `dev status` hands back the PROFILE name, which is "SSID 1"
+                // on a duplicate profile. Writing it straight to wifiSsid made
+                // the pill flick between "Funcionarios" and "Funcionarios 1"
+                // every poll, as this and signalProc took turns. Only
+                // signalProc, which reads the real SSID off the associated AP,
+                // writes the name now; this one just says whether there is a
+                // connection at all, and strips the suffix if it has to guess.
+                root.wifiProfile = ssid
                 root.ethConnection = eth
                 root.ethDevice = ethDev
-                if (ssid !== "")
+                if (ssid !== "") {
+                    if (root.wifiSsid === "")
+                        root.wifiSsid = ssid.replace(/ \d+$/, "")
                     signalProc.running = true
-                else
+                } else {
+                    root.wifiSsid = ""
                     root.wifiSignal = 0
+                }
             }
         }
     }
