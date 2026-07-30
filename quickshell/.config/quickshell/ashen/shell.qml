@@ -68,6 +68,14 @@ ShellRoot {
         function toggle() { Services.AppState.calendarVisible = !Services.AppState.calendarVisible }
     }
     IpcHandler {
+        target: "bluetooth"
+        function toggle() { Services.AppState.bluetoothVisible = !Services.AppState.bluetoothVisible }
+    }
+    IpcHandler {
+        target: "network"
+        function toggle() { Services.AppState.networkVisible = !Services.AppState.networkVisible }
+    }
+    IpcHandler {
         target: "notifications"
         function toggle() { Services.AppState.notificationsVisible = !Services.AppState.notificationsVisible }
         function screenshot() { Services.Notifications.addSystemToast("SCREENSHOT SAVED", "\uf727", false, "screenshot") }
