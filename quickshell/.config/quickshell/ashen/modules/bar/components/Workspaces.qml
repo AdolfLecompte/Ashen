@@ -5,6 +5,10 @@ import QtQuick.Layouts
 
 import "root:/services" as Services
 
+// One pill that turns into the other: entering a special swaps the numbers for
+// the specials in place. The swap is staged — content out, box resizes, content
+// in — because fading both rows at once left them lying on top of each other,
+// which is plain to see now that the pill draws no full box around them.
 Item {
     id: root
     // Hidden from Settings > Bar > Pills
@@ -106,8 +110,34 @@ Item {
         color: Services.Colors.surfaceAlpha(0.82)
         border.color: Services.Colors.ghostAlpha(0.2)
         border.width: 0
-        width: root.vertical ? root.pillH : wsRow.width + root.pad * 2
-        height: root.vertical ? wsRow.height + root.pad * 2 : root.pillH
+
+        // What the pill is showing right now. It lags `root.inSpecial` on
+        // purpose: the swap only lands once the old row is gone, so the two
+        // never share the pill for a single frame.
+        property bool showSpecial: root.inSpecial
+        property real contentOpacity: 1
+
+        readonly property Item shownRow: showSpecial ? specialRow : wsRow
+        width: root.vertical ? root.pillH : shownRow.width + root.pad * 2
+        height: root.vertical ? shownRow.height + root.pad * 2 : root.pillH
+        // The box travels to its new size while it is empty — same order as the
+        // media island: box first, content after.
+        Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutQuint } }
+        Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutQuint } }
+
+        Connections {
+            target: root
+            function onInSpecialChanged() { swap.restart() }
+        }
+
+        SequentialAnimation {
+            id: swap
+            NumberAnimation { target: pill; property: "contentOpacity"; to: 0; duration: 120 }
+            ScriptAction { script: pill.showSpecial = root.inSpecial }
+            // Long enough for the width Behavior above to land.
+            PauseAnimation { duration: 180 }
+            NumberAnimation { target: pill; property: "contentOpacity"; to: 1; duration: 160 }
+        }
 
         Rectangle {
             id: slideIndicator
@@ -115,8 +145,8 @@ Item {
             radius: root.innerR
             color: Services.Colors.ghost
             gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-            opacity: root.inSpecial ? 0 : 1
-            Behavior on opacity { NumberAnimation { duration: 200 } }
+            // Part of the numbers, so it leaves and comes back with them.
+            opacity: pill.showSpecial ? 0 : pill.contentOpacity
             readonly property real slot: {
                 let base = Math.floor((root.lastNormalId - 1) / 5) * 5
                 let idx = root.lastNormalId - base - 1
@@ -133,16 +163,11 @@ Item {
             id: wsRow
             anchors.centerIn: parent
             spacing: 4
-            opacity: root.inSpecial ? 0 : 1
-            enabled: !root.inSpecial
-            // Both rows sit centred on the same spot, so the hidden one is
-            // still lying over the visible one. Transparent is not gone:
-            // `visible` is what actually removes it from the scene, and
-            // without it the special chips kept catching the pointer meant
-            // for the numbers underneath. Driven off opacity so the fade
-            // still plays out before it disappears.
-            visible: opacity > 0.01
-            Behavior on opacity { NumberAnimation { duration: 200 } }
+            // Only one row is ever alive: `visible` is what keeps the hidden
+            // one from catching the pointer meant for the other.
+            visible: !pill.showSpecial
+            opacity: pill.contentOpacity
+            scale: 0.92 + 0.08 * pill.contentOpacity
 
             Repeater {
                 model: 5
@@ -212,19 +237,15 @@ Item {
             }
         }
 
-        // Special workspaces: they overlay the numbers while one is being shown.
-        // The shown one is filled; the rest are dimmed.
+        // The specials take the pill over while one of them is on screen. The
+        // shown one is filled; the rest are dimmed.
         BarStrip {
             id: specialRow
             anchors.centerIn: parent
             spacing: 4
-            opacity: root.inSpecial ? 1 : 0
-            enabled: root.inSpecial
-            z: 2
-            // Same reason as the row above, and this is the one that was
-            // doing the damage: it sits on top (z: 2) of the numbers.
-            visible: opacity > 0.01
-            Behavior on opacity { NumberAnimation { duration: 200 } }
+            visible: pill.showSpecial
+            opacity: pill.contentOpacity
+            scale: 0.92 + 0.08 * pill.contentOpacity
 
             Repeater {
                 model: root.specials
