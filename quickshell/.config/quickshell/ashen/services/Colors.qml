@@ -24,6 +24,21 @@ Singleton {
     function surfaceAlpha(a) { return Qt.rgba(surface.r, surface.g, surface.b, a) }
     function snowAlpha(a) { return Qt.rgba(snow.r, snow.g, snow.b, a) }
 
+    // Relative luminance, the real one: sRGB has to come out of its curve
+    // before the channels can be weighed against each other, or every mid tone
+    // reads brighter than it is.
+    function lum(c) {
+        function lin(v) { return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }
+        return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
+    }
+    // Text that can be read on top of `bg`: dark on a light fill, light on a
+    // dark one. The accent is whatever matugen pulled out of the wallpaper, so
+    // "the accent is light, put dark text on it" is not something the shell can
+    // assume — on the current palette `ghost` is a mid grey and it is white
+    // that wins. 0.179 is where the two swap over, and either side of it both
+    // choices still clear 4:1, so crossing is not a hole to fall into.
+    function onColor(bg) { return lum(bg) > 0.179 ? abyss : snow }
+
     // Accent gradient for interactive/active fills, used only when the user
     // enables gradients (Theme tab). Two neighbouring scheme tones (primary ->
     // its darker sibling) so it stays subtle and on-palette; backgrounds never
