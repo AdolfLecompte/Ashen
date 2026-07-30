@@ -14,7 +14,8 @@ PanelWindow {
     readonly property bool shown: Services.AppState.brightnessVisible
     visible: shown || closeDelay.running
     onShownChanged: if (!shown) closeDelay.restart()
-    Timer { id: closeDelay; interval: 300 }
+    // Mapped until the drop is all the way home; see DropCard.closeMs.
+    Timer { id: closeDelay; interval: card.closeMs }
 
     function setBrightness(ratio) {
         ratio = Math.max(0.02, Math.min(1, ratio))
@@ -28,32 +29,22 @@ PanelWindow {
         onClicked: Services.AppState.brightnessVisible = false
     }
 
-    Rectangle {
+    // Falls out of its chip like a drop, the same opening as the clock.
+    Widgets.DropCard {
         id: card
-        width: 300
-        height: 78
-        // Follows its pill along the bar, and the bar around the screen
-        x: Services.Sizes.panelX(parent.width, width, Services.AppState.brightnessPillCenterX)
-        y: Services.Sizes.panelY(parent.height, height, Services.AppState.brightnessPillCenterY)
-        radius: 16
-        color: Services.Colors.surfaceAlpha(0.95)
-        border.width: 0
-
-        // Origin-anchored open: grows out of its bar pill + fades, smooth settle.
-        property real openAmt: Services.AppState.brightnessVisible ? 1.0 : 0.0
-        Behavior on openAmt { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
-
-        opacity: Services.AppState.brightnessVisible ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-
-        transform: Scale {
-            origin.x: Services.Sizes.originX(card.x, card.width, Services.AppState.brightnessPillCenterX)
-            origin.y: Services.Sizes.originY(card.y, card.height, Services.AppState.brightnessPillCenterY)
-            xScale: 0.55 + 0.45 * card.openAmt
-            yScale: 0.55 + 0.45 * card.openAmt
-        }
-
-        MouseArea { anchors.fill: parent; onClicked: {} }
+        shown: Services.AppState.brightnessVisible
+        pillCX: Services.AppState.brightnessPillCenterX
+        pillCY: Services.AppState.brightnessPillCenterY
+        pillActive: Services.Brightness.level > 0
+        pillGlyph: Services.AppState.pillGlyph("brightness")
+        pillLabel: Services.AppState.pillLabel("brightness")
+        glyphTarget: hdrGlyph
+        labelTarget: hdrValue
+        pillW: Services.AppState.brightnessPillW
+        pillH: Services.AppState.brightnessPillH
+        openW: 300
+        openH: 78
+        cardRadius: 16
 
         Column {
             anchors.fill: parent
@@ -71,6 +62,8 @@ PanelWindow {
                     spacing: 8
 
                     Text {
+                        id: hdrGlyph
+                        opacity: card.morphingGlyph ? 0 : 1
                         anchors.verticalCenter: parent.verticalCenter
                         text: ""
                         font.family: "Material Symbols Rounded"
@@ -87,9 +80,14 @@ PanelWindow {
                 }
 
                 Text {
+                    id: hdrValue
+                    opacity: card.morphingLabel ? 0 : 1
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Math.round(brightBar.shown * 100) + "%"
+                    // Off the chip, not off the slider's smoothed value: while
+                    // the bar was easing towards the level the two readings
+                    // disagreed by a percent or two and the piece would not fly.
+                    text: Services.AppState.pillLabel("brightness")
                     color: Services.Colors.snow
                     font.pixelSize: 14
                     font.bold: true

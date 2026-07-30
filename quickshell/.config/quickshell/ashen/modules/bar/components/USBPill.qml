@@ -6,14 +6,39 @@ import "root:/services" as Services
 
 Rectangle {
     id: root
-    // Subtle hover grow
-    scale: hover.containsMouse ? 1.05 : 1.0
-    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+    // The bar's one hover language, from Sizes: grow under the pointer,
+    // give a little under the click.
+    scale: Services.Sizes.hoverScale(hover.containsMouse, hover.pressed)
+    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
     readonly property bool anyMounted: {
         for (let d of Services.USB.devices) {
             if (d.mountpoint && d.mountpoint.length > 0) return true
         }
         return false
+    }
+
+    // While its panel is up the pill IS the panel: it steps aside so the drop
+    // that grew out of its rect reads as the pill falling open. Same relay the
+    // system chips use; without it the panel just appeared next to a pill that
+    // was still sitting there.
+    property bool takenOver: false
+    readonly property bool panelOpen: Services.AppState.usbVisible
+    onPanelOpenChanged: {
+        if (panelOpen) { handBack.stop(); handOver.restart() }
+        else { handOver.stop(); handBack.restart() }
+    }
+    // Both waits come from Sizes, the same ones the drop itself uses: standing
+    // down before the panel's window is on screen left the bar blank with
+    // nothing moving anywhere yet.
+    Timer {
+        id: handOver
+        interval: Services.Sizes.panelArmMs
+        onTriggered: root.takenOver = true
+    }
+    Timer {
+        id: handBack
+        interval: Services.Sizes.panelCloseMs - 40
+        onTriggered: root.takenOver = false
     }
 
     readonly property bool vertical: Services.Sizes.barVertical
@@ -29,9 +54,13 @@ Rectangle {
     gradient: Services.Prefs.useGradients && (root.anyMounted) ? Services.Colors.accentGradient : null
     border.width: 0
     width: root.vertical ? Services.Sizes.pillH : (root.present ? icon.implicitWidth + 24 : 0)
-    opacity: root.present ? 1.0 : 0.0
-    // Hidden from Settings > Bar > Pills
-    visible: Services.Prefs.pillVisible("usb") && (opacity > 0)
+    opacity: root.takenOver ? 0.0 : (root.present ? 1.0 : 0.0)
+    // Hidden from Settings > Bar > Pills. `visible` keys on the device being
+    // there, not on opacity: while the pill is handed over to its panel it is
+    // transparent but must keep its slot, or the strip closes the gap and the
+    // pills either side jump.
+    visible: Services.Prefs.pillVisible("usb")
+        && (root.present || root.takenOver || opacity > 0)
     clip: true
     Behavior on color { ColorAnimation { duration: 300 } }
     Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
@@ -49,6 +78,10 @@ Rectangle {
     }
 
     PillCenter { key: "usb" }
+
+    // The panel falls out of this pill wearing its glyph, so the pill has to
+    // say what it is showing. Icon only: the pill has no words to hand over.
+    Component.onCompleted: Services.AppState.setPillFace("usb", icon.text, "")
 
     MouseArea {
         id: hover

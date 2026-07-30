@@ -19,6 +19,9 @@ Item {
         if (!pill || !key) return
         const g = pill.mapToGlobal(0, 0)
         Services.AppState.setPillCenter(key, g.x + pill.width / 2, g.y + pill.height / 2)
+        // Size as well: the drop that falls out of a pill has to start the
+        // size of that pill, and the neck has to be as wide as it is.
+        Services.AppState.setPillSize(key, pill.width, pill.height)
     }
 
     Component.onCompleted: report()

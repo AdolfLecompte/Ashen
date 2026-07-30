@@ -189,6 +189,18 @@ Singleton {
     property bool powerMenuVisible: false
     property bool calendarVisible: false
     property bool networkVisible: false
+    property real volumePillW: 44
+    property real volumePillH: 32
+    property real brightnessPillW: 44
+    property real brightnessPillH: 32
+    property real batteryPillW: 44
+    property real batteryPillH: 32
+    property real usbPillW: 44
+    property real usbPillH: 32
+    property real networkPillW: 44
+    property real networkPillH: 32
+    property real bluetoothPillW: 44
+    property real bluetoothPillH: 32
     property real networkPillCenterX: 700
     property bool bluetoothVisible: false
     property real bluetoothPillCenterX: 760
@@ -198,6 +210,32 @@ Singleton {
     property var trayMenuHandle: null
     property bool trayMenuVisible: false
     // Written by PillCenter reporters in the bar
+    // What each chip is showing right now, so the panel falling out of it can
+    // wear the same face for the first few frames of the drop. Replaced whole
+    // rather than mutated: a map edited in place emits no change signal.
+    property var pillFaces: ({})
+    function setPillFace(key, glyph, label) {
+        const f = pillFaces[key]
+        if (f && f.glyph === glyph && f.label === label)
+            return
+        const next = Object.assign({}, pillFaces)
+        next[key] = { glyph: glyph, label: label }
+        root.pillFaces = next
+    }
+    function pillGlyph(key) { const f = pillFaces[key]; return f ? f.glyph : "" }
+    function pillLabel(key) { const f = pillFaces[key]; return f ? f.label : "" }
+
+    function setPillSize(key, w, h) {
+        if (key === "network")        { root.networkPillW = w;   root.networkPillH = h }
+        else if (key === "bluetooth") { root.bluetoothPillW = w; root.bluetoothPillH = h }
+        else if (key === "media")     { root.mediaPillW = w;     root.mediaPillH = h }
+        else if (key === "clock")     { root.clockPillW = w;     root.clockPillH = h }
+        else if (key === "volume")     { root.volumePillW = w;     root.volumePillH = h }
+        else if (key === "brightness") { root.brightnessPillW = w; root.brightnessPillH = h }
+        else if (key === "battery")    { root.batteryPillW = w;    root.batteryPillH = h }
+        else if (key === "usb")        { root.usbPillW = w;        root.usbPillH = h }
+    }
+
     function setPillCenter(key, x, y) {
         if (key === "volume")            { root.volumePillCenterX = x;        root.volumePillCenterY = y }
         else if (key === "brightness")   { root.brightnessPillCenterX = x;    root.brightnessPillCenterY = y }

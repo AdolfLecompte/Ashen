@@ -3,6 +3,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import "root:/services" as Services
+import "root:/modules/widgets" as Widgets
 
 PanelWindow {
     id: win
@@ -15,10 +16,18 @@ PanelWindow {
     visible: shown || closeDelay.running
     // Reset the trace once the panel is fully hidden, so its stale full buffer
     // isn't shown for a frame on the next open (which read as a full->empty jump).
-    Timer { id: closeDelay; interval: 300; onTriggered: battBox.frac = 0 }
-    // Holds the border sweep until the window has mapped and the card settled,
-    // so the whole 0->level trace is actually seen (see introSweep).
-    Timer { id: openDelay; interval: 260; onTriggered: { battBox.armed = true; introSweep.restart() } }
+    // Mapped until the drop is all the way home; see DropCard.closeMs.
+    Timer { id: closeDelay; interval: card.closeMs; onTriggered: battBox.frac = 0 }
+    // Holds the border sweep until the card's contents are actually on screen,
+    // so the whole 0->level trace is seen (see introSweep). It has to clear the
+    // drop's own wait for the window plus the pause before the contents fade in
+    // — at 260 the sweep was running behind a body still at zero opacity, and
+    // most of the trace was spent before there was anything to look at.
+    Timer {
+        id: openDelay
+        interval: Services.Sizes.panelArmMs + 360
+        onTriggered: { battBox.armed = true; introSweep.restart() }
+    }
 
     property string timeRemaining: "--"
     property var availableProfiles: []
@@ -82,31 +91,23 @@ PanelWindow {
         onClicked: Services.AppState.batteryVisible = false
     }
 
-    Rectangle {
+    // Falls out of its chip like a drop, the same opening as the clock.
+    Widgets.DropCard {
         id: card
-        width: 440
-        height: 330
-        // Follows its pill along the bar, and the bar around the screen
-        x: Services.Sizes.panelX(parent.width, width, Services.AppState.batteryPillCenterX)
-        y: Services.Sizes.panelY(parent.height, height, Services.AppState.batteryPillCenterY)
-        radius: 18
-        color: Services.Colors.surfaceAlpha(0.95)
-
-        // Origin-anchored open: grows out of its bar pill + fades, smooth settle.
-        property real openAmt: Services.AppState.batteryVisible ? 1.0 : 0.0
-        Behavior on openAmt { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
-
-        opacity: Services.AppState.batteryVisible ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-
-        transform: Scale {
-            origin.x: Services.Sizes.originX(card.x, card.width, Services.AppState.batteryPillCenterX)
-            origin.y: Services.Sizes.originY(card.y, card.height, Services.AppState.batteryPillCenterY)
-            xScale: 0.55 + 0.45 * card.openAmt
-            yScale: 0.55 + 0.45 * card.openAmt
-        }
-
-        MouseArea { anchors.fill: parent; onClicked: {} }
+        shown: Services.AppState.batteryVisible
+        pillCX: Services.AppState.batteryPillCenterX
+        pillCY: Services.AppState.batteryPillCenterY
+        pillActive: Services.Battery.charging
+        pillGlyph: Services.AppState.pillGlyph("battery")
+        pillLabel: Services.AppState.pillLabel("battery")
+        // Straight into the big readout: same glyph, same number, grown.
+        glyphTarget: hdrGlyph
+        labelTarget: hdrValue
+        pillW: Services.AppState.batteryPillW
+        pillH: Services.AppState.batteryPillH
+        openW: 440
+        openH: 330
+        cardRadius: 18
 
         ColumnLayout {
             anchors.fill: parent
@@ -266,18 +267,14 @@ PanelWindow {
 
                     // Glyph tracks charge level (and charging state)
                     Text {
-                        text: {
-                            if (Services.Battery.charging) return "\ue1a3"   // battery_charging_full
-                            var l = Services.Battery.level
-                            if (l >= 95) return "\ue1a5"                     // battery_full
-                            if (l >= 85) return "\uf0a1"                     // battery_6_bar
-                            if (l >= 70) return "\uf0a0"                     // battery_5_bar
-                            if (l >= 55) return "\uf09f"                     // battery_4_bar
-                            if (l >= 40) return "\uf09e"                     // battery_3_bar
-                            if (l >= 25) return "\uf09d"                     // battery_2_bar
-                            if (l >= 10) return "\uf09c"                     // battery_1_bar
-                            return "\uebdc"                                 // battery_0_bar
-                        }
+                        id: hdrGlyph
+                        opacity: card.morphingGlyph ? 0 : 1
+                        // The chip's glyph, not a second ladder of thresholds.
+                        // This one stepped at 95/85/70/55/40/25/10 and the chip
+                        // at 90/70/50/30/15, so at most levels the bar and the
+                        // panel were showing different battery icons and the
+                        // piece had nothing to fly to.
+                        text: Services.AppState.pillGlyph("battery")
                         color: Services.Battery.charging ? Services.Colors.ghost
                             : (Services.Battery.level <= 15 ? Services.Colors.snow : Services.Colors.ghost)
                         font.family: "Material Symbols Rounded"
@@ -285,7 +282,9 @@ PanelWindow {
                     }
 
                     Text {
-                        text: Services.Battery.level + "%"
+                        id: hdrValue
+                        opacity: card.morphingLabel ? 0 : 1
+                        text: Services.AppState.pillLabel("battery")
                         color: Services.Colors.snow
                         font.pixelSize: 44
                         font.bold: true

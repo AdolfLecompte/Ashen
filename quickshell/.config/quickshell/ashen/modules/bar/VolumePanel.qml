@@ -14,7 +14,8 @@ PanelWindow {
     readonly property bool shown: Services.AppState.volumeVisible
     visible: shown || closeDelay.running
     onShownChanged: if (!shown) closeDelay.restart()
-    Timer { id: closeDelay; interval: 300 }
+    // Mapped until the drop is all the way home; see DropCard.closeMs.
+    Timer { id: closeDelay; interval: card.closeMs }
 
     function setVolume(ratio) {
         ratio = Math.max(0, Math.min(1, ratio))
@@ -28,32 +29,24 @@ PanelWindow {
         onClicked: Services.AppState.volumeVisible = false
     }
 
-    Rectangle {
+    // Falls out of its chip like a drop, the same opening as the clock.
+    Widgets.DropCard {
         id: card
-        width: 300
-        height: col.implicitHeight + 32
-        // Follows its pill along the bar, and the bar around the screen
-        x: Services.Sizes.panelX(parent.width, width, Services.AppState.volumePillCenterX)
-        y: Services.Sizes.panelY(parent.height, height, Services.AppState.volumePillCenterY)
-        radius: 16
-        color: Services.Colors.surfaceAlpha(0.95)
-        border.width: 0
-
-        // Origin-anchored open: grows out of its bar pill + fades, smooth settle.
-        property real openAmt: Services.AppState.volumeVisible ? 1.0 : 0.0
-        Behavior on openAmt { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
-
-        opacity: Services.AppState.volumeVisible ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-
-        transform: Scale {
-            origin.x: Services.Sizes.originX(card.x, card.width, Services.AppState.volumePillCenterX)
-            origin.y: Services.Sizes.originY(card.y, card.height, Services.AppState.volumePillCenterY)
-            xScale: 0.55 + 0.45 * card.openAmt
-            yScale: 0.55 + 0.45 * card.openAmt
-        }
-
-        MouseArea { anchors.fill: parent; onClicked: {} }
+        shown: Services.AppState.volumeVisible
+        pillCX: Services.AppState.volumePillCenterX
+        pillCY: Services.AppState.volumePillCenterY
+        pillActive: !Services.Audio.muted && Services.Audio.volume > 0
+        pillGlyph: Services.AppState.pillGlyph("volume")
+        pillLabel: Services.AppState.pillLabel("volume")
+        // The chip's speaker glyph lands on the header's, its reading on the
+        // percentage: the same two things, moved.
+        glyphTarget: hdrGlyph
+        labelTarget: hdrValue
+        pillW: Services.AppState.volumePillW
+        pillH: Services.AppState.volumePillH
+        openW: 300
+        openH: col.implicitHeight + 32
+        cardRadius: 16
 
         Column {
             id: col
@@ -81,8 +74,14 @@ PanelWindow {
                         color: spkArea.containsMouse ? Services.Colors.ghostAlpha(0.2) : "transparent"
                         Behavior on color { ColorAnimation { duration: 120 } }
                         Text {
+                            id: hdrGlyph
+                            opacity: card.morphingGlyph ? 0 : 1
                             anchors.centerIn: parent
-                            text: Services.Audio.muted ? "" : ""
+                            // The chip's own icon, not a second copy of the
+                            // rule. Its set has a headphones variant this one
+                            // never had, so with headphones in they were two
+                            // different glyphs and the piece refused to fly.
+                            text: Services.AppState.pillGlyph("volume")
                             font.family: "Material Symbols Rounded"
                             font.pixelSize: 18
                             color: Services.Audio.muted ? Services.Colors.mist : Services.Colors.ghost
@@ -106,9 +105,14 @@ PanelWindow {
                 }
 
                 Text {
+                    id: hdrValue
+                    opacity: card.morphingLabel ? 0 : 1
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Services.Audio.muted ? "Muted" : Math.round(volBar.shown * 100) + "%"
+                    // "Mute" on the bar and "Muted" here were two words, so the
+                    // reading stayed behind and only the icon travelled. One
+                    // word now, read off the chip.
+                    text: Services.AppState.pillLabel("volume")
                     color: Services.Audio.muted ? Services.Colors.mist : Services.Colors.snow
                     font.pixelSize: 14
                     font.bold: true
