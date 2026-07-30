@@ -15,9 +15,34 @@ Singleton {
     readonly property int pillH: 44
     readonly property int pillR: 10
 
+    // ── Hover language ──────────────────────────────────────────────────
+    // One place for how everything you can click on the bar reacts: grow
+    // under the pointer, give a little under the click. Every pill and chip
+    // calls the same function, so none of them can drift on its own.
+    readonly property real pillHoverScale: 1.06
+    readonly property real pillPressScale: 0.94
+    readonly property int pillHoverMs: 150
+    function hoverScale(hovered, pressed) {
+        if (pressed) return pillPressScale
+        return hovered ? pillHoverScale : 1.0
+    }
+
     // Inner chip (item nested inside a pill) size and corner radius
     readonly property int innerH: 32
     readonly property int innerR: 8
+
+    // ── Panel opening language ──────────────────────────────────────────
+    // A layer surface is not on screen in the frame it is asked for, so a
+    // panel that starts animating the moment it is told to open plays its
+    // first frames unseen and appears already halfway down. Everything that
+    // grows out of a pill waits this long first — and the pill it grew from
+    // has to hand over on the same beat, or the bar goes blank before the
+    // panel has begun to move.
+    readonly property int panelArmMs: 200
+    // How long a panel takes to climb back into its pill. The window has to
+    // stay mapped for all of it and the pill only comes back at the end, so
+    // the panel, its dismiss layer and the chip all read it from here.
+    readonly property int panelCloseMs: 440
 
     // Gap between the bar and a panel hanging off it, and between a panel and
     // the far screen edges

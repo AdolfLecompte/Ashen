@@ -6,9 +6,10 @@ Rectangle {
     id: root
     // Hidden from Settings > Bar > Pills
     visible: Services.Prefs.pillVisible("recording")
-    // Subtle hover grow
-    scale: hover.containsMouse ? 1.05 : 1.0
-    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+    // The bar's one hover language, from Sizes: grow under the pointer,
+    // give a little under the click.
+    scale: Services.Sizes.hoverScale(hover.containsMouse, hover.pressed)
+    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
 
     readonly property bool active: Services.AppState.recording
 
@@ -24,13 +25,15 @@ Rectangle {
     radius: Services.Sizes.pillR
     clip: true
     color: active ? Services.Colors.ghost
-                  : (hover.containsMouse ? Services.Colors.ghostAlpha(0.3)
+                  : (hover.containsMouse ? Services.Colors.ghostAlpha(0.45)
                                          : Services.Colors.surfaceAlpha(0.82))
     gradient: Services.Prefs.useGradients && (active) ? Services.Colors.accentGradient : null
     border.color: active ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.2)
     border.width: 0
 
-    Behavior on width { NumberAnimation { duration: 150 } }
+    // Opening out to fit the clock is the pill telling you it started, so it
+    // gets the same settle as the panels rather than a flat 150 ms slide.
+    Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutQuint } }
     Behavior on color { ColorAnimation { duration: 200 } }
 
     property string elapsed: "00:00"
@@ -53,11 +56,42 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 6
         Text {
+            id: dot
             text: "\uf679"
-            color: (root.active || hover.containsMouse) ? Services.Colors.abyss : Services.Colors.mist
+            // Dark only on the solid accent fill; over the hover tint it lifts.
+            color: root.active ? Services.Colors.abyss
+                 : hover.containsMouse ? Services.Colors.snow : Services.Colors.mist
             font.pixelSize: (root.active && !root.vertical) ? 16 : 22
             font.family: "Material Symbols Rounded"
             anchors.verticalCenter: parent.verticalCenter
+            Behavior on color { ColorAnimation { duration: 200 } }
+            Behavior on font.pixelSize { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+
+            // A recording is the one thing on the bar that is still happening
+            // while you look away, so the dot breathes for as long as it runs.
+            // Scale, not colour: red is not this shell's alarm — the scheme is
+            // (see the colour rules), and a pulsing tint would fight the fill.
+            transform: Scale {
+                id: beat
+                origin.x: dot.width / 2
+                origin.y: dot.height / 2
+            }
+            SequentialAnimation {
+                running: root.active
+                loops: Animation.Infinite
+                alwaysRunToEnd: true
+                onStopped: { beat.xScale = 1; beat.yScale = 1; dot.opacity = 1 }
+                ParallelAnimation {
+                    NumberAnimation { target: beat; property: "xScale"; to: 1.18; duration: 620; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: beat; property: "yScale"; to: 1.18; duration: 620; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: dot; property: "opacity"; to: 0.72; duration: 620; easing.type: Easing.InOutSine }
+                }
+                ParallelAnimation {
+                    NumberAnimation { target: beat; property: "xScale"; to: 1.0; duration: 620; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: beat; property: "yScale"; to: 1.0; duration: 620; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: dot; property: "opacity"; to: 1.0; duration: 620; easing.type: Easing.InOutSine }
+                }
+            }
         }
         Text {
             // no room for a timer on a side bar

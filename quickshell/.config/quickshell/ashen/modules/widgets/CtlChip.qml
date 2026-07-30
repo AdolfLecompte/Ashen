@@ -31,7 +31,8 @@ Rectangle {
     gradient: Services.Prefs.useGradients && lit ? Services.Colors.accentGradient : null
     Behavior on color { ColorAnimation { duration: 200 } }
 
-    scale: hover.containsMouse && available && !inert ? 1.06 : 1.0
+    scale: available && !inert
+        ? Services.Sizes.hoverScale(hover.containsMouse, hover.pressed) : 1.0
     Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
     Text {

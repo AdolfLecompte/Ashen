@@ -6,9 +6,10 @@ Rectangle {
     id: root
     // Hidden from Settings > Bar > Pills
     visible: Services.Prefs.pillVisible("notifications")
-    // Subtle hover grow
-    scale: hover.containsMouse ? 1.05 : 1.0
-    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+    // The bar's one hover language, from Sizes: grow under the pointer, give
+    // a little under the click.
+    scale: Services.Sizes.hoverScale(hover.containsMouse, hover.pressed)
+    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
     readonly property int pillH: Services.Sizes.pillH
     readonly property bool open: Services.AppState.notificationsVisible
     readonly property bool dnd: Services.AppState.doNotDisturb
@@ -19,7 +20,7 @@ Rectangle {
     // same inversion every other active pill uses (see RecordingPill / LocksPill).
     // No inner box.
     color: open ? Services.Colors.ghost
-                : (hover.containsMouse ? Services.Colors.ghostAlpha(0.3)
+                : (hover.containsMouse ? Services.Colors.ghostAlpha(0.45)
                                        : Services.Colors.surfaceAlpha(0.82))
     gradient: Services.Prefs.useGradients && (open) ? Services.Colors.accentGradient : null
     border.width: 0
@@ -32,7 +33,10 @@ Rectangle {
         anchors.centerIn: parent
         // Bell while normal, notifications_off glyph while Do Not Disturb.
         text: root.dnd ? "\uE7F6" : "\uE7F4"
-        color: (root.open || hover.containsMouse) ? Services.Colors.abyss : Services.Colors.mist
+        // Dark only on the solid accent fill; over the hover tint it lifts to
+        // snow instead — abyss on a 45 % wash was a smudge, not a glyph.
+        color: root.open ? Services.Colors.abyss
+             : hover.containsMouse ? Services.Colors.snow : Services.Colors.mist
         font.pixelSize: 24
         font.family: "Material Symbols Rounded"
         Behavior on color { ColorAnimation { duration: 200 } }

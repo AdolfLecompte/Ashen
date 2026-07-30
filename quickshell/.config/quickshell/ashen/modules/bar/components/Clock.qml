@@ -33,8 +33,11 @@ Rectangle {
         onClicked: Services.AppState.calendarVisible = !Services.AppState.calendarVisible
     }
 
-    scale: pillHover.containsMouse ? 1.05 : 1.0
-    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+    // No hover grow here: the clock is the widest thing on the bar and it sits
+    // dead centre, so swelling it under a passing pointer nudged the whole
+    // strip. The press is kept — that half is feedback for something you did.
+    scale: pillHover.pressed ? Services.Sizes.pillPressScale : 1.0
+    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
 
     // Reports where it sits so the calendar can drop out of it
     PillCenter { key: "clock" }

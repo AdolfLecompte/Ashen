@@ -7,9 +7,10 @@ Rectangle {
     id: root
     // Hidden from Settings > Bar > Pills
     visible: Services.Prefs.pillVisible("power")
-    // Subtle hover grow
-    scale: hover.containsMouse ? 1.05 : 1.0
-    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+    // The bar's one hover language, from Sizes: grow under the pointer, give
+    // a little under the click.
+    scale: Services.Sizes.hoverScale(hover.containsMouse, hover.pressed)
+    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
     readonly property bool active: Services.AppState.powerMenuVisible
 
     width: Services.Sizes.pillH; height: Services.Sizes.pillH
@@ -17,7 +18,7 @@ Rectangle {
     // Declarative hover/active fill (no imperative color assignment, which would
     // clobber the binding). Fills accent while the power menu is open.
     color: active ? Services.Colors.ghost
-                  : (hover.containsMouse ? Services.Colors.ghostAlpha(0.3)
+                  : (hover.containsMouse ? Services.Colors.ghostAlpha(0.45)
                                          : Services.Colors.surfaceAlpha(0.82))
     gradient: Services.Prefs.useGradients && (active) ? Services.Colors.accentGradient : null
     border.width: 0
@@ -26,7 +27,10 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         text: ""
-        color: (root.active || hover.containsMouse) ? Services.Colors.abyss : Services.Colors.mist
+        // Dark only on the solid accent fill; over the hover tint it lifts to
+        // snow instead — abyss on a 45 % wash was a smudge, not a glyph.
+        color: root.active ? Services.Colors.abyss
+             : hover.containsMouse ? Services.Colors.snow : Services.Colors.mist
         font.pixelSize: 22
         font.family: "Material Symbols Rounded"
         Behavior on color { ColorAnimation { duration: 200 } }
