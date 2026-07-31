@@ -32,3 +32,27 @@ post_hook = "sh -c 'for s in /tmp/kitty-ashen.sock-*; do [ -S \"$s\" ] && kitten
 [templates.hypr_border]
 input_path = "~/.config/matugen/templates/border_color.template"
 output_path = "~/.cache/matugen_border_color.txt"
+
+# btop reads its theme file once at start, so a running instance keeps the old
+# palette until it is restarted; there is no reload hook and nothing to send it.
+[templates.btop]
+input_path = "~/.config/matugen/templates/btop.theme"
+output_path = "~/.config/btop/themes/ashen.theme"
+
+# Everything Qt that is NOT this shell. Both toolkits read the same file format
+# and neither picks it up on its own, so each gets its own copy at the path its
+# config points at. Programs already running keep the old palette.
+[templates.qt5ct]
+input_path = "~/.config/matugen/templates/qtct-colors.conf"
+output_path = "~/.config/qt5ct/colors/ashen.conf"
+[templates.qt6ct]
+input_path = "~/.config/matugen/templates/qtct-colors.conf"
+output_path = "~/.config/qt6ct/colors/ashen.conf"
+
+# The standalone terminal cava. NOT the bar's visualiser: that one runs off
+# ashen.conf, emits raw numbers and is painted in QML, so it takes its colour
+# from Colors like everything else in the shell. A running cava reads the file
+# once, so it picks the new gradient up on its next start.
+[templates.cava]
+input_path = "~/.config/matugen/templates/cava-config.conf"
+output_path = "~/.config/cava/config"
