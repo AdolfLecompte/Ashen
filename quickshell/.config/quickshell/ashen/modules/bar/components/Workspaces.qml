@@ -107,8 +107,8 @@ Item {
     Rectangle {
         id: pill
         radius: root.pillR
-        color: Services.Colors.surfaceAlpha(0.82)
-        border.color: Services.Colors.ghostAlpha(0.2)
+        color: Services.Colors.surfacePill
+        border.color: Services.Colors.fillRest
         border.width: 0
 
         // What the pill is showing right now. It lags `root.inSpecial` on
@@ -185,18 +185,23 @@ Item {
                     readonly property int winCount:
                         Hyprland.toplevels.values.filter(t => t.workspace && t.workspace.id === wsId).length
                     width: root.innerH; height: root.innerH
+                    // Guarded: the MouseArea is declared further down, so on the
+                    // first evaluation the id is not resolved yet and a bare
+                    // `.containsMouse` throws.
+                    readonly property bool warm: chipHover && chipHover.containsMouse
+                    scale: Services.Sizes.hoverScale(warm, chipHover && chipHover.pressed)
+                    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
 
                     Rectangle {
                         anchors.fill: parent
                         radius: root.innerR
-                        color: Services.Colors.ghost
-                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                        // Active chips are already carried by the sliding
-                        // indicator, so they stay bare; the rest light a little
-                        // under the pointer, occupied or not.
-                        opacity: parent.isActive ? 0
-                            : chipHover.containsMouse ? 0.38
-                            : parent.hasWindows ? 0.2 : 0
+                        // The plate says whether the workspace has anything on
+                        // it, and nothing else. Active chips are carried by the
+                        // sliding indicator, so they stay bare. Hover is the
+                        // chip growing and its number lifting -- it does not
+                        // light up under them.
+                        color: Services.Colors.fillRest
+                        opacity: parent.isActive ? 0 : parent.hasWindows ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: 200 } }
                     }
 
@@ -209,7 +214,8 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: parent.appIcon !== "" ? parent.appIcon : wsId
-                        color: parent.isActive ? Services.Colors.abyss : Services.Colors.ash
+                        color: parent.isActive ? Services.Colors.onColor(Services.Colors.ghost)
+                             : parent.warm ? Services.Colors.snow : Services.Colors.ash
                         font.pixelSize: parent.appIcon !== "" ? 15 : 13
                         font.family: parent.appIcon !== "" ? "Material Symbols Rounded" : "JetBrainsMono NF"
                         font.bold: true
@@ -255,13 +261,14 @@ Item {
                     readonly property string shortName: modelData.name.replace("special:", "")
                     readonly property bool isShown: modelData.name === root.shownSpecial
                     width: root.innerH; height: root.innerH
+                    readonly property bool warm: spHover && spHover.containsMouse
+                    scale: Services.Sizes.hoverScale(warm, spHover && spHover.pressed)
+                    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
 
                     Rectangle {
                         anchors.fill: parent
                         radius: root.innerR
-                        color: parent.isShown ? Services.Colors.ghost
-                            : spHover.containsMouse ? Services.Colors.ghostAlpha(0.38)
-                            : Services.Colors.ghostAlpha(0.2)
+                        color: parent.isShown ? Services.Colors.ghost : Services.Colors.fillRest
                         gradient: Services.Prefs.useGradients && (parent.isShown) ? Services.Colors.accentGradient : null
                         Behavior on color { ColorAnimation { duration: 200 } }
                     }
@@ -269,7 +276,8 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: root.specialIcon(parent.shortName)
-                        color: parent.isShown ? Services.Colors.abyss : Services.Colors.ash
+                        color: parent.isShown ? Services.Colors.onColor(Services.Colors.ghost)
+                             : parent.warm ? Services.Colors.snow : Services.Colors.ash
                         font.pixelSize: 18
                         font.family: "Material Symbols Rounded"
                         z: 1

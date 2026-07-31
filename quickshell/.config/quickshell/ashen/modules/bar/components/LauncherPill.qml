@@ -15,11 +15,11 @@ Rectangle {
 
     width: pillH; height: pillH
     radius: Services.Sizes.pillR
-    // Fills with the accent while open, ghost tint on hover, the same inversion
-    // every other toggle pill uses (see NotificationPill / RecordingPill).
+    // Fills with the accent while open, the same inversion every other toggle
+    // pill uses (see NotificationPill / RecordingPill). No hover tint: the
+    // plate is the pill itself, and it answers the pointer by growing.
     color: active ? Services.Colors.ghost
-                  : (hover.containsMouse ? Services.Colors.ghostAlpha(0.45)
-                                         : Services.Colors.surfaceAlpha(0.82))
+                  : Services.Colors.surfacePill
     gradient: Services.Prefs.useGradients && (active) ? Services.Colors.accentGradient : null
     border.width: 0
     Behavior on color { ColorAnimation { duration: 200 } }
@@ -27,9 +27,9 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         text: "\uE9B0"
-        // Dark only on the solid accent fill; over the hover tint it lifts to
-        // snow instead — abyss on a 45 % wash was a smudge, not a glyph.
-        color: root.active ? Services.Colors.abyss
+        // Dark only on the accent fill. The hover plate is a surface tone, so
+        // the glyph lifts to snow on it the same way it does at rest.
+        color: root.active ? Services.Colors.onColor(Services.Colors.ghost)
              : hover.containsMouse ? Services.Colors.snow : Services.Colors.ghost
         font.pixelSize: 22
         font.family: "Material Symbols Rounded"

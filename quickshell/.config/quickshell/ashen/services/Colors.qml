@@ -21,6 +21,26 @@ Singleton {
     property color neutral:  "#8a8a96"
 
     function ghostAlpha(a) { return Qt.rgba(ghost.r, ghost.g, ghost.b, a) }
+
+    // ── The accent fill ladder ───────────────────────────────────────────
+    // Twenty-four different ghostAlpha() values were in use. These are the
+    // roles they were all approximating. Bound, not computed once, so a
+    // recolour carries through. Nothing outside this block may write an alpha
+    // for a fill: that is how the bar ended up with five different strengths
+    // for one hover.
+    readonly property color fillInset:  Qt.rgba(ghost.r, ghost.g, ghost.b, 0.06)  // card sunk into a panel
+    readonly property color fillLine:   Qt.rgba(ghost.r, ghost.g, ghost.b, 0.12)  // dividers, meter tracks
+    readonly property color fillRest:   Qt.rgba(ghost.r, ghost.g, ghost.b, 0.20)  // a control at rest
+    readonly property color fillHover:  Qt.rgba(ghost.r, ghost.g, ghost.b, 0.30)  // under the pointer
+    readonly property color fillSunken: Qt.rgba(ghost.r, ghost.g, ghost.b, 0.45)  // held, or on without the accent
+
+    // Two backgrounds, not nine: a panel, and something sitting on the bar.
+    readonly property color surfacePanel: Qt.rgba(surface.r, surface.g, surface.b, 0.95)
+    readonly property color surfacePill:  Qt.rgba(surface.r, surface.g, surface.b, 0.82)
+    // There is no hover fill. Nothing on the bar lights up under the pointer:
+    // it grows, and its contents lift to snow. A plate that changed colour as
+    // well was a third answer to the same question, and the bar flickered
+    // under a pointer merely crossing it.
     function surfaceAlpha(a) { return Qt.rgba(surface.r, surface.g, surface.b, a) }
     function snowAlpha(a) { return Qt.rgba(snow.r, snow.g, snow.b, a) }
 
@@ -39,15 +59,38 @@ Singleton {
     // choices still clear 4:1, so crossing is not a hole to fall into.
     function onColor(bg) { return lum(bg) > 0.179 ? abyss : snow }
 
+    // The same colour, moved towards the palette's lightest or darkest tone.
+    // Mixing rather than Qt.lighter/darker because those work on HSV value and
+    // give up at the ends of the range: Qt.lighter of a near-black accent is
+    // still near-black, and a gradient built on it comes out flat. The hue
+    // rides along unchanged, which is the point -- this is one colour at two
+    // depths, not two colours. Towards snow and abyss, not pure white and
+    // black, so the lift stays inside the scheme.
+    function lift(c, amt) {
+        const t = amt > 0 ? snow : abyss
+        const k = Math.abs(amt)
+        return Qt.rgba(c.r + (t.r - c.r) * k,
+                       c.g + (t.g - c.g) * k,
+                       c.b + (t.b - c.b) * k, c.a)
+    }
+
     // Accent gradient for interactive/active fills, used only when the user
-    // enables gradients (Theme tab). Two neighbouring scheme tones (primary ->
-    // its darker sibling) so it stays subtle and on-palette; backgrounds never
-    // use this. Reactive: ghost/shade update on recolour, so does the gradient.
+    // enables gradients (Theme tab). ONE tone lit from the left: lighter at
+    // that end, the accent itself through the middle, darker at the far end,
+    // so a filled pill reads as a surface with a light on it instead of a flat
+    // patch. Horizontal, because nearly everything wearing it is a pill or a
+    // chip -- wider than it is tall, so across is where there is room for the
+    // fall-off to be seen at all.
+    // It used to run ghost -> shade, two different scheme entries; on
+    // palettes where those two are far apart it read as a colour change rather
+    // than as depth, and on matugen palettes where they are close it barely
+    // read at all. Backgrounds never use this. Reactive: ghost updates on
+    // recolour, so does the gradient.
     readonly property Gradient accentGradient: Gradient {
-        orientation: Gradient.Vertical
-        GradientStop { position: 0.0; color: root.ghost }
-        GradientStop { position: 0.55; color: root.ghost }
-        GradientStop { position: 1.0; color: root.shade }
+        orientation: Gradient.Horizontal
+        GradientStop { position: 0.0; color: root.lift(root.ghost, 0.14) }
+        GradientStop { position: 0.5; color: root.ghost }
+        GradientStop { position: 1.0; color: root.lift(root.ghost, -0.14) }
     }
 
     // ── Live reload: the JSON is written by applyScheme() (Theme tab) or matugen

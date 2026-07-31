@@ -21,8 +21,8 @@ Rectangle {
     height: root.vertical ? vertCol.implicitHeight + 16 : Services.Sizes.pillH
     width: root.vertical ? Services.Sizes.pillH : clockRow.implicitWidth + 40
     radius: Services.Sizes.pillR
-    color: Services.Colors.surfaceAlpha(0.82)
-    border.color: Services.Colors.ghostAlpha(0.2)
+    color: Services.Colors.surfacePill
+    border.color: Services.Colors.fillRest
     border.width: 0
 
     MouseArea {

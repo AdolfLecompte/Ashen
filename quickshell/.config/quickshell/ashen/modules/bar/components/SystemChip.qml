@@ -75,7 +75,9 @@ Rectangle {
             Services.AppState.setPillFace(pillKey, glyph, label)
     }
 
-    readonly property bool vertical: Services.Sizes.barVertical
+    // Defaults to the bar's own orientation; a caller off the bar (the
+    // utility pill, glued to whichever edge it landed on) overrides it.
+    property bool vertical: Services.Sizes.barVertical
     readonly property bool hovered: hover.containsMouse
     readonly property bool expanded: vertical && (hovered || open)
     // Lit, the text is whichever of black and white can be read on the accent —
@@ -95,8 +97,9 @@ Rectangle {
                      : Services.Sizes.innerH
     Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-    color: active ? Services.Colors.ghost
-                  : (hovered ? Services.Colors.ghostAlpha(0.4) : Services.Colors.ghostAlpha(0.2))
+    // The plate does not react. Hover is the chip growing and its contents
+    // lifting to snow -- nothing lights up underneath them.
+    color: active ? Services.Colors.ghost : Services.Colors.fillRest
     gradient: Services.Prefs.useGradients && active ? Services.Colors.accentGradient : null
     Behavior on color { ColorAnimation { duration: 300 } }
 
@@ -159,7 +162,11 @@ Rectangle {
                 : implicitWidth
             elide: chip.maxLabelW > 0 ? Text.ElideRight : Text.ElideNone
             // Sideways there is no room for the words unless you ask for them.
-            visible: !chip.vertical || chip.expanded
+            // An empty label (icon-only chip) still counted as a lane in
+            // BarStrip's Grid, so the spacing after the glyph was reserved
+            // with nothing to fill it -- the icon sat off-centre in its own
+            // chip. Zero text drops it from the layout entirely.
+            visible: chip.label !== "" && (!chip.vertical || chip.expanded)
             font.pixelSize: chip.vertical ? 9 : 12
             font.family: "JetBrainsMono NF"
             font.bold: true

@@ -17,11 +17,10 @@ Rectangle {
     width: pillH; height: pillH
     radius: Services.Sizes.pillR
     // Whole containment pill fills with the accent while the panel is open, the
-    // same inversion every other active pill uses (see RecordingPill / LocksPill).
-    // No inner box.
+    // same inversion every other active pill uses (see RecordingPill /
+    // LocksPill). No inner box, and no hover tint on the plate.
     color: open ? Services.Colors.ghost
-                : (hover.containsMouse ? Services.Colors.ghostAlpha(0.45)
-                                       : Services.Colors.surfaceAlpha(0.82))
+                : Services.Colors.surfacePill
     gradient: Services.Prefs.useGradients && (open) ? Services.Colors.accentGradient : null
     border.width: 0
     Behavior on color { ColorAnimation { duration: 300 } }
@@ -33,9 +32,9 @@ Rectangle {
         anchors.centerIn: parent
         // Bell while normal, notifications_off glyph while Do Not Disturb.
         text: root.dnd ? "\uE7F6" : "\uE7F4"
-        // Dark only on the solid accent fill; over the hover tint it lifts to
-        // snow instead — abyss on a 45 % wash was a smudge, not a glyph.
-        color: root.open ? Services.Colors.abyss
+        // Dark only on the accent fill. The hover plate is a surface tone, so
+        // the glyph lifts to snow on it the same way it does at rest.
+        color: root.open ? Services.Colors.onColor(Services.Colors.ghost)
              : hover.containsMouse ? Services.Colors.snow : Services.Colors.mist
         font.pixelSize: 24
         font.family: "Material Symbols Rounded"
@@ -53,6 +52,44 @@ Rectangle {
             NumberAnimation { target: bell; property: "opacity"; from: 0.0; to: 1.0; duration: 180; easing.type: Easing.OutCubic }
             NumberAnimation { target: bellScale; property: "xScale"; from: 0.7; to: 1.0; duration: 200; easing.type: Easing.OutCubic }
             NumberAnimation { target: bellScale; property: "yScale"; from: 0.7; to: 1.0; duration: 200; easing.type: Easing.OutCubic }
+        }
+    }
+
+    // How many landed since the rail was last closed. Hidden while the rail is
+    // open: the list itself is the answer, and the count is about to be zero.
+    Rectangle {
+        id: badge
+        readonly property int count: Services.Notifications.unreadCount
+        visible: count > 0 && !root.open
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.rightMargin: 3
+        anchors.topMargin: 3
+        width: Math.max(14, badgeTxt.implicitWidth + 8)
+        height: 14
+        radius: 7
+        color: Services.Colors.ghost
+        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
+
+        Text {
+            id: badgeTxt
+            anchors.centerIn: parent
+            text: badge.count > 9 ? "9+" : badge.count
+            // Never a fixed dark: with a light accent from matugen the digits
+            // have to flip. See Colors.onColor.
+            color: Services.Colors.onColor(Services.Colors.ghost)
+            font.pixelSize: 9
+            font.bold: true
+            font.family: "JetBrainsMono NF"
+        }
+
+        // Pops in rather than blinking, and only when the count actually moves.
+        scale: 1.0
+        onCountChanged: if (badge.count > 0) badgePop.restart()
+        NumberAnimation {
+            id: badgePop
+            target: badge; property: "scale"
+            from: 0.6; to: 1.0; duration: 220; easing.type: Easing.OutQuint
         }
     }
 

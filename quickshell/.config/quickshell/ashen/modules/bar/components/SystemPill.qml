@@ -16,8 +16,8 @@ Rectangle {
 
     height: root.vertical ? sysRow.height + 16 : Services.Sizes.pillH
     radius: Services.Sizes.pillR
-    color: Services.Colors.surfaceAlpha(0.82)
-    border.color: Services.Colors.ghostAlpha(0.2)
+    color: Services.Colors.surfacePill
+    border.color: Services.Colors.fillRest
     border.width: 0
     width: root.vertical ? Services.Sizes.pillH : sysRow.width + 16
 

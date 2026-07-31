@@ -48,7 +48,7 @@ Rectangle {
             id: label
             x: -ink.tightBoundingRect.x
             y: -(fm.ascent + ink.tightBoundingRect.y)
-            color: Services.Colors.abyss
+            color: Services.Colors.onColor(Services.Colors.ghost)
             font.pixelSize: 20
             font.bold: true
             font.family: "Material Symbols Rounded"

@@ -49,8 +49,7 @@ Rectangle {
     height: root.vertical ? (root.present ? Services.Sizes.pillH : 0) : Services.Sizes.pillH
     radius: Services.Sizes.pillR
     color: root.anyMounted ? Services.Colors.ghost
-                           : (hover.containsMouse ? Services.Colors.ghostAlpha(0.3)
-                                                  : Services.Colors.surfaceAlpha(0.82))
+                           : Services.Colors.surfacePill
     gradient: Services.Prefs.useGradients && (root.anyMounted) ? Services.Colors.accentGradient : null
     border.width: 0
     width: root.vertical ? Services.Sizes.pillH : (root.present ? icon.implicitWidth + 24 : 0)
@@ -71,7 +70,13 @@ Rectangle {
         id: icon
         anchors.centerIn: parent
         text: "\ue1e0"
-        color: (root.anyMounted || hover.containsMouse) ? Services.Colors.abyss : Services.Colors.mist
+        // `abyss` only when the plate is actually solid. On hover the fill is a
+        // wash you can see the wallpaper through, and a dark glyph on it came
+        // out as a smudge -- the same fault Launcher, Power and Notification
+        // were fixed for; this one was missed.
+        color: root.anyMounted ? Services.Colors.onColor(Services.Colors.ghost)
+             : hover.containsMouse ? Services.Colors.snow
+                                   : Services.Colors.mist
         font.pixelSize: 22
         font.family: "Material Symbols Rounded"
         Behavior on color { ColorAnimation { duration: 300 } }

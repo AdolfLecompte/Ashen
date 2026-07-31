@@ -15,11 +15,11 @@ Rectangle {
 
     width: Services.Sizes.pillH; height: Services.Sizes.pillH
     radius: Services.Sizes.pillR
-    // Declarative hover/active fill (no imperative color assignment, which would
-    // clobber the binding). Fills accent while the power menu is open.
+    // Declarative fill (no imperative color assignment, which would clobber the
+    // binding). Fills accent while the power menu is open; the plate does not
+    // react to hover -- a top-level pill answers by growing, not by lighting.
     color: active ? Services.Colors.ghost
-                  : (hover.containsMouse ? Services.Colors.ghostAlpha(0.45)
-                                         : Services.Colors.surfaceAlpha(0.82))
+                  : Services.Colors.surfacePill
     gradient: Services.Prefs.useGradients && (active) ? Services.Colors.accentGradient : null
     border.width: 0
     Behavior on color { ColorAnimation { duration: 200 } }
@@ -27,9 +27,9 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         text: ""
-        // Dark only on the solid accent fill; over the hover tint it lifts to
-        // snow instead — abyss on a 45 % wash was a smudge, not a glyph.
-        color: root.active ? Services.Colors.abyss
+        // Dark only on the accent fill. The hover plate is a surface tone, so
+        // the glyph lifts to snow on it the same way it does at rest.
+        color: root.active ? Services.Colors.onColor(Services.Colors.ghost)
              : hover.containsMouse ? Services.Colors.snow : Services.Colors.mist
         font.pixelSize: 22
         font.family: "Material Symbols Rounded"

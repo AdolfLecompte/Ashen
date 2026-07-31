@@ -118,8 +118,14 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
     Rectangle {
         anchors.fill: parent
         radius: Services.Sizes.pillR
-        color: Services.Colors.surfaceAlpha(0.82)
-        border.color: Services.Colors.ghostAlpha(0.2)
+        // No hover plate here, deliberately. This pill is not a button with a
+        // face: it is a strip of controls that each answer for themselves, and
+        // lighting the whole thing under the pointer said "click me" over three
+        // chips that do different things. It also already animates its own
+        // width, and a plate changing under a box that is resizing reads as a
+        // glitch.
+        color: Services.Colors.surfacePill
+        border.color: Services.Colors.fillRest
         border.width: 0
         clip: true
         // Constant duration on purpose: a `takenOverByPanel ? a : b` here would
@@ -215,7 +221,7 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
             Row {
                 visible: !root.vertical
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 4
+                spacing: Services.Sizes.btnGap
 
                 Widgets.CtlChip {
                     glyph: "\ue045"
@@ -241,7 +247,9 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
         
     }
 
-    // Clicking any free area of the pill opens the expanded panel
+    // Clicking any free area of the pill opens the expanded panel. Under the
+    // transport chips (z: -1), so they keep their own hover; a MouseArea on top
+    // would swallow every move and the chips below would never see the pointer.
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor

@@ -4,8 +4,11 @@ import "root:/services" as Services
 
 Rectangle {
     id: root
-    // Hidden from Settings > Bar > Pills
-    visible: Services.Prefs.pillVisible("recording")
+    // Hidden from Settings > Bar > Pills -- except while a recording is
+    // actually running, when Bar.pillsIn() puts it back and it has to agree to
+    // be drawn. Off the bar it is a control you chose not to keep; running, it
+    // is the only thing that can tell you the machine is still capturing.
+    visible: Services.Prefs.pillVisible("recording") || root.active
     // The bar's one hover language, from Sizes: grow under the pointer,
     // give a little under the click.
     scale: Services.Sizes.hoverScale(hover.containsMouse, hover.pressed)
@@ -25,10 +28,9 @@ Rectangle {
     radius: Services.Sizes.pillR
     clip: true
     color: active ? Services.Colors.ghost
-                  : (hover.containsMouse ? Services.Colors.ghostAlpha(0.45)
-                                         : Services.Colors.surfaceAlpha(0.82))
+                  : Services.Colors.surfacePill
     gradient: Services.Prefs.useGradients && (active) ? Services.Colors.accentGradient : null
-    border.color: active ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.2)
+    border.color: active ? Services.Colors.ghost : Services.Colors.fillRest
     border.width: 0
 
     // Opening out to fit the clock is the pill telling you it started, so it
@@ -36,20 +38,8 @@ Rectangle {
     Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutQuint } }
     Behavior on color { ColorAnimation { duration: 200 } }
 
-    property string elapsed: "00:00"
-
-    Timer {
-        interval: 1000
-        running: root.active
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            let secs = Math.floor((Date.now() - Services.AppState.recordingStartTime) / 1000)
-            let m = Math.floor(secs / 60)
-            let s = secs % 60
-            root.elapsed = (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s)
-        }
-    }
+    // Counted in AppState, so the floating indicator shows the same number.
+    readonly property string elapsed: Services.AppState.recordingElapsed
 
     Row {
         id: row
@@ -59,7 +49,7 @@ Rectangle {
             id: dot
             text: "\uf679"
             // Dark only on the solid accent fill; over the hover tint it lifts.
-            color: root.active ? Services.Colors.abyss
+            color: root.active ? Services.Colors.onColor(Services.Colors.ghost)
                  : hover.containsMouse ? Services.Colors.snow : Services.Colors.mist
             font.pixelSize: (root.active && !root.vertical) ? 16 : 22
             font.family: "Material Symbols Rounded"
@@ -98,7 +88,7 @@ Rectangle {
             visible: root.active && !root.vertical
             width: visible ? implicitWidth : 0
             text: root.elapsed
-            color: Services.Colors.abyss
+            color: Services.Colors.onColor(Services.Colors.ghost)
             font.pixelSize: 12
             font.bold: true
             font.family: "JetBrainsMono NF"

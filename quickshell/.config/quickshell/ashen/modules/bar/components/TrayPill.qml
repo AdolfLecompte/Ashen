@@ -9,8 +9,8 @@ Rectangle {
     readonly property bool vertical: Services.Sizes.barVertical
     height: root.vertical ? trayRow.height + 16 : Services.Sizes.pillH
     radius: Services.Sizes.pillR
-    color: Services.Colors.surfaceAlpha(0.82)
-    border.color: Services.Colors.ghostAlpha(0.2)
+    color: Services.Colors.surfacePill
+    border.color: Services.Colors.fillRest
     border.width: 0
     width: root.vertical ? Services.Sizes.pillH : trayRow.width + 16
     // Hidden from Settings > Bar > Pills
@@ -34,18 +34,16 @@ Rectangle {
                 height: 26
                 visible: !root.isSystemItem(modelData.id)
 
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: 28; height: 28
-                    radius: Services.Sizes.innerR
-                    color: trayHover.containsMouse ? Services.Colors.ghostAlpha(0.2) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                }
-
+                // A tray icon is somebody else's pixmap: it cannot lift to
+                // snow the way a glyph does, so growing is the whole of its
+                // hover. No plate behind it -- that was the last of the
+                // washes.
                 Image {
                     anchors.centerIn: parent
                     source: modelData.icon
                     width: 24; height: 24
+                    scale: Services.Sizes.hoverScale(trayHover.containsMouse, trayHover.pressed)
+                    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
                     // render at 2x and downscale: tray icons ship small pixmaps
                     // and look mushy when Qt upscales them
                     sourceSize: Qt.size(48, 48)
