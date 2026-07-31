@@ -13,6 +13,7 @@ singleton Keyboard 1.0 Keyboard.qml
 singleton Prefs 1.0 Prefs.qml
 singleton Wallpaper 1.0 Wallpaper.qml
 singleton NightLight 1.0 NightLight.qml
+singleton Pills 1.0 Pills.qml
 singleton Sizes 1.0 Sizes.qml
 singleton Paths 1.0 Paths.qml
 singleton Screens 1.0 Screens.qml
