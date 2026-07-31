@@ -7,13 +7,16 @@ import Quickshell.Io
 import QtQuick
 
 import "root:/modules/bar"
+// The panels that hang off it. They used to live in modules/bar/ alongside
+// Bar.qml itself, so "the bar" meant both the strip and the fifteen windows
+// that grow out of it.
+import "root:/modules/panels"
 import "root:/modules/lock"
 import "root:/modules/launcher"
 import "root:/modules/wallpaper"
 import "root:/modules/settings"
-import "root:/modules/emojis"
-import "root:/modules/glyph"
 import "root:/modules/clipboard"
+import "root:/modules/utilities"
 import "root:/modules/widgets" as Widgets
 import "root:/services" as Services
 
@@ -28,7 +31,10 @@ ShellRoot {
     }
     IpcHandler {
         target: "settings"
-        function toggle() { Services.AppState.toggleOverlay("settingsVisible") }
+        function toggle() {
+            Services.AppState.settingsSourceEdge = Services.Sizes.utilEdge
+            Services.AppState.toggleOverlay("settingsVisible")
+        }
         // Jump straight to a section:
         // system|bar|display|sound|network|input|notifications|theme|about
         function tab(name: string) {
@@ -36,24 +42,39 @@ ShellRoot {
             // names working now that they share the Network tab.
             const id = (name === "wifi" || name === "bluetooth") ? "network" : name
             Services.AppState.settingsTab = id
+            Services.AppState.settingsSourceEdge = Services.Sizes.utilEdge
             Services.AppState.settingsVisible = true
         }
     }
     IpcHandler {
         target: "clipboard"
-        function toggle() { Services.AppState.toggleOverlay("clipboardVisible") }
+        function toggle() {
+            // Nothing was clicked, so nobody named an edge: use the pill a
+            // keybind is meant to come from. Without this the panel kept the
+            // edge of whatever was clicked last and left from the wrong side.
+            Services.AppState.clipboardSourceEdge = Services.Sizes.utilEdge
+            Services.AppState.toggleOverlay("clipboardVisible")
+        }
     }
     IpcHandler {
-        target: "emojis"
-        function toggle() { Services.AppState.toggleOverlay("emojisVisible") }
-    }
-    IpcHandler {
-        target: "glyph"
-        function toggle() { Services.AppState.toggleOverlay("glyphVisible") }
+        target: "utilities"
+        function toggle() {
+            // Nothing was clicked, so nobody named an edge: use the pill a
+            // keybind is meant to come from. Without this the panel kept the
+            // edge of whatever was clicked last and left from the wrong side.
+            Services.AppState.utilitiesSourceEdge = Services.Sizes.utilEdge
+            Services.AppState.toggleOverlay("utilitiesVisible")
+        }
     }
     IpcHandler {
         target: "process"
-        function toggle() { Services.AppState.toggleOverlay("processVisible") }
+        function toggle() {
+            // Nothing was clicked, so nobody named an edge: use the pill a
+            // keybind is meant to come from. Without this the panel kept the
+            // edge of whatever was clicked last and left from the wrong side.
+            Services.AppState.processSourceEdge = Services.Sizes.utilEdge
+            Services.AppState.toggleOverlay("processVisible")
+        }
     }
     IpcHandler {
         target: "power"
@@ -115,7 +136,7 @@ ShellRoot {
     Bar {}
     OsdPanel {}
     NotificationToast {}
-    ProcessTrigger {}
+    Widgets.UtilityTriggers {}
     LockScreen {}
 
     // ── Built on demand ───────────────────────────────────────────────────
@@ -135,7 +156,6 @@ ShellRoot {
     Widgets.LazyPanel { preloadMs: 2760; shown: Services.AppState.processVisible;       panel: Component { ProcessPanel {} } }
     Widgets.LazyPanel { preloadMs: 2880; shown: Services.AppState.launcherVisible;      panel: Component { Launcher {} } }
     Widgets.LazyPanel { preloadMs: 3000; shown: Services.AppState.wallpaperVisible;     panel: Component { WallpaperPicker {} } }
-    Widgets.LazyPanel { preloadMs: 3120; shown: Services.AppState.emojisVisible;        panel: Component { Emojis {} } }
-    Widgets.LazyPanel { preloadMs: 3240; shown: Services.AppState.glyphVisible;         panel: Component { Glyph {} } }
     Widgets.LazyPanel { preloadMs: 3360; shown: Services.AppState.clipboardVisible;     panel: Component { Clipboard {} } }
+    Widgets.LazyPanel { preloadMs: 3480; shown: Services.AppState.utilitiesVisible;     panel: Component { UtilitiesPanel {} } }
 }
