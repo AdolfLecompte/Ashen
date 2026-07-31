@@ -289,7 +289,7 @@ Item {
                     width: tabs.width + 8
                     height: 34
                     radius: 12
-                    color: Services.Colors.surfaceAlpha(0.82)
+                    color: Services.Colors.surfacePill
 
                     // Sliding highlight behind whichever pill is picked
                     Rectangle {
@@ -619,7 +619,7 @@ Item {
                     Row {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 4
+                        spacing: Services.Sizes.btnGap
 
                         // Same chip as the media transport, so every small
                         // button in the shell behaves identically. Today sits

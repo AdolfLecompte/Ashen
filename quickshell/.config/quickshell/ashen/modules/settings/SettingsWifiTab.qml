@@ -201,7 +201,7 @@ Item {
                     color: "transparent"
                     Text {
                         anchors.centerIn: parent
-                        text: ""
+                        text: "\ue5cd"
                         color: Services.Colors.ash
                         font.pixelSize: 18
                         font.family: "Material Symbols Rounded"
@@ -288,7 +288,7 @@ Item {
         width: 360
         height: connectCol.implicitHeight + 32
         radius: 14
-        color: Services.Colors.surfaceAlpha(0.98)
+        color: Services.Colors.surfacePanel
         border.color: Services.Colors.ghostAlpha(0.2)
         border.width: 0
         visible: tab.showConnectDialog

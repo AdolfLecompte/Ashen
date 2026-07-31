@@ -40,8 +40,8 @@ Item {
     property bool pillActive: false
     readonly property real tone: card.relay
     readonly property color cardColor: pillActive
-        ? card.mix(Services.Colors.ghost, Services.Colors.surfaceAlpha(0.95), tone)
-        : Services.Colors.surfaceAlpha(0.95)
+        ? card.mix(Services.Colors.ghost, Services.Colors.surfacePanel, tone)
+        : Services.Colors.surfacePanel
     // The letters are never interpolated between two colours — that was the
     // fault: a card halfway between light and dark carried text halfway
     // between dark and light, and for a few frames the two were the same grey.
@@ -67,11 +67,19 @@ Item {
     readonly property bool morphingGlyph: morphing && glyphFlies
     readonly property bool morphingLabel: morphing && labelFlies
 
+    // How fast this particular drop runs. 1.0 is the shell's pace and almost
+    // everything leaves it alone; a panel you open and dismiss dozens of times
+    // a session (the launcher) can ask for more. It scales every duration and
+    // every pause together, so the order of the beats is preserved -- the box
+    // still lands before the contents start, whatever the speed.
+    property real speed: 1.0
+    function ms(v) { return Math.max(1, Math.round(v / root.speed)) }
+
     // How long the whole retraction takes: contents out (90), pieces home
     // (40 + 230), then the box itself (140 + 290). The panel window has to
     // stay mapped for all of it — unmapping earlier cuts the drop off halfway
     // and the panel reads as vanishing instead of climbing back into its chip.
-    readonly property int closeMs: Services.Sizes.panelCloseMs
+    readonly property int closeMs: root.ms(Services.Sizes.panelCloseMs)
 
     // Content fades in only once the drop has landed, and the caller can hang
     // its own timings off this.
@@ -80,8 +88,39 @@ Item {
     // Everything declared inside goes in the card, clipped to it.
     default property alias content: body.data
 
-    readonly property real openX: Services.Sizes.panelX(width, root.openW, root.pillCX)
-    readonly property real openY: Services.Sizes.panelY(height, root.openH, root.pillCY)
+    // Normally the drop hangs off the bar, and where it lands is decided by the
+    // bar's edge. A panel whose pill is NOT on the bar -- Process, off its peek
+    // button on the bottom of the screen -- says so here instead, and the neck
+    // ties it to that edge rather than to the bar.
+    property string sourceEdge: ""            // "", "top" or "bottom"
+    property real openXOverride: NaN
+    property real openYOverride: NaN
+
+    readonly property bool ownEdge: sourceEdge !== ""
+    // Which line the drop is hanging from.
+    readonly property real srcEdge: ownEdge
+        ? (sourceEdge === "bottom" ? root.height : 0)
+        : (Services.Sizes.barPosition === "bottom" ? root.height - Services.Sizes.barH
+                                                   : Services.Sizes.barH)
+    readonly property bool srcBelow: ownEdge ? sourceEdge === "bottom"
+                                             : Services.Sizes.barPosition === "bottom"
+    // A panel that lands far from where it left -- the launcher crosses to the
+    // middle of the screen -- can turn the bridge off. Stretched over half a
+    // screen it stops reading as something being pulled apart and becomes a
+    // rope tying the card to the edge.
+    property bool neckEnabled: true
+
+    // A neck only makes sense pulling up or down; sideways it would be a rope
+    // across the screen. GooNeck only ever draws a vertical bridge, so an own
+    // edge of "left" or "right" gets no neck rather than a wrong one.
+    readonly property bool neckable: neckEnabled && (ownEdge
+        ? (sourceEdge === "top" || sourceEdge === "bottom")
+        : !Services.Sizes.barVertical)
+
+    readonly property real openX: isNaN(openXOverride)
+        ? Services.Sizes.panelX(width, root.openW, root.pillCX) : openXOverride
+    readonly property real openY: isNaN(openYOverride)
+        ? Services.Sizes.panelY(height, root.openH, root.pillCY) : openYOverride
 
     // The window is not on screen in the frame it is told to open, so the fall
     // has to wait for it. Without this the first hundred milliseconds played
@@ -97,58 +136,18 @@ Item {
 
     // The goo bridge tying the drop to the bar until it pinches off. Only on a
     // horizontal bar: sideways it would be a neck across the screen.
-    Canvas {
-        id: neck
-
-        readonly property bool horizontalBar: !Services.Sizes.barVertical
-        readonly property real pinch: Math.max(0, Math.min(1, card.fall / 0.55))
-        readonly property real barEdge: Services.Sizes.barPosition === "bottom"
-            ? root.height - Services.Sizes.barH : Services.Sizes.barH
-        readonly property real cardEdge: Services.Sizes.barPosition === "bottom"
-            ? card.y + card.height : card.y
-        readonly property real span: Math.abs(cardEdge - barEdge)
-        readonly property bool detached: Services.Sizes.barPosition === "bottom"
-            ? cardEdge < barEdge : cardEdge > barEdge
-
-        visible: horizontalBar && detached && pinch > 0.001 && pinch < 1 && span > 1
-        opacity: 1 - Math.pow(pinch, 2)
-
-        // A small chip makes a thin neck, so it is given a floor: below about
-        // 30 px the bridge reads as a scratch rather than as something being
-        // pulled apart.
-        readonly property real neckW: Math.max(30, root.pillW)
-        x: root.pillCX - neckW
-        width: neckW * 2
-        y: Math.min(barEdge, cardEdge)
-        height: Math.max(0, span)
-
-        onPinchChanged: requestPaint()
-        onHeightChanged: requestPaint()
-        Connections {
-            target: root
-            function onCardColorChanged() { neck.requestPaint() }
-        }
-
-        onPaint: {
-            const ctx = getContext("2d")
-            ctx.reset()
-            if (height <= 0) return
-            const mid = width / 2
-            const wBar = neckW / 2 * 0.72
-            const wCard = Math.min(card.width / 2, neckW / 2)
-            const waist = Math.min(wBar, wCard) * (1 - pinch)
-            const top = Services.Sizes.barPosition === "bottom" ? wCard : wBar
-            const bottom = Services.Sizes.barPosition === "bottom" ? wBar : wCard
-
-            ctx.fillStyle = root.cardColor
-            ctx.beginPath()
-            ctx.moveTo(mid - top, 0)
-            ctx.quadraticCurveTo(mid - waist, height / 2, mid - bottom, height)
-            ctx.lineTo(mid + bottom, height)
-            ctx.quadraticCurveTo(mid + waist, height / 2, mid + top, 0)
-            ctx.closePath()
-            ctx.fill()
-        }
+    GooNeck {
+        active: root.neckable
+        pillCX: root.pillCX
+        pillW: root.pillW
+        fromBelow: root.srcBelow
+        barEdge: root.srcEdge
+        cardEdge: root.srcBelow ? card.y + card.height : card.y
+        cardHalfW: card.width / 2
+        pinch: Math.max(0, Math.min(1, card.fall / 0.55))
+        // Not a fixed surface tone here: the card is born the chip's accent and
+        // settles to the panel colour, and the neck has to cross with it.
+        fillColor: root.cardColor
     }
 
     Rectangle {
@@ -191,22 +190,22 @@ Item {
             id: openAnim
             NumberAnimation {
                 target: card; property: "fall"; to: 1
-                duration: 380; easing.type: Easing.OutCubic
+                duration: root.ms(380); easing.type: Easing.OutCubic
             }
             NumberAnimation {
                 target: card; property: "stretch"; to: 1
-                duration: 300; easing.type: Easing.OutCubic
+                duration: root.ms(300); easing.type: Easing.OutCubic
             }
             NumberAnimation {
                 target: card; property: "spread"; to: 1
-                duration: 460; easing.type: Easing.OutBack; easing.overshoot: 0.7
+                duration: root.ms(460); easing.type: Easing.OutBack; easing.overshoot: 0.7
             }
             // The colour goes over first and fast, while the box is still
             // opening out: by the time anything travels, the card has settled
             // on one tone and the pieces know what colour to be against it.
             NumberAnimation {
                 target: card; property: "relay"; to: 1
-                duration: 180; easing.type: Easing.InOutCubic
+                duration: root.ms(180); easing.type: Easing.InOutCubic
             }
             // The flight starts while the box is still spreading — that overlap
             // is what makes the two read as one movement rather than two moves
@@ -217,15 +216,15 @@ Item {
             // travelling, put the panel's furniture on screen underneath a
             // moving word and the whole thing read backwards.
             SequentialAnimation {
-                PauseAnimation { duration: 190 }
+                PauseAnimation { duration: root.ms(190) }
                 NumberAnimation {
                     target: card; property: "morph"; to: 1
-                    duration: 300; easing.type: Easing.OutCubic
+                    duration: root.ms(300); easing.type: Easing.OutCubic
                 }
             }
             SequentialAnimation {
-                PauseAnimation { duration: 500 }
-                NumberAnimation { target: card; property: "contentAmt"; to: 1; duration: 220 }
+                PauseAnimation { duration: root.ms(500) }
+                NumberAnimation { target: card; property: "contentAmt"; to: 1; duration: root.ms(220) }
             }
         }
 
@@ -233,40 +232,40 @@ Item {
             id: closeAnim
             // Backwards, same order: the extra contents go first, then the two
             // pieces travel home, then the box follows them up.
-            NumberAnimation { target: card; property: "contentAmt"; to: 0; duration: 90 }
+            NumberAnimation { target: card; property: "contentAmt"; to: 0; duration: root.ms(90) }
             // Mirrored: the contents are gone before the piece sets off home,
             // the same way nothing appeared until it had landed on the way in.
             SequentialAnimation {
-                PauseAnimation { duration: 100 }
+                PauseAnimation { duration: root.ms(100) }
                 NumberAnimation {
                     target: card; property: "morph"; to: 0
-                    duration: 230; easing.type: Easing.InOutCubic
+                    duration: root.ms(230); easing.type: Easing.InOutCubic
                 }
             }
             // The colour goes back last, so the card is already shrinking into
             // the pill by the time it takes the accent again — arriving lit
             // before it has moved would just be a flash on the way out.
             SequentialAnimation {
-                PauseAnimation { duration: 250 }
+                PauseAnimation { duration: root.ms(250) }
                 NumberAnimation {
                     target: card; property: "relay"; to: 0
-                    duration: 180; easing.type: Easing.InOutCubic
+                    duration: root.ms(180); easing.type: Easing.InOutCubic
                 }
             }
             SequentialAnimation {
-                PauseAnimation { duration: 140 }
+                PauseAnimation { duration: root.ms(140) }
                 ParallelAnimation {
                     NumberAnimation {
                         target: card; property: "fall"; to: 0
-                        duration: 290; easing.type: Easing.InOutCubic
+                        duration: root.ms(290); easing.type: Easing.InOutCubic
                     }
                     NumberAnimation {
                         target: card; property: "stretch"; to: 0
-                        duration: 260; easing.type: Easing.InOutCubic
+                        duration: root.ms(260); easing.type: Easing.InOutCubic
                     }
                     NumberAnimation {
                         target: card; property: "spread"; to: 0
-                        duration: 260; easing.type: Easing.InOutCubic
+                        duration: root.ms(260); easing.type: Easing.InOutCubic
                     }
                 }
             }
@@ -304,7 +303,7 @@ Item {
             color: root.pieceSettled
                 ? (root.glyphTarget ? root.glyphTarget.color : Services.Colors.ghost)
                 : Services.Colors.onColor(root.cardColor)
-            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on color { ColorAnimation { duration: root.ms(140) } }
 
             readonly property real s: card.lerp(18 / font.pixelSize, 1, card.morph)
             // Start: where it sits inside the chip. Next to a name it is tucked
@@ -335,7 +334,7 @@ Item {
             color: root.pieceSettled
                 ? (root.labelTarget ? root.labelTarget.color : Services.Colors.snow)
                 : Services.Colors.onColor(root.cardColor)
-            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on color { ColorAnimation { duration: root.ms(140) } }
 
             readonly property real s: card.lerp(12 / font.pixelSize, 1, card.morph)
             readonly property real fromCX: root.pillCX + root.pillW / 2 - 8

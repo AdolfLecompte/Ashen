@@ -192,7 +192,7 @@ Scope {
                 width: tabs.width + 8
                 height: 34
                 radius: 12
-                color: Services.Colors.surfaceAlpha(0.82)
+                color: Services.Colors.surfacePill
 
                 // Sliding highlight behind the active tab (workspace-style)
                 Rectangle {
@@ -393,6 +393,10 @@ Scope {
                         Rectangle {
                             anchors.fill: parent
                             radius: 14
+                            // Not a card background: a veil over a thumbnail
+                            // that has not decoded yet, deliberately see-through
+                            // so the tile does not flash solid and then fill in.
+                            // The only surfaceAlpha left in the tree.
                             color: Services.Colors.surfaceAlpha(0.5)
                             visible: img.status !== Image.Ready
                         }

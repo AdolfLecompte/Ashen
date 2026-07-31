@@ -43,7 +43,7 @@ PanelWindow {
         y: Services.Sizes.panelY(parent.height, height, Services.AppState.trayMenuCenterY)
         radius: 14
         height: Math.min(menuCol.implicitHeight + 16, root.height - 80)
-        color: Services.Colors.surfaceAlpha(0.95)
+        color: Services.Colors.surfacePanel
         border.color: Services.Colors.ghostAlpha(0.2)
         border.width: 0
         clip: true

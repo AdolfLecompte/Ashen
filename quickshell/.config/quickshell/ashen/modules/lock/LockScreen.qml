@@ -26,7 +26,7 @@ Scope {
         WlSessionLockSurface {
             id: surface
 
-            // Material Symbols codepoints (modules/glyph/data/material_symbols.txt)
+            // Material Symbols codepoints
             readonly property string glyphLock: "\uE899"
             readonly property string glyphLockOpen: "\uE898"
 
@@ -456,7 +456,7 @@ Scope {
                                 width: 340; height: 52
                                 transform: Translate { id: shakeT; x: 0 }
                                 radius: 12
-                                color: Services.Colors.surfaceAlpha(0.85)
+                                color: Services.Colors.surfacePill
                                 border.color: surface.errorMsg !== "" ? Services.Colors.error_
                                     : passInput.activeFocus ? Services.Colors.ghost
                                     : Services.Colors.ghostAlpha(0.25)
@@ -608,7 +608,7 @@ Scope {
                         height: lockMedia.artSize + lockMedia.pad * 2
                         radius: 20
                         clip: true
-                        color: Services.Colors.surfaceAlpha(0.85)
+                        color: Services.Colors.surfacePill
 
                         opacity: lockMedia.hasPlayer ? 1.0 : 0.0
                         // Settings > System > Lock Screen can drop the card
@@ -641,7 +641,7 @@ Scope {
                             anchors.bottom: parent.bottom
                             width: 44; height: 44
                             radius: 10
-                            color: powerPillHover.containsMouse ? Services.Colors.elevated : Services.Colors.surfaceAlpha(0.85)
+                            color: powerPillHover.containsMouse ? Services.Colors.elevated : Services.Colors.surfacePill
                             Behavior on color { ColorAnimation { duration: 150 } }
                             Text {
                                 anchors.centerIn: parent
@@ -690,7 +690,7 @@ Scope {
                                     // Opaque hover tone (not a translucent ghost) so it brightens
                                     // smoothly instead of jumping to transparent over the backdrop.
                                     color: powerHover.containsMouse ? Services.Colors.elevated
-                                                                    : Services.Colors.surfaceAlpha(0.92)
+                                                                    : Services.Colors.surfacePill
                                     Behavior on color { ColorAnimation { duration: 150 } }
                                     Text {
                                         anchors.centerIn: parent
@@ -718,7 +718,7 @@ Scope {
                             anchors.bottom: parent.bottom
                             width: 78; height: 44
                             radius: 10
-                            color: batteryPillHover.containsMouse ? Services.Colors.elevated : Services.Colors.surfaceAlpha(0.85)
+                            color: batteryPillHover.containsMouse ? Services.Colors.elevated : Services.Colors.surfacePill
                             Behavior on color { ColorAnimation { duration: 150 } }
                             Row {
                                 anchors.centerIn: parent
@@ -763,7 +763,7 @@ Scope {
                             anchors.verticalCenter: batteryPill.verticalCenter
                             height: 44
                             radius: 10
-                            color: Services.Colors.surfaceAlpha(0.85)
+                            color: Services.Colors.surfacePill
                             width: profRow.width + 16
                             opacity: surface.showProfiles ? 1.0 : 0.0
                             visible: opacity > 0
@@ -884,7 +884,7 @@ Scope {
                         id: introTile
                         anchors.fill: parent
                         radius: 30
-                        color: Services.Colors.surfaceAlpha(0.85)
+                        color: Services.Colors.surfacePill
                         border.color: Services.Colors.ghostAlpha(0.35)
                         border.width: 2
 

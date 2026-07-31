@@ -83,7 +83,7 @@ Scope {
             width: 48
             height: 250
             radius: 14
-            color: Services.Colors.surfaceAlpha(0.9)
+            color: Services.Colors.surfacePanel
             border.color: Services.Colors.ghostAlpha(0.2)
             border.width: 0
 

@@ -65,51 +65,18 @@ PanelWindow {
     }
 
     // The goo bridge tying the drop to the bar until it pinches off
-    Canvas {
-        id: neck
-
-        readonly property bool horizontalBar: !Services.Sizes.barVertical
-        readonly property real pinch: Math.max(0, Math.min(1, card.fall / 0.55))
-        readonly property real cx: root.pillCX
-        readonly property real barEdge: Services.Sizes.barPosition === "bottom"
+    Widgets.GooNeck {
+        active: !Services.Sizes.barVertical
+        pillCX: root.pillCX
+        pillW: root.pillW
+        fromBelow: Services.Sizes.barPosition === "bottom"
+        barEdge: Services.Sizes.barPosition === "bottom"
             ? parent.height - Services.Sizes.barH : Services.Sizes.barH
-        readonly property real cardEdge: Services.Sizes.barPosition === "bottom"
+        cardEdge: Services.Sizes.barPosition === "bottom"
             ? card.y + card.height : card.y
-        readonly property real span: Math.abs(cardEdge - barEdge)
-        readonly property bool detached: Services.Sizes.barPosition === "bottom"
-            ? cardEdge < barEdge : cardEdge > barEdge
-
-        visible: horizontalBar && detached && pinch > 0.001 && pinch < 1 && span > 1
-        opacity: 1 - Math.pow(pinch, 2)
-
-        x: cx - root.pillW
-        width: root.pillW * 2
-        y: Math.min(barEdge, cardEdge)
-        height: Math.max(0, span)
-
-        onPinchChanged: requestPaint()
-        onHeightChanged: requestPaint()
-
-        onPaint: {
-            const ctx = getContext("2d")
-            ctx.reset()
-            if (height <= 0) return
-            const mid = width / 2
-            const wBar = root.pillW / 2 * 0.72
-            const wCard = Math.min(card.width / 2, root.pillW / 2)
-            const waist = Math.min(wBar, wCard) * (1 - pinch)
-            const top = Services.Sizes.barPosition === "bottom" ? wCard : wBar
-            const bottom = Services.Sizes.barPosition === "bottom" ? wBar : wCard
-
-            ctx.fillStyle = Services.Colors.surfaceAlpha(0.95)
-            ctx.beginPath()
-            ctx.moveTo(mid - top, 0)
-            ctx.quadraticCurveTo(mid - waist, height / 2, mid - bottom, height)
-            ctx.lineTo(mid + bottom, height)
-            ctx.quadraticCurveTo(mid + waist, height / 2, mid + top, 0)
-            ctx.closePath()
-            ctx.fill()
-        }
+        cardHalfW: card.width / 2
+        pinch: Math.max(0, Math.min(1, card.fall / 0.55))
+        fillColor: Services.Colors.surfacePanel
     }
 
     Rectangle {
@@ -197,7 +164,7 @@ PanelWindow {
         y: root.pillCY + (openY + root.openH / 2 - root.pillCY) * fall - height / 2
 
         radius: Services.Sizes.pillR + (20 - Services.Sizes.pillR) * Math.min(1, spread)
-        color: Services.Colors.surfaceAlpha(0.95)
+        color: Services.Colors.surfacePanel
         clip: true
 
         MouseArea { anchors.fill: parent; onClicked: {} }
