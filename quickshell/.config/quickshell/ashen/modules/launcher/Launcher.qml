@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 
+import "root:/modules/widgets" as Widgets
 import "root:/services" as Services
 
 Scope {
@@ -24,12 +25,21 @@ Scope {
         onShownChanged: {
             if (!shown) { closeDelay.restart(); return }
             searchField.text = ""
-            searchField.forceActiveFocus()
+            focusArm.restart()
             // Rescan every open, not just the first: picks up installs/uninstalls
             // without needing a shell restart. Guard against overlapping runs.
             if (!appLoader.running) appLoader.running = true
         }
-        Timer { id: closeDelay; interval: 300 }
+        // Long enough for the whole exit: the window used to unmap at 300 ms
+        // while the collapse still had 220 to run, which cut it dead.
+        Timer { id: closeDelay; interval: card.closeMs }
+        // The card's contents are held back until the drop has landed, and an
+        // item that is not on screen cannot take focus.
+        Timer {
+            id: focusArm
+            interval: Services.Sizes.panelArmMs + 40
+            onTriggered: searchField.forceActiveFocus()
+        }
 
         WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
@@ -38,32 +48,7 @@ Scope {
         property string activeCategory: "All"
         property int selectedIndex: 0
 
-        // Command mode: active when the search starts with ">"
-        property bool commandMode: searchText.startsWith(">")
-        onCommandModeChanged: swapFade.restart()
-        property string commandQuery: commandMode ? searchText.substring(1).toLowerCase().trim() : ""
-        property var commandActions: [
-            { id: "settings",  icon: "\ue8b8", label: "Settings",        action: "settings" },
-            { id: "wallpaper", icon: "\ue1bc", label: "Wallpaper",       action: "wallpaper" },
-            { id: "theme",     icon: "\ue40a", label: "Theme",           action: "theme" },
-            { id: "clipboard", icon: "\ue14f", label: "Clipboard",       action: "clipboard" },
-            { id: "emoji",     icon: "\uea22", label: "Emoji",           action: "emoji" },
-            { id: "glyph",     icon: "\ue167", label: "Glyphs",          action: "glyph" },
-            { id: "record",    icon: "\uf679", label: "Record",          action: "record" },
-            { id: "processes", icon: "\ue322", label: "Processes",       action: "processes" },
-            { id: "lock",      icon: "\ue899", label: "Lock",            action: "lock" },
-            { id: "power",     icon: "\uf8c7", label: "Power",           action: "power" },
-            { id: "caffeine",  icon: "\uefef", label: "Keep Awake",      action: "caffeine" },
-            { id: "dnd",       icon: "\uf08f", label: "Do Not Disturb",  action: "dnd" },
-            { id: "nightlight", icon: "\ue51c", label: "Night Light",    action: "nightlight" },
-        ]
-        property var filteredCommands: {
-            if (commandQuery.length === 0) return commandActions
-            return commandActions.filter(c => c.label.toLowerCase().includes(commandQuery))
-        }
-
         function moveCategory(dir) {
-            if (win.commandMode) return
             let ids = win.categories.map(c => c.id)
             let idx = ids.indexOf(win.activeCategory)
             idx = (idx + dir + ids.length) % ids.length
@@ -71,36 +56,12 @@ Scope {
             win.selectedIndex = 0
         }
         function moveSelection(dir) {
-            let count = win.commandMode ? win.filteredCommands.length : win.filteredApps.length
+            let count = win.filteredApps.length
             if (count === 0) return
             win.selectedIndex = Math.max(0, Math.min(count - 1, win.selectedIndex + dir))
             appList.positionViewAtIndex(win.selectedIndex, ListView.Contain)
         }
-        function runCommand(cmd) {
-            Services.AppState.launcherVisible = false
-            switch (cmd.action) {
-                case "settings":  Services.AppState.settingsVisible = true; break
-                case "theme":     Services.AppState.settingsTab = "theme"; Services.AppState.settingsVisible = true; break
-                case "record":    Services.AppState.toggleRecording(); break
-                case "wallpaper": Services.AppState.wallpaperVisible = true; break
-                case "clipboard": Services.AppState.clipboardVisible = true; break
-                case "emoji":     Services.AppState.emojisVisible = true; break
-                case "glyph":     Services.AppState.glyphVisible = true; break
-                case "processes": Services.AppState.processVisible = true; break
-                case "power":     Services.AppState.powerMenuVisible = true; break
-                case "lock":      Quickshell.execDetached(["loginctl", "lock-session"]); break
-                case "caffeine":  Services.AppState.keepAwake = !Services.AppState.keepAwake; break
-                case "dnd":       Services.AppState.doNotDisturb = !Services.AppState.doNotDisturb; break
-                case "nightlight": Services.NightLight.toggle(); break
-            }
-        }
         function launchSelected() {
-            if (win.commandMode) {
-                if (win.filteredCommands.length === 0) return
-                let cmd = win.filteredCommands[Math.min(win.selectedIndex, win.filteredCommands.length - 1)]
-                win.runCommand(cmd)
-                return
-            }
             if (win.filteredApps.length === 0) return
             let app = win.filteredApps[Math.min(win.selectedIndex, win.filteredApps.length - 1)]
             Quickshell.execDetached(["sh", "-c", app.exec])
@@ -205,43 +166,82 @@ Scope {
             onTriggered: Services.AppState.wallpaperVisible = true
         }
 
+
         MouseArea {
             anchors.fill: parent
             z: -1
             onClicked: Services.AppState.launcherVisible = false
         }
 
-        Rectangle {
-            anchors.centerIn: parent
-            width: 700
-            height: contentCol.height + 32
-            radius: 16
-            color: Services.Colors.surfaceAlpha(0.96)
-            border.color: Services.Colors.ghostAlpha(0.2)
-            border.width: 0
-            clip: true
+        // It falls out of the utility pill, exactly like Process, Settings and
+        // the drawer do. It used to be an EdgeEntry pill that came out of a
+        // bare screen edge with nothing behind it and stopped dead in the
+        // middle of the screen -- next to three panels unfolding from a thing
+        // you can actually see, the launcher was the only one arriving from
+        // nowhere, and the trip across half the monitor read as a window
+        // appearing rather than a panel opening.
+        readonly property string srcEdge:
+            Services.Sizes.barPosition === "bottom" ? "top" : "bottom"
 
-            opacity: Services.AppState.launcherVisible ? 1.0 : 0.0
-            scale: Services.AppState.launcherVisible ? 1.0 : 0.96
-            transform: Translate {
-                y: Services.AppState.launcherVisible ? 0 : 20
-                Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-            }
-            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-            Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        // The utility pill's rect on that edge: centred across the screen and
+        // glued to the edge. Straight out of Sizes, so the pill and the drop
+        // falling out of it cannot disagree about where it is.
+        readonly property real pillCXCalc: win.width / 2
+        readonly property real pillCYCalc: win.srcEdge === "bottom"
+            ? win.height - Services.Sizes.utilPillThick / 2
+            : Services.Sizes.utilPillThick / 2
+
+        // Where it lands: centred across, but NOT down the middle -- it rests
+        // near the edge it came from, the same offset the utility drawer and
+        // Process use, so all four sit at the same height.
+        readonly property real openYCalc: win.srcEdge === "bottom"
+            ? win.height - card.openH - Math.max(68, Services.Sizes.marginBottom + 18)
+            : Services.Sizes.panelTop
+
+        // Contents assemble in three beats once the drop has landed. DropCard
+        // publishes one number for all of its content; the stagger is the
+        // launcher's own, kept from the EdgeEntry version because a search
+        // field, a category strip and a list of apps appearing at the same
+        // instant read as a screenshot rather than as something opening.
+        function stage(i) {
+            const start = Math.min(0.5, i * 0.14)
+            return Math.max(0, Math.min(1, (card.contentAmt - start) / (1 - start)))
+        }
+        function riseOf(i) { return (1 - win.stage(i)) * 10 }
+
+        Widgets.DropCard {
+            id: card
+            shown: win.shown
+            sourceEdge: win.srcEdge
+
+            pillCX: win.pillCXCalc
+            pillCY: win.pillCYCalc
+            pillW: Services.Sizes.utilPillLen
+            pillH: Services.Sizes.utilPillThick
+
+            // What it becomes. The drop grows into these.
+            readonly property int fullW: 700
+            openW: fullW
+            openH: contentCol.height + 32
+            openXOverride: (win.width - card.openW) / 2
+            openYOverride: win.openYCalc
+            cardRadius: Services.Sizes.panelR
 
             MouseArea { anchors.fill: parent; onClicked: {} }
 
             Column {
                 id: contentCol
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.margins: 16
+                // Sized to the card's final width, not anchored to it: while the
+                // pill grows, anchoring would re-wrap the whole list per frame.
+                x: 16
+                y: 16
+                width: card.fullW - 32
                 spacing: 12
 
                 // Search bar
                 Rectangle {
+                    opacity: win.stage(0)
+                    transform: Translate { y: win.riseOf(0) }
                     width: parent.width
                     height: 52
                     radius: 10
@@ -269,9 +269,9 @@ Scope {
 
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "Search applications, or type > for actions..."
+                                text: "Search applications..."
                                 color: Services.Colors.ash
-                                font.pixelSize: 16
+                                font.pixelSize: Services.Sizes.fsSectionTitle
                                 font.family: "JetBrainsMono NF"
                                 visible: searchField.text.length === 0
                             }
@@ -280,7 +280,7 @@ Scope {
                                 id: searchField
                                 anchors.fill: parent
                                 color: Services.Colors.snow
-                                font.pixelSize: 16
+                                font.pixelSize: Services.Sizes.fsSectionTitle
                                 font.family: "JetBrainsMono NF"
                                 focus: Services.AppState.launcherVisible
                                 verticalAlignment: TextInput.AlignVCenter
@@ -294,30 +294,22 @@ Scope {
                             }
                         }
 
-                        Text {
-                            text: "\ue5cd"
-                            color: Services.Colors.ash
-                            font.pixelSize: 20
-                            font.family: "Material Symbols Rounded"
+                        Widgets.IconButton {
+                            size: 24
+                            glyph: "\ue5cd"
                             visible: searchField.text.length > 0
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: searchField.text = ""
-                            }
+                            onActivated: searchField.text = ""
                         }
                     }
                 }
 
-                // Categorias -- indicador deslizante. En modo comando se desvanecen
-                // pero conservan su alto, para que el panel no cambie de tamaño.
+                // Categories -- sliding indicator, workspace-style.
                 Item {
                     id: catSelect
+                    opacity: win.stage(1)
+                    transform: Translate { y: win.riseOf(1) }
                     width: parent.width
                     height: 30
-                    opacity: win.commandMode ? 0 : 1
-                    enabled: !win.commandMode
-                    Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                     property Item activeCat: null
 
                     // Sliding highlight behind the active category (workspace-style)
@@ -373,25 +365,20 @@ Scope {
                     }
                 }
 
-                // List: apps or commands, depending on the mode
+                // The app list, last to assemble.
                 Rectangle {
                     id: listBox
+                    opacity: win.stage(2)
+                    transform: Translate { y: win.riseOf(2) }
                     width: parent.width
                     height: 6 * 62
                     color: "transparent"
                     clip: true
 
-                    // Fade the content in when switching apps <-> commands.
-                    NumberAnimation {
-                        id: swapFade
-                        target: listBox; property: "opacity"
-                        from: 0.0; to: 1.0; duration: 180; easing.type: Easing.OutCubic
-                    }
-
                     ListView {
                         id: appList
                         anchors.fill: parent
-                        model: win.commandMode ? win.filteredCommands : win.filteredApps
+                        model: win.filteredApps
                         spacing: 2
                         clip: true
 
@@ -423,27 +410,12 @@ Scope {
                                     width: 40; height: 40
                                     radius: 10
                                     color: Services.Colors.ghostAlpha(0.15)
-                                    visible: win.commandMode
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: win.commandMode ? modelData.icon : ""
-                                        color: Services.Colors.ghost
-                                        font.pixelSize: 20
-                                        font.family: "Material Symbols Rounded"
-                                    }
-                                }
-                                Rectangle {
-                                    width: 40; height: 40
-                                    radius: 10
-                                    color: Services.Colors.ghostAlpha(0.15)
-                                    visible: !win.commandMode
 
                                     Image {
                                         id: appImg
                                         anchors.fill: parent
                                         anchors.margins: 6
-                                        source: !win.commandMode && modelData.icon ? (modelData.icon.startsWith("/") ? ("file://" + modelData.icon) : Quickshell.iconPath(modelData.icon, 48)) : ""
+                                        source: modelData.icon ? (modelData.icon.startsWith("/") ? ("file://" + modelData.icon) : Quickshell.iconPath(modelData.icon, 48)) : ""
                                         fillMode: Image.PreserveAspectFit
                                         visible: status === Image.Ready
                                         opacity: 0.85
@@ -464,9 +436,9 @@ Scope {
                                     spacing: 3
 
                                     Text {
-                                        text: win.commandMode ? modelData.label : modelData.name
+                                        text: modelData.name
                                         color: Services.Colors.snow
-                                        font.pixelSize: 14
+                                        font.pixelSize: Services.Sizes.fsCardTitle
                                         font.family: "JetBrainsMono NF"
                                         font.bold: true
                                         elide: Text.ElideRight
@@ -475,11 +447,11 @@ Scope {
                                     Text {
                                         text: modelData.comment
                                         color: Services.Colors.mist
-                                        font.pixelSize: 11
+                                        font.pixelSize: Services.Sizes.fsBody
                                         font.family: "JetBrainsMono NF"
                                         elide: Text.ElideRight
                                         width: parent.width
-                                        visible: !win.commandMode && modelData.comment.length > 0
+                                        visible: modelData.comment.length > 0
                                     }
                                 }
                             }
@@ -490,12 +462,8 @@ Scope {
                                 hoverEnabled: true
                                 onEntered: win.selectedIndex = index
                                 onClicked: {
-                                    if (win.commandMode) {
-                                        win.runCommand(modelData)
-                                    } else {
-                                        Quickshell.execDetached(["sh", "-c", modelData.exec])
-                                        Services.AppState.launcherVisible = false
-                                    }
+                                    Quickshell.execDetached(["sh", "-c", modelData.exec])
+                                    Services.AppState.launcherVisible = false
                                 }
                             }
                         }
