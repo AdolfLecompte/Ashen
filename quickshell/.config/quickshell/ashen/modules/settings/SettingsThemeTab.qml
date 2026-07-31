@@ -231,7 +231,8 @@ Item {
         // import, so promising "add" here would be a lie.
         subtitle: Services.Wallpaper.path !== ""
             ? Services.Wallpaper.path.split("/").pop()
-            : "Pick one from " + wallDirRow.dir
+            : "Pick one from " + (Services.Prefs.wallpaperDir !== ""
+                ? Services.Prefs.wallpaperDir : Services.Paths.wallpapers)
         action: "Open"
         onTriggered: {
             Services.AppState.settingsVisible = false
@@ -240,67 +241,14 @@ Item {
     }
 
     // Where the picker looks. Same shape as the recording folder row in Sound.
-    RowLayout {
-        id: wallDirRow
-        Layout.fillWidth: true
-        Layout.topMargin: 4
-        spacing: 12
-
-        readonly property string dir: Services.Prefs.wallpaperDir !== ""
+    DirField {
+        glyph: "\ue2c7"
+        title: "Wallpapers folder"
+        value: Services.Prefs.wallpaperDir !== ""
             ? Services.Prefs.wallpaperDir : Services.Paths.wallpapers
-
-        RowGlyph { glyph: "\ue2c7" }
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 2
-            Text {
-                text: "Wallpapers folder"
-                color: Services.Colors.snow
-                font.pixelSize: 13
-                font.bold: true
-                font.family: "JetBrainsMono NF"
-            }
-            Text {
-                text: wallDirRow.dir
-                color: Services.Colors.ash
-                font.pixelSize: 10
-                font.family: "JetBrainsMono NF"
-                elide: Text.ElideMiddle
-                Layout.fillWidth: true
-            }
-        }
-        Rectangle {
-            width: 84; height: 32
-            radius: 8
-            color: wallDirHover.containsMouse ? Services.Colors.ghostAlpha(0.3) : Services.Colors.ghostAlpha(0.15)
-            Behavior on color { ColorAnimation { duration: 120 } }
-            Text {
-                anchors.centerIn: parent
-                text: "Change"
-                color: Services.Colors.snow
-                font.pixelSize: 11
-                font.family: "JetBrainsMono NF"
-            }
-            MouseArea {
-                id: wallDirHover
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: wallDirPickProc.running = true
-            }
-        }
-    }
-
-    Process {
-        id: wallDirPickProc
-        command: ["sh", "-c", "zenity --file-selection --directory --title='Where wallpapers live' 2>/dev/null"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let dir = text.trim()
-                if (dir.length > 0) Services.Prefs.wallpaperDir = dir
-            }
-        }
+        placeholder: Services.Paths.wallpapers
+        Layout.topMargin: 4
+        onCommitted: path => Services.Prefs.wallpaperDir = path
     }
 
     Divider {}
@@ -378,63 +326,79 @@ Item {
             Text { text: "Color Scheme"; color: Services.Colors.snow; font.pixelSize: 13; font.bold: true; font.family: "JetBrainsMono NF" }
         }
 
-        Flow {
+        // The colours a scheme will actually paint the shell in, taken from
+        // `tab.schemes` itself. The model used to carry its own hand-written
+        // swatch list, which is one more thing to keep in step with the
+        // palette and was already out of step with it.
+        function swatchesOf(id) {
+            const c = tab.schemes[id]
+            if (!c) return []
+            return [c.abyss, c.surface, c.ghost, c.neutral, c.snow]
+        }
+
+        // ── Dynamic, alone and across the full width ────────────────────
+        // It is not one more palette in the list: it is the one with no fixed
+        // colours, so it gets the shape of a bar rather than a cell in a grid.
+        // Its swatches are read live off Colors -- the row shows what matugen
+        // last pulled out of the wallpaper, which is the only way to know what
+        // "from wallpaper" currently means without going and looking at the bar.
+        Rectangle {
+            id: dynRowCard
+            readonly property bool active: schemeSection.dynamicActive
             Layout.fillWidth: true
-            spacing: 10
-            Repeater {
-                model: [
-                    { id: "classic", label: "Classic", subtitle: "Ashen Ghost", swatches: ["#080809", "#1c1c21", "#6e6e7a", "#e8e8ec"] },
-                    { id: "monochrome", label: "Monochrome", subtitle: "Black & white", swatches: ["#050505", "#1a1a1a", "#d4d4d4", "#f2f2f2"] },
-                    { id: "cyberpunk", label: "Cyberpunk", subtitle: "Neon nights", swatches: ["#0d0221", "#241b3d", "#ff2e97", "#00fff2"] },
-                    { id: "edgerunners", label: "Edgerunners", subtitle: "Chrome dreams", swatches: ["#080c12", "#fcee0a", "#00e5ff", "#5ef2a4"] },
-                    { id: "tokyonight", label: "Tokyo Night", subtitle: "Calm blues", swatches: ["#1a1b26", "#24283b", "#7aa2f7", "#bb9af7"] },
-                    { id: "dracula", label: "Dracula", subtitle: "Classic dark", swatches: ["#282a36", "#343746", "#bd93f9", "#ff79c6"] },
-                    { id: "nord", label: "Nord", subtitle: "Arctic cool", swatches: ["#2e3440", "#434c5e", "#88c0d0", "#b48ead"] },
-                    { id: "dynamic", label: "Dynamic", subtitle: "From wallpaper", swatches: [] },
-                ]
-                delegate: Rectangle {
-                    required property var modelData
-                    readonly property bool active: schemeSection.activeScheme === modelData.id
-                    width: 150; height: 80
-                    radius: 12
-                    // Declarative hover: assigning color in onEntered would kill this binding
-                    color: active ? Services.Colors.ghostAlpha(0.28)
-                        : schemeHover.containsMouse ? Services.Colors.ghostAlpha(0.3)
-                        : Services.Colors.ghostAlpha(0.15)
-                    border.color: active ? Services.Colors.ghost : "transparent"
-                    border.width: active ? 2 : 0
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                    ColumnLayout {
-                        anchors.centerIn: parent
-                        spacing: 6
-                        ColumnLayout {
-                            spacing: 2
-                            Text { text: modelData.label; color: Services.Colors.snow; font.pixelSize: 13; font.bold: true; font.family: "JetBrainsMono NF"; Layout.alignment: Qt.AlignHCenter }
-                            Text { text: modelData.subtitle; color: Services.Colors.mist; font.pixelSize: 10; font.family: "JetBrainsMono NF"; Layout.alignment: Qt.AlignHCenter }
-                        }
-                        Row {
-                            Layout.alignment: Qt.AlignHCenter
-                            spacing: 4
-                            visible: modelData.swatches.length > 0
-                            Repeater {
-                                model: modelData.swatches
-                                delegate: Rectangle {
-                                    required property string modelData
-                                    width: 16; height: 16
-                                    radius: 5
-                                    color: modelData
-                                    border.color: Qt.rgba(1, 1, 1, 0.15)
-                                    border.width: 1
-                                }
-                            }
+            Layout.preferredHeight: 56
+            radius: 12
+            color: active ? Services.Colors.ghostAlpha(0.28)
+                 : dynHover.containsMouse ? Services.Colors.ghostAlpha(0.3)
+                 : Services.Colors.ghostAlpha(0.15)
+            border.color: active ? Services.Colors.ghost : "transparent"
+            border.width: active ? 2 : 0
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 14
+                anchors.rightMargin: 14
+                spacing: 12
+
+                Text {
+                    text: ""
+                    font.family: "Material Symbols Rounded"
+                    font.pixelSize: 18
+                    color: Services.Colors.ghost
+                }
+                ColumnLayout {
+                    spacing: 1
+                    Text { text: "Dynamic"; color: Services.Colors.snow; font.pixelSize: 13; font.bold: true; font.family: "JetBrainsMono NF" }
+                    Text { text: "From wallpaper"; color: Services.Colors.mist; font.pixelSize: 10; font.family: "JetBrainsMono NF" }
+                }
+                Item { Layout.fillWidth: true }
+
+                Row {
+                    spacing: 6
+                    Repeater {
+                        model: [Services.Colors.abyss, Services.Colors.surface,
+                                Services.Colors.ghost, Services.Colors.neutral,
+                                Services.Colors.snow]
+                        delegate: Rectangle {
+                            required property color modelData
+                            width: 18; height: 18
+                            radius: 9
+                            color: modelData
+                            border.color: Qt.rgba(1, 1, 1, 0.15)
+                            border.width: 1
                         }
                     }
+                }
+
+                // Holds its place whether or not it is showing, so the
+                // swatches do not shift sideways when the scheme changes.
+                Item {
+                    Layout.preferredWidth: 18
+                    Layout.preferredHeight: 18
                     Rectangle {
-                        visible: parent.active
-                        anchors.top: parent.top
-                        anchors.right: parent.right
-                        anchors.margins: 6
-                        width: 18; height: 18
+                        anchors.fill: parent
+                        visible: dynRowCard.active
                         radius: 9
                         color: Services.Colors.ghost
                         gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
@@ -443,28 +407,124 @@ Item {
                             text: ""
                             font.family: "Material Symbols Rounded"
                             font.pixelSize: 11
-                            color: Services.Colors.abyss
+                            color: Services.Colors.onColor(Services.Colors.ghost)
                         }
                     }
+                }
+            }
+
+            MouseArea {
+                id: dynHover
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                hoverEnabled: true
+                onClicked: {
+                    schemeSection.activeScheme = "dynamic"
+                    // Switch into dynamic mode, then recolour from the
+                    // wallpaper's frame -- awww query fails on video
+                    // (mpvpaper, not awww, is running).
+                    Quickshell.execDetached(["sh", "-c",
+                        "echo 'dynamic' > " + Quickshell.env("HOME") + "/.cache/ashen_scheme_mode.txt && " +
+                        Quickshell.env("HOME") + "/ashen/scripts/ashen-recolor.sh"
+                    ])
+                }
+            }
+        }
+
+        // ── The fixed palettes ──────────────────────────────────────────
+        // Name on the left, its colours on the right, one scheme per line.
+        // Two columns, because a single column of full-width rows in a 1240 px
+        // drawer is mostly empty space between the two things you read.
+        Flow {
+            id: schemeFlow
+            Layout.fillWidth: true
+            Layout.topMargin: 2
+            spacing: 8
+
+            Repeater {
+                model: [
+                    { id: "classic", label: "Classic" },
+                    { id: "monochrome", label: "Monochrome" },
+                    { id: "cyberpunk", label: "Cyberpunk" },
+                    { id: "edgerunners", label: "Edgerunners" },
+                    { id: "tokyonight", label: "Tokyo Night" },
+                    { id: "dracula", label: "Dracula" },
+                    { id: "nord", label: "Nord" },
+                ]
+                delegate: Rectangle {
+                    id: schemeRow
+                    required property var modelData
+                    readonly property bool active: schemeSection.activeScheme === modelData.id
+                    width: (schemeFlow.width - schemeFlow.spacing) / 2
+                    height: 44
+                    radius: 10
+                    // Declarative hover: assigning color in onEntered would kill this binding
+                    color: active ? Services.Colors.ghostAlpha(0.28)
+                        : schemeHover.containsMouse ? Services.Colors.ghostAlpha(0.3)
+                        : Services.Colors.ghostAlpha(0.15)
+                    border.color: active ? Services.Colors.ghost : "transparent"
+                    border.width: active ? 2 : 0
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 14
+                        anchors.rightMargin: 14
+                        spacing: 10
+
+                        Text {
+                            text: schemeRow.modelData.label
+                            color: Services.Colors.snow
+                            font.pixelSize: 12
+                            font.bold: true
+                            font.family: "JetBrainsMono NF"
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+
+                        Row {
+                            spacing: 5
+                            Repeater {
+                                model: schemeSection.swatchesOf(schemeRow.modelData.id)
+                                delegate: Rectangle {
+                                    required property color modelData
+                                    width: 16; height: 16
+                                    radius: 8
+                                    color: modelData
+                                    border.color: Qt.rgba(1, 1, 1, 0.15)
+                                    border.width: 1
+                                }
+                            }
+                        }
+
+                        Item {
+                            Layout.preferredWidth: 16
+                            Layout.preferredHeight: 16
+                            Rectangle {
+                                anchors.fill: parent
+                                visible: schemeRow.active
+                                radius: 8
+                                color: Services.Colors.ghost
+                                gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: ""
+                                    font.family: "Material Symbols Rounded"
+                                    font.pixelSize: 10
+                                    color: Services.Colors.onColor(Services.Colors.ghost)
+                                }
+                            }
+                        }
+                    }
+
                     MouseArea {
                         id: schemeHover
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         hoverEnabled: true
                         onClicked: {
-                            if (modelData.id === "dynamic") {
-                                schemeSection.activeScheme = "dynamic"
-                                // Switch into dynamic mode, then recolour from
-                                // the wallpaper's frame -- awww query fails on
-                                // video (mpvpaper, not awww, is running).
-                                Quickshell.execDetached(["sh", "-c",
-                                    "echo 'dynamic' > " + Quickshell.env("HOME") + "/.cache/ashen_scheme_mode.txt && " +
-                                    Quickshell.env("HOME") + "/ashen/scripts/ashen-recolor.sh"
-                                ])
-                            } else {
-                                schemeSection.activeScheme = modelData.id
-                                tab.applyScheme(modelData.id)
-                            }
+                            schemeSection.activeScheme = schemeRow.modelData.id
+                            tab.applyScheme(schemeRow.modelData.id)
                         }
                     }
                 }
@@ -553,24 +613,59 @@ Item {
         }
     }
 
-
-        Divider {}
-
-        RowLayout {
+        // ── Gradient Accents ────────────────────────────────────────────
+        // How an active fill is painted, so it lives with the palette that
+        // decides its colour. It used to sit at the very bottom of the tab
+        // behind a divider of its own, three screens away from the swatches it
+        // applies to, as if it were about something else.
+        Rectangle {
             Layout.fillWidth: true
-            spacing: 10
-            Text { text: "\ue3e9"; font.family: "Material Symbols Rounded"; font.pixelSize: 18; color: Services.Colors.ghost }
+            Layout.topMargin: 6
+            radius: 12
+            color: Services.Colors.ghostAlpha(0.06)
+            implicitHeight: gradCol.implicitHeight + 24
+
             ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 2
-                Text { text: "Gradient Accents"; color: Services.Colors.snow; font.pixelSize: 13; font.bold: true; font.family: "JetBrainsMono NF" }
-                Text { text: "Subtle gradient on active buttons & pills (scheme tones)"; color: Services.Colors.ash; font.pixelSize: 10; font.family: "JetBrainsMono NF" }
-            }
-            Toggle {
-                checked: Services.Prefs.useGradients
-                onToggled: Services.Prefs.useGradients = !Services.Prefs.useGradients
+                id: gradCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 12
+                spacing: 6
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Text { text: ""; font.family: "Material Symbols Rounded"; font.pixelSize: 15; color: Services.Colors.ghost }
+                    Text { text: "Gradient Accents"; color: Services.Colors.snow; font.pixelSize: 12; font.bold: true; font.family: "JetBrainsMono NF" }
+                    Item { Layout.fillWidth: true }
+                    Toggle {
+                        checked: Services.Prefs.useGradients
+                        onToggled: Services.Prefs.useGradients = !Services.Prefs.useGradients
+                    }
+                }
+                Text {
+                    text: "One accent tone lit from the left: lighter at one end, darker at the other, on active buttons and pills"
+                    color: Services.Colors.ash
+                    font.pixelSize: 10
+                    font.family: "JetBrainsMono NF"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                // The switch showing what it does, rather than a sentence
+                // describing it: the same fill every active pill will wear.
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 2
+                    Layout.preferredHeight: 22
+                    radius: 8
+                    color: Services.Colors.ghost
+                    gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
+                }
             }
         }
+
 
     Item { Layout.preferredHeight: 8 }
         }

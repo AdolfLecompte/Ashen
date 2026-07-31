@@ -5,11 +5,11 @@ import QtQuick.Layouts
 import "root:/services" as Services
 import "root:/modules/settings/components"
 
-ColumnLayout {
+// TabPage, like every other tab: on its own this was a bare ColumnLayout with
+// no Flickable, so it was the one section in Settings that could not be
+// scrolled and anything past the fold was simply unreachable.
+TabPage {
     id: tab
-    anchors.fill: parent
-    anchors.margins: 28
-    spacing: 10
 
     property string osName: "..."
     property string kernel: "..."
@@ -305,6 +305,4 @@ ColumnLayout {
             onClicked: Quickshell.execDetached(["sh", "-c", "xdg-open https://github.com/AdolfoLecompteDev/ashen"])
         }
     }
-
-    Item { Layout.fillHeight: true }
 }

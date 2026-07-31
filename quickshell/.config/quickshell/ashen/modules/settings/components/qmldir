@@ -9,3 +9,4 @@ StepBtn 1.0 StepBtn.qml
 Toggle 1.0 Toggle.qml
 TabPage 1.0 TabPage.qml
 Segmented 1.0 Segmented.qml
+DirField 1.0 DirField.qml

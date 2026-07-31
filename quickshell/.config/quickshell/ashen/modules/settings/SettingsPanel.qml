@@ -3,6 +3,7 @@ import Quickshell.Wayland
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
+import "root:/modules/widgets" as Widgets
 import "root:/services" as Services
 import "root:/modules/settings/components"
 
@@ -16,7 +17,7 @@ PanelWindow {
     readonly property bool shown: Services.AppState.settingsVisible
     visible: shown || closeDelay.running
     onShownChanged: if (!shown) closeDelay.restart()
-    Timer { id: closeDelay; interval: 300 }
+    Timer { id: closeDelay; interval: card.closeMs }
 
     WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
@@ -25,7 +26,7 @@ PanelWindow {
     // they are the same question, and each tab is small enough to scan.
     property var categories: [
         { id: "system", icon: "\ue429", label: "System" },
-        { id: "bar", icon: "", label: "Bar" },
+        { id: "bar", icon: "\ue98c", label: "Bar" },
         { id: "display", icon: "\ueb97", label: "Display" },
         { id: "sound", icon: "\ue050", label: "Sound" },
         { id: "network", icon: "\ue1ba", label: "Network" },
@@ -51,6 +52,13 @@ PanelWindow {
         return ""
     }
 
+    // Wi-Fi and Bluetooth were tabs of their own before the Network merge and
+    // still arrive from old ipc calls, so they light the Network row.
+    readonly property string activeId: {
+        const t = Services.AppState.settingsTab
+        return (t === "wifi" || t === "bluetooth") ? "network" : t
+    }
+
     MouseArea {
         anchors.fill: parent
         z: -1
@@ -63,105 +71,158 @@ PanelWindow {
         Keys.onEscapePressed: Services.AppState.settingsVisible = false
     }
 
-    // Right-hand drawer: full height between the bar and the far edge, wide
-    // enough for the tabs that the old centred card used to hold.
-    Rectangle {
+    // Out of the settings chip on the utility pill, like Process and Clipboard.
+    // It used to slide in from the right edge with nothing behind it, because
+    // Settings had no pill of its own to leave.
+    // Live from the pill, not a value written when something was clicked:
+    // a keybind never clicks, and the panel used to grow from wherever the
+    // last click had left the numbers.
+    readonly property var chip: Services.AppState.utilChipOf(win.srcEdge, "settings")
+    readonly property string srcEdge: Services.AppState.settingsSourceEdge
+    readonly property real openXCalc: srcEdge === "left" ? Services.Sizes.panelTop
+        : srcEdge === "right" ? win.width - card.openW - Services.Sizes.panelTop
+        : (win.width - card.openW) / 2
+    readonly property real openYCalc: srcEdge === "top" ? Services.Sizes.panelTop
+        : srcEdge === "bottom" ? win.height - card.openH - Math.max(68, Services.Sizes.marginBottom + 18)
+        : (win.height - card.openH) / 2
+
+    Widgets.DropCard {
         id: card
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.right: parent.right
-        anchors.topMargin: Services.Sizes.marginTop
-        anchors.bottomMargin: Services.Sizes.marginBottom
-        anchors.rightMargin: Services.Sizes.marginRight
-        width: 560
-        radius: 18
-        color: Services.Colors.surfaceAlpha(0.96)
-        border.color: Services.Colors.ghostAlpha(0.2)
-        border.width: 0
-        clip: true
+        shown: win.shown
+        sourceEdge: win.srcEdge
+        openXOverride: win.openXCalc
+        openYOverride: win.openYCalc
 
-        // Slides in from the right edge it is docked to
-        opacity: win.shown ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-        transform: Translate {
-            x: win.shown ? 0 : 48
-            Behavior on x { NumberAnimation { duration: 280; easing.type: Easing.OutQuint } }
-        }
+        pillCX: (win.chip ? win.chip.cx : 0)
+        pillCY: (win.chip ? win.chip.cy : 0)
+        pillW: (win.chip ? win.chip.w : 44)
+        pillH: (win.chip ? win.chip.h : 44)
 
-        MouseArea { anchors.fill: parent; onClicked: {} }
+        // Wide, not a tall narrow drawer. The rail used to run across the top
+        // because the drawer was a narrow column and a second vertical strip
+        // inside it fought the content for width -- but nine icon-only tabs in
+        // a row said nothing about where you were, and the content underneath
+        // had a column's worth of room to lay settings out in. Sideways there
+        // is room for both.
+        // Sized off the bar layout editor, the widest thing in here: three
+        // drop plates side by side, each wanting room for a couple of pill
+        // chips before they wrap. At 1000x620 they took one chip per line and
+        // the picture of the bar read as three cramped columns.
+        openW: Math.min(1240, win.width - 60)
+        openH: Math.min(800, win.height - 80)
+        cardRadius: Services.Sizes.panelR
 
-        // ── Header: section title over the category rail ──────────────────
-        // The rail runs across the top instead of down the side: the drawer is
-        // already a tall narrow column, and a second vertical strip inside it
-        // fought the content for width.
-        Item {
-            id: header
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            height: 118
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 18
+            spacing: 16
 
-            readonly property string title: {
-                for (const c of win.categories)
-                    if (c.id === Services.AppState.settingsTab) return c.label
-                return ""
-            }
+            // ── Left: where you are ────────────────────────────
+            // One accent that TRAVELS between the sections, the way the
+            // workspace strip does, instead of a plate per row lighting up.
+            // A box around every item made nine outlines compete with the
+            // content; with the indicator doing the work the rail is just
+            // words, and the movement says which one you picked.
+            Item {
+                Layout.fillWidth: false
+                Layout.preferredWidth: 190
+                Layout.fillHeight: true
 
-            Text {
-                id: titleText
-                anchors.left: parent.left
-                anchors.leftMargin: 24
-                anchors.top: parent.top
-                anchors.topMargin: 20
-                text: header.title
-                color: Services.Colors.snow
-                font.pixelSize: 20
-                font.bold: true
-                font.family: "JetBrainsMono NF"
-            }
+                readonly property int rowH: 36
+                readonly property int gap: 2
 
-            // Same travelling accent as the workspace pill, so picking a
-            // section reads like every other exclusive choice in the shell.
-            Segmented {
-                id: rail
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
-                anchors.bottomMargin: 16
-                iconOnly: true
-                cellHeight: 40
-                options: win.categories
-                current: Services.AppState.settingsTab
-                onPicked: id => Services.AppState.settingsTab = id
-            }
-        }
-
-        Rectangle {
-            anchors.top: header.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.leftMargin: 24
-            anchors.rightMargin: 24
-            height: 1
-            color: Services.Colors.ghostAlpha(0.15)
-        }
-
-        // ── Content: one module per tab, loaded with a Loader (anchors, not RowLayout) ──
-        Loader {
-            id: tabLoader
-            anchors.top: header.bottom
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            source: win.tabSource(Services.AppState.settingsTab)
-            onStatusChanged: {
-                if (status === Loader.Error) {
-                    console.log("[SettingsPanel] ERROR loading", source, ":", sourceComponent ? sourceComponent.errorString() : "no details")
-                } else if (status === Loader.Ready) {
-                    console.log("[SettingsPanel] OK cargado:", source)
+                Rectangle {
+                    id: slide
+                    width: parent.width
+                    height: parent.rowH
+                    radius: Services.Sizes.innerR
+                    color: Services.Colors.ghost
+                    gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
+                    y: {
+                        for (let i = 0; i < win.categories.length; i++)
+                            if (win.activeId === win.categories[i].id)
+                                return i * (parent.rowH + parent.gap)
+                        return 0
+                    }
+                    Behavior on y { SmoothedAnimation { duration: 260 } }
                 }
+
+                Column {
+                    anchors.fill: parent
+                    spacing: parent.gap
+
+                    Repeater {
+                        model: win.categories
+
+                        delegate: Item {
+                            id: railItem
+                            required property var modelData
+                            readonly property bool active: win.activeId === modelData.id
+                            width: parent.width
+                            height: 36
+
+                            readonly property color fg: railItem.active
+                                ? Services.Colors.onColor(Services.Colors.ghost)
+                                : (railHover.containsMouse ? Services.Colors.snow
+                                                           : Services.Colors.mist)
+
+                            Row {
+                                anchors.left: parent.left
+                                anchors.leftMargin: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 10
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: railItem.modelData.icon
+                                    color: railItem.fg
+                                    font.pixelSize: 16
+                                    font.family: "Material Symbols Rounded"
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: railItem.modelData.label
+                                    color: railItem.fg
+                                    font.pixelSize: Services.Sizes.fsBody
+                                    font.bold: true
+                                    font.family: "JetBrainsMono NF"
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                }
+                            }
+
+                            MouseArea {
+                                id: railHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Services.AppState.settingsTab = railItem.modelData.id
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Right: the section itself ──────────────────────
+            // Sections cross-fade. Swapped outright, a whole page of
+            // different content replaced another between two frames and the
+            // change read as a flinch rather than as a move.
+            Loader {
+                id: tabLoader
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                opacity: 0
+                source: win.tabSource(Services.AppState.settingsTab)
+                onSourceChanged: fadeIn.restart()
+                onLoaded: fadeIn.restart()
+                NumberAnimation {
+                    id: fadeIn
+                    target: tabLoader; property: "opacity"
+                    from: 0.0; to: 1.0
+                    duration: Services.Sizes.msStandard
+                    easing.type: Easing.OutCubic
+                }
+                onStatusChanged: if (status === Loader.Error)
+                    console.log("[SettingsPanel] ERROR loading", source)
             }
         }
     }

@@ -95,61 +95,13 @@ TabPage {
 
         Divider {}
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 12
-            RowGlyph { glyph: "\ue2c7" }
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 2
-                Text {
-                    text: "Save to"
-                    color: Services.Colors.snow
-                    font.pixelSize: 13
-                    font.bold: true
-                    font.family: "JetBrainsMono NF"
-                }
-                Text {
-                    text: Services.Prefs.recordDir !== "" ? Services.Prefs.recordDir : Services.Paths.recordings
-                    color: Services.Colors.ash
-                    font.pixelSize: 10
-                    font.family: "JetBrainsMono NF"
-                    elide: Text.ElideMiddle
-                    Layout.fillWidth: true
-                }
-            }
-            Rectangle {
-                width: 84; height: 32
-                radius: 8
-                color: dirHover.containsMouse ? Services.Colors.ghostAlpha(0.3) : Services.Colors.ghostAlpha(0.15)
-                Behavior on color { ColorAnimation { duration: 120 } }
-                Text {
-                    anchors.centerIn: parent
-                    text: "Change"
-                    color: Services.Colors.snow
-                    font.pixelSize: 11
-                    font.family: "JetBrainsMono NF"
-                }
-                MouseArea {
-                    id: dirHover
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: dirPickProc.running = true
-                }
-            }
-        }
-    }
-
-    Process {
-        id: dirPickProc
-        command: ["sh", "-c", "zenity --file-selection --directory --title='Where to save recordings' 2>/dev/null"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let dir = text.trim()
-                if (dir.length > 0) Services.Prefs.recordDir = dir
-            }
+        DirField {
+            glyph: "\ue2c7"
+            title: "Save to"
+            value: Services.Prefs.recordDir !== ""
+                ? Services.Prefs.recordDir : Services.Paths.recordings
+            placeholder: Services.Paths.recordings
+            onCommitted: path => Services.Prefs.recordDir = path
         }
     }
 

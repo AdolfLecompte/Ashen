@@ -52,13 +52,16 @@ TabPage {
     }
 
     // ── Bar layout editor ───────────────────────────────────────────────
-    readonly property var pillLabels: ({
-        launcher: "Launcher", notifications: "Notifications", workspaces: "Workspaces",
-        media: "Media", clock: "Clock & Weather", locks: "Caps / Num", usb: "USB",
-        recording: "Recording", tray: "Tray", system: "System chips", power: "Power"
-    })
+    // Names and icons come from services/Pills.qml, the one catalogue. The
+    // copy that used to live here had to be edited by hand every time a pill
+    // was added, and was already a name behind.
+    // The ids Bar.pillFor() can actually build. Pills.arrangeable is longer --
+    // it also lists process, settings and clipboard, which live on the utility
+    // pill and have no bar component yet -- so offering those here would let
+    // you drop a pill onto the bar that renders nothing.
     readonly property var allPills: ["launcher", "notifications", "workspaces", "media",
-                                     "clock", "locks", "usb", "recording", "tray", "system", "power"]
+                                     "clock", "locks", "usb", "recording", "tray", "system",
+                                     "window", "power"]
     // Whatever is in no section at all
     readonly property var availablePills:
         tab.allPills.filter(id => Services.Prefs.barSectionOf(id) === "")
@@ -72,13 +75,21 @@ TabPage {
     component PillChip: Item {
         id: slot
         property string pillId: ""
-        width: face.implicitWidth
+        // Widest the chip may get before its name starts eliding. A third of
+        // the drawer is narrow enough that "Notifications" plus an icon can
+        // outgrow it, and a chip wider than the plate it sits in wraps to a
+        // line of its own and still hangs off the edge. 0 means unbounded.
+        property real maxWidth: 0
+        width: face.width
         height: 28
 
         Rectangle {
             id: face
-            implicitWidth: lab.implicitWidth + 20
-            width: implicitWidth
+            // Built from the two texts' NATURAL widths, never from the Row's
+            // laid-out one: the label's width is derived from this, so reading
+            // the Row back here would be a binding loop.
+            implicitWidth: gly.implicitWidth + chipInner.spacing + lab.implicitWidth + 18
+            width: slot.maxWidth > 0 ? Math.min(implicitWidth, slot.maxWidth) : implicitWidth
             height: 28
             radius: 9
             z: dragArea.drag.active ? 100 : 0
@@ -101,13 +112,35 @@ TabPage {
             Behavior on x { enabled: !dragArea.drag.active; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
             Behavior on y { enabled: !dragArea.drag.active; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
-            Text {
-                id: lab
+            // Icon first, then the name: the same face the pill wears on the
+            // utility pill, so a chip in this editor is recognisable as the
+            // thing it will become rather than a word in a list.
+            Row {
+                id: chipInner
                 anchors.centerIn: parent
-                text: tab.pillLabels[slot.pillId] || slot.pillId
-                color: dragArea.drag.active ? Services.Colors.abyss : Services.Colors.snow
-                font.pixelSize: 11
-                font.family: "JetBrainsMono NF"
+                spacing: 6
+
+                Text {
+                    id: gly
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Services.Pills.glyph(slot.pillId)
+                    color: dragArea.drag.active ? Services.Colors.abyss : Services.Colors.ghost
+                    font.pixelSize: 14
+                    font.family: "Material Symbols Rounded"
+                }
+                Text {
+                    id: lab
+                    anchors.verticalCenter: parent.verticalCenter
+                    // The icon never elides -- it is what identifies the pill
+                    // once the name is cut. Only the name gives way.
+                    width: Math.min(implicitWidth,
+                                    Math.max(0, face.width - 18 - gly.width - chipInner.spacing))
+                    elide: Text.ElideRight
+                    text: Services.Pills.label(slot.pillId)
+                    color: dragArea.drag.active ? Services.Colors.abyss : Services.Colors.snow
+                    font.pixelSize: 11
+                    font.family: "JetBrainsMono NF"
+                }
             }
 
             MouseArea {
@@ -137,13 +170,29 @@ TabPage {
         }
     }
 
-    // One of the four places a pill can be
+    // One of the four places a pill can be.
+    //
+    // The three bar sections stand side by side in the order they occupy the
+    // bar, so the editor is a picture of the bar rather than a stack of lists
+    // that only says where things go if you read the captions. Available sits
+    // underneath, off the bar entirely -- which is exactly what it means.
     component Zone: ColumnLayout {
         id: zone
         property string section: ""
         property string caption: ""
         property var ids: []
+        // Every plate is the same size, always. One that grew with its
+        // contents made the three bar sections different heights depending on
+        // what happened to be in them, and the row stopped reading as three
+        // equal places you may put a pill.
+        readonly property int plateH: 3 * 28 + 2 * 6 + 20
+        // Slot the chip in the air would drop into; -1 when nothing is over
+        // this plate.
+        property int dropIndex: -1
         Layout.fillWidth: true
+        // Equal thirds when three of these share a RowLayout: fillWidth alone
+        // hands the wider zone more room and the picture stops being to scale.
+        Layout.preferredWidth: 1
         spacing: 5
         // Lift the zone holding the chip being dragged, so its face is not
         // drawn underneath a neighbouring plate on the way out.
@@ -159,7 +208,10 @@ TabPage {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 48
+            Layout.preferredHeight: zone.plateH
+            // No clip, however tempting: the chip being dragged is a child of
+            // this plate until it is dropped, and clipping would cut it off at
+            // the edge on the way out.
             radius: 12
             color: dropZone.containsDrag ? Services.Colors.ghostAlpha(0.16)
                                          : Services.Colors.ghostAlpha(0.05)
@@ -170,36 +222,62 @@ TabPage {
             DropArea {
                 id: dropZone
                 anchors.fill: parent
+                // Tracked while the chip is still in the air, not only on
+                // release: dropping used to be blind -- you let go and only
+                // then found out which side of its neighbour it had landed on.
+                onPositionChanged: function(drag) {
+                    zone.dropIndex = zone.indexAt(drag.x, drag.y)
+                }
+                onEntered: function(drag) {
+                    zone.dropIndex = zone.indexAt(drag.x, drag.y)
+                }
+                onExited: zone.dropIndex = -1
                 onDropped: function(drop) {
+                    zone.dropIndex = -1
                     const id = drop.source ? (drop.source.pillId || "") : ""
                     if (id === "") return
-                    Services.Prefs.moveBarPill(id, zone.section, zone.indexAt(drop.x))
+                    Services.Prefs.moveBarPill(id, zone.section, zone.indexAt(drop.x, drop.y))
                     drop.accept()
                 }
             }
 
-            Row {
-                id: chipRow
-                // Each zone lays its chips out the way the bar will: left packs
-                // to the left, right packs to the right, centre sits in the
-                // middle. The editor then reads as a small picture of the bar
-                // rather than three identical lists.
-                //
-                // Computed x, never conditional anchors: `anchors.left: cond ?
-                // parent.left : undefined` does not release the anchor, and a
-                // row anchored both ways stretches edge to edge.
-                x: zone.section === "right"  ? parent.width - width - 10
-                 : zone.section === "centre" ? (parent.width - width) / 2
-                 : 10
-                anchors.verticalCenter: parent.verticalCenter
+            // Where it would go if you let go now: a caret standing in the gap
+            // the chip would open. It slides between slots rather than
+            // blinking from one to the next, so the eye follows it instead of
+            // having to find it again after every move.
+            Rectangle {
+                id: caret
+                visible: dropZone.containsDrag && zone.dropIndex >= 0
+                width: 3
+                height: 22
+                radius: 1.5
+                color: Services.Colors.ghost
+                x: zone.caretX(zone.dropIndex)
+                y: zone.caretY(zone.dropIndex)
+                // Only while it is already up: on the frame it appears, its
+                // position comes from wherever it was left in some other
+                // plate, and animating that would fly it across the editor
+                // before settling where it actually belongs.
+                Behavior on x { enabled: caret.visible; SmoothedAnimation { duration: 120 } }
+                Behavior on y { enabled: caret.visible; SmoothedAnimation { duration: 120 } }
+            }
+
+            Flow {
+                id: chipFlow
+                // A third of the drawer is too narrow for a single row, so the
+                // chips wrap. Order is reading order -- left to right, then
+                // down -- and that is the order they take on the bar.
+                x: 10
+                y: 10
+                width: parent.width - 20
                 spacing: 6
-                Behavior on x { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
                 Repeater {
                     model: zone.ids
                     delegate: PillChip {
                         required property var modelData
                         pillId: modelData
+                        maxWidth: chipFlow.width
                     }
                 }
             }
@@ -214,18 +292,56 @@ TabPage {
             }
         }
 
-        // Where in the row a drop at `px` belongs: before the first chip whose
-        // middle it has already passed.
-        function indexAt(px) {
-            const kids = chipRow.children
+        // Where in the flow a drop at (px, py) belongs: before the first chip
+        // it has not yet passed in reading order. Rows have to be settled
+        // first -- with wrapping, a chip further right can still come earlier
+        // than one on the line above, so x alone would put a drop at the end
+        // of the last row before everything on the rows under it.
+        function indexAt(px, py) {
+            const kids = chipFlow.children
             let n = 0
             for (let i = 0; i < kids.length; i++) {
                 const c = kids[i]
                 if (!c || c.width === undefined || c.width === 0) continue
-                if (chipRow.x + c.x + c.width / 2 > px) return n
+                const cx = chipFlow.x + c.x
+                const cy = chipFlow.y + c.y
+                if (py < cy) return n
+                if (py <= cy + c.height && px < cx + c.width / 2) return n
                 n++
             }
             return n
+        }
+
+        // The chip that would end up AFTER the drop, or null when the drop
+        // goes at the very end. The Repeater is itself a child of the flow and
+        // has no size, so it is skipped the same way indexAt skips it.
+        function chipAt(n) {
+            const kids = chipFlow.children
+            let seen = 0
+            for (let i = 0; i < kids.length; i++) {
+                const c = kids[i]
+                if (!c || c.width === undefined || c.width === 0) continue
+                if (seen === n) return c
+                seen++
+            }
+            return null
+        }
+        function lastChip() { return zone.chipAt(zone.ids.length - 1) }
+
+        // The caret stands in the gap: half the flow's spacing before the chip
+        // it would push along, or past the end of the last one. An empty plate
+        // has neither, so it sits where the first chip would start.
+        function caretX(n) {
+            const c = zone.chipAt(n)
+            if (c) return chipFlow.x + c.x - chipFlow.spacing / 2 - 1
+            const last = zone.lastChip()
+            if (last) return chipFlow.x + last.x + last.width + chipFlow.spacing / 2 - 1
+            return chipFlow.x
+        }
+        function caretY(n) {
+            const c = zone.chipAt(n) || zone.lastChip()
+            if (c) return chipFlow.y + c.y + (c.height - 22) / 2
+            return chipFlow.y + 3
         }
     }
 
@@ -233,7 +349,7 @@ TabPage {
         title: "Layout"
 
         Text {
-            text: "Drag a pill into a section to place it, and along a section to order it. Anything left in Available is not built at all."
+            text: "The three plates sit where they sit on the bar. Drag a pill onto one to place it, and within one to order it. The clock holds the exact middle of the centre plate and its neighbours fall either side. Anything left in Available is not built at all."
             color: Services.Colors.ash
             font.pixelSize: 10
             font.family: "JetBrainsMono NF"
@@ -242,10 +358,23 @@ TabPage {
             Layout.bottomMargin: 4
         }
 
-        Zone { section: "left";   caption: "LEFT";   ids: Services.Prefs.barPills("left") }
-        Zone { section: "centre"; caption: "CENTRE \u2014 the clock holds the exact middle; its neighbours fall either side"; ids: Services.Prefs.barPills("centre") }
-        Zone { section: "right";  caption: "RIGHT";  ids: Services.Prefs.barPills("right") }
-        Zone { section: "";       caption: "AVAILABLE"; ids: tab.availablePills }
+        // On the bar, in bar order.
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            Zone { section: "left";   caption: "LEFT";   ids: Services.Prefs.barPills("left") }
+            Zone { section: "centre"; caption: "CENTRE"; ids: Services.Prefs.barPills("centre") }
+            Zone { section: "right";  caption: "RIGHT";  ids: Services.Prefs.barPills("right") }
+        }
+
+        // Off the bar. Full width, under all three, because it belongs to none
+        // of them.
+        Zone {
+            section: ""
+            caption: "AVAILABLE"
+            ids: tab.availablePills
+            Layout.topMargin: 4
+        }
 
         Item { Layout.preferredHeight: 2 }
 
