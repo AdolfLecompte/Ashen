@@ -38,64 +38,44 @@ PanelWindow {
         pillActive: Services.Brightness.level > 0
         pillGlyph: Services.AppState.pillGlyph("brightness")
         pillLabel: Services.AppState.pillLabel("brightness")
-        glyphTarget: hdrGlyph
-        labelTarget: hdrValue
+        glyphTarget: dial.glyphItem
+        labelTarget: dial.labelItem
         pillW: Services.AppState.brightnessPillW
         pillH: Services.AppState.brightnessPillH
-        openW: 300
-        openH: 78
+        openW: 320
+        // Dial + gap + slider + margins, and the slider's knob is 18 tall on a
+        // 10 px track, so it needs the 4 px either side that the track does not
+        // ask for -- without them the card clipped it.
+        openH: 32 + 132 + 14 + 18
         cardRadius: 16
 
         Column {
-            anchors.fill: parent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
             anchors.margins: 16
-            spacing: 12
+            spacing: 14
+            opacity: card.contentAmt
 
-            // Header: icon + label + value
-            Item {
-                width: parent.width
-                height: 22
-
-                Row {
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 8
-
-                    Text {
-                        id: hdrGlyph
-                        opacity: card.morphingGlyph ? 0 : 1
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: ""
-                        font.family: "Material Symbols Rounded"
-                        font.pixelSize: 18
-                        color: Services.Colors.ghost
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Brightness"
-                        color: Services.Colors.mist
-                        font.pixelSize: 12
-                        font.family: "JetBrainsMono NF"
-                    }
-                }
-
-                Text {
-                    id: hdrValue
-                    opacity: card.morphingLabel ? 0 : 1
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    // Off the chip, not off the slider's smoothed value: while
-                    // the bar was easing towards the level the two readings
-                    // disagreed by a percent or two and the piece would not fly.
-                    text: Services.AppState.pillLabel("brightness")
-                    color: Services.Colors.snow
-                    font.pixelSize: 14
-                    font.bold: true
-                    font.family: "JetBrainsMono NF"
-                }
+            // The same dial as sound and battery: reading in the middle, level
+            // around the rim. A header row with the word "Brightness" and the
+            // number at the far end said the same thing in two places and in a
+            // shape nothing else in the shell uses.
+            Widgets.DialGauge {
+                id: dial
+                anchors.horizontalCenter: parent.horizontalCenter
+                size: 132
+                // Off the slider, not the service: Brightness polls every
+                // 1.5 s and the dial would trail the bar by that much.
+                value: brightBar.shown
+                easeMs: brightBar.dragging ? 0 : 220
+                glyph: Services.AppState.pillGlyph("brightness")
+                label: Math.round(dial.frac * 100) + "%"
+                captionSize: 0
+                hideGlyph: card.morphingGlyph
+                hideLabel: card.morphingLabel
             }
 
-            // Slider
             Widgets.SliderTrack {
                 id: brightBar
                 width: parent.width
