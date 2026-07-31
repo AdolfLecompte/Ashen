@@ -59,7 +59,7 @@ Singleton {
 
     property bool clipboardVisible: false
 
-    property var bigOverlays: ["launcherVisible", "settingsVisible", "emojisVisible", "glyphVisible", "wallpaperVisible", "clipboardVisible", "processVisible"]
+    property var bigOverlays: ["launcherVisible", "settingsVisible", "wallpaperVisible", "clipboardVisible", "processVisible", "utilitiesVisible"]
     function toggleOverlay(name) {
         let wasOpen = root[name]
         for (let n of bigOverlays) root[n] = false
@@ -68,10 +68,24 @@ Singleton {
     function closeBigOverlays() {
         for (let n of bigOverlays) root[n] = false
     }
-    property bool emojisVisible: false
-    property bool glyphVisible: false
     property bool recording: false
     property real recordingStartTime: 0
+    // How long it has been running, as mm:ss. Here rather than in the pill:
+    // the pill is a control and can be taken off the bar, but the recording
+    // carries on, and whatever is showing it then needs the same number.
+    property string recordingElapsed: "00:00"
+    Timer {
+        interval: 1000
+        running: root.recording
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: {
+            const secs = Math.max(0, Math.floor((Date.now() - root.recordingStartTime) / 1000))
+            const m = Math.floor(secs / 60)
+            const s = secs % 60
+            root.recordingElapsed = (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s)
+        }
+    }
     property bool keepAwake: false
     property real faceVersion: 0
 
@@ -266,6 +280,68 @@ Singleton {
     }
     property bool launcherVisible: false
     property bool processVisible: false
+    // Where the utility pill's Process chip was when it was clicked, so the
+    // panel can grow out of it the way the media pill becomes the media
+    // panel. Published by UtilityTriggers at click time -- the chip only
+    // reacts to clicks while its pill is fully revealed, so the geometry read
+    // there is always settled, never mid-animation.
+    property real processPillCX: 0
+    property real processPillCY: 0
+    property real processPillW: 124
+    property real processPillH: 44
+    // Which screen edge that chip was on: the pill can turn up on any of the
+    // three the bar is not currently sitting on.
+    property string processSourceEdge: "bottom"
+
+    // Same four numbers for the clipboard chip on the same pill. A set each
+    // rather than one shared set: both panels can be mid-animation at once
+    // (one closing while the other opens) and they would fight over it.
+    property real clipboardPillCX: 0
+    property real clipboardPillCY: 0
+    property real clipboardPillW: 44
+    property real clipboardPillH: 44
+    property string clipboardSourceEdge: "bottom"
+
+    // Settings joins the other two on the utility pill.
+    property real settingsPillCX: 0
+    property real settingsPillCY: 0
+    property real settingsPillW: 44
+    property real settingsPillH: 44
+    property string settingsSourceEdge: "bottom"
+
+    // The utility drawer: everything the launcher used to hide behind ">".
+    // The launcher is for applications; this is for the shell's own actions.
+    // Where every utility chip sits, keyed "edge|id". Published continuously by
+    // the pill rather than written on click: a panel thrown by a keybind was
+    // never told where to grow from, so it used whatever the last click had
+    // left behind -- or (0, 0), the top-left corner of the screen.
+    property var utilChip: ({})
+    function setUtilChip(edge, id, cx, cy, w, h) {
+        const k = edge + "|" + id
+        const o = utilChip[k]
+        if (o && o.cx === cx && o.cy === cy && o.w === w && o.h === h) return
+        const next = Object.assign({}, utilChip)
+        next[k] = { cx: cx, cy: cy, w: w, h: h }
+        root.utilChip = next
+    }
+    // Falls back to the middle of the edge, so a panel whose chip has not been
+    // laid out yet still leaves from the right side of the screen.
+    function utilChipOf(edge, id) {
+        return utilChip[edge + "|" + id] || null
+    }
+
+    // Which utility pill is pinned out, by edge ("" = none). One pill, not all
+    // three: pinning the bottom one should not drag the side ones out with it.
+    property string utilityPinnedEdge: ""
+
+    property bool utilitiesVisible: false
+    property real utilitiesPillCX: 0
+    property real utilitiesPillCY: 0
+    property real utilitiesPillW: 32
+    property real utilitiesPillH: 32
+    property string utilitiesSourceEdge: "bottom"
+    // The button stands down while the panel wears its face.
+    property bool processTakenOver: false
     property bool wallpaperVisible: false
     property string networkTab: "wifi"
 }

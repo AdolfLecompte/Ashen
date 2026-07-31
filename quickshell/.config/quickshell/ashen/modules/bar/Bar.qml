@@ -109,6 +109,26 @@ Scope {
                 Component { id: cTray;          TrayPill {} }
                 Component { id: cSystem;        SystemPill {} }
                 Component { id: cPower;         PowerPill {} }
+                Component { id: cWindow;        WindowPill {} }
+
+                // What a section actually shows. Almost always just what the
+                // layout says -- but a pill you took OFF the bar can still be
+                // the only thing that can report a state that is running, and
+                // taking a control off is not the same as asking not to be told.
+                // It claims a slot for as long as the state lasts and gives it
+                // straight back, the way Locks and USB come and go.
+                function pillsIn(section) {
+                    const base = Services.Prefs.barPills(section)
+                    if (section !== "right") return base
+                    if (!Services.AppState.recording) return base
+                    if (Services.Prefs.barSectionOf("recording") !== "") return base
+                    // Ahead of the power button rather than after it: power is
+                    // the end cap of the bar and something arriving behind it
+                    // reads as having fallen off the end.
+                    const at = base[base.length - 1] === "power" ? base.length - 1
+                                                                 : base.length
+                    return base.slice(0, at).concat(["recording"], base.slice(at))
+                }
 
                 function pillFor(id) {
                     switch (id) {
@@ -123,6 +143,7 @@ Scope {
                     case "tray":          return cTray
                     case "system":        return cSystem
                     case "power":         return cPower
+                    case "window":        return cWindow
                     }
                     return null
                 }
@@ -155,7 +176,7 @@ Scope {
                     move: Transition { NumberAnimation { properties: "x,y"; duration: 240; easing.type: Easing.OutCubic } }
 
                     Repeater {
-                        model: Services.Prefs.barPills("left")
+                        model: content.pillsIn("left")
                         delegate: PillSlot { required property var modelData; pillId: modelData }
                     }
                 }
@@ -180,7 +201,7 @@ Scope {
                     y: bar.vertical ? parent.height / 2 - anchorMid : (parent.height - height) / 2
 
                     Repeater {
-                        model: Services.Prefs.barPills("centre")
+                        model: content.pillsIn("centre")
                         delegate: PillSlot {
                             required property var modelData
                             pillId: modelData
@@ -200,7 +221,7 @@ Scope {
                     move: Transition { NumberAnimation { properties: "x,y"; duration: 240; easing.type: Easing.OutCubic } }
 
                     Repeater {
-                        model: Services.Prefs.barPills("right")
+                        model: content.pillsIn("right")
                         delegate: PillSlot { required property var modelData; pillId: modelData }
                     }
                 }
