@@ -19,18 +19,235 @@ Singleton {
     readonly property var shownPopups: activePopups.slice(0, maxPopups)
     readonly property int hiddenPopupCount: Math.max(0, activePopups.length - maxPopups)
 
+    // ── Toast lifecycle ───────────────────────────────────────────────────
+    // The countdown lives here, not in a Timer inside the delegate. The toast
+    // Repeater is fed a plain JS array, and reassigning one rebuilds EVERY
+    // delegate: a new notification used to restart the countdown of the toasts
+    // already on screen and replay their entry animation, so a busy minute
+    // left a stack that never drained.
+
+    // Ids on their way out, so the view can play an exit before the entry goes.
+    // Published as its own list: mutating an entry in place notifies nobody.
+    property var leavingIds: []
+    // A hovered stack is being read, so hold every countdown -- not just the
+    // card under the pointer, since they all shuffle as soon as one leaves.
+    property int hoverHolds: 0
+    readonly property int leaveMs: 400
+
+    function popupHold(entry) {
+        // Critical never ages out on its own; it has to be acknowledged.
+        if (entry.urgency === 2) return 0
+        if (entry.source === "system") return 1800
+        return Math.max(1, Prefs.toastSeconds) * 1000
+    }
+
+    function isLeaving(id) { return root.leavingIds.indexOf(id) !== -1 }
+    // Already on its way out, whether it has started moving or is still
+    // waiting its turn in the sweep.
+    function isPending(id) {
+        if (root.isLeaving(id)) return true
+        for (let i = 0; i < root.sweepQueue.length; i++) if (root.sweepQueue[i].id === id) return true
+        return false
+    }
+
+    Timer {
+        id: popupClock
+        interval: 100
+        repeat: true
+        running: root.activePopups.length > 0
+        onTriggered: root.tickPopups()
+    }
+
+    // Bumped on every tick so a card can draw how much time it has left
+    // without a timer of its own. `expiresAt` is mutated in place and notifies
+    // nobody, so this is what the bindings actually hang off.
+    property int popupTick: 0
+
+    function tickPopups() {
+        const now = Date.now()
+        root.popupTick++
+        const shown = root.shownPopups
+        let expired = []
+        for (let i = 0; i < shown.length; i++) {
+            let p = shown[i]
+            // The clock starts when a toast reaches the drawn part of the
+            // stack, so the ones waiting behind the +N row keep their full time.
+            if (!p.expiresAt) {
+                if (p.holdMs > 0) p.expiresAt = now + p.holdMs
+                continue
+            }
+            if (root.hoverHolds > 0) { p.expiresAt += popupClock.interval; continue }
+            if (now >= p.expiresAt && !root.isPending(p.id)) expired.push(p.id)
+        }
+        // Oldest first, so a row that runs out together drains from the far end.
+        if (expired.length > 0) root.queueLeave(expired.reverse(), false)
+
+        // Anything whose exit has finished playing is really gone now.
+        let done = root.activePopups.filter(p => p.leaveAt && now >= p.leaveAt).map(p => p.id)
+        if (done.length > 0) root.dropPopups(done)
+    }
+
+    // Starts the exit. `byUser` separates "I closed this" from "it timed out",
+    // which is what the sender is told over D-Bus.
+    function beginLeave(id, byUser) {
+        if (root.isLeaving(id)) return
+        let ent = root.activePopups.find(p => p.id === id)
+        if (!ent) return
+        ent.leaveAt = Date.now() + root.leaveMs
+        root.leavingIds = root.leavingIds.concat([id])
+        root.releaseLive(id, byUser)
+    }
+
+    function dropPopups(ids) {
+        root.activePopups = root.activePopups.filter(p => ids.indexOf(p.id) === -1)
+        root.leavingIds = root.leavingIds.filter(i => ids.indexOf(i) === -1)
+        root.seenPopups = root.seenPopups.filter(i => ids.indexOf(i) === -1)
+    }
+
+    // ── Sweeping several at once ──────────────────────────────────────────
+    // A stack that vanishes in one frame reads as a glitch; one card after
+    // another reads as a sweep. Everything that leaves in a batch -- the sweep
+    // button, and a row of toasts whose time runs out together -- goes through
+    // this queue instead of all calling beginLeave in the same tick.
+    property var sweepQueue: []
+    readonly property int sweepStepMs: 80
+
+    Timer {
+        id: sweepTimer
+        interval: root.sweepStepMs
+        repeat: true
+        running: root.sweepQueue.length > 0
+        onTriggered: {
+            let q = root.sweepQueue.slice()
+            const next = q.shift()
+            root.sweepQueue = q
+            root.beginLeave(next.id, next.byUser)
+        }
+    }
+
+    function queueLeave(ids, byUser) {
+        if (ids.length === 0) return
+        // The first one goes immediately: a sweep that starts with a pause
+        // feels unresponsive.
+        root.beginLeave(ids[0], byUser)
+        if (ids.length < 2) return
+        let add = []
+        for (let i = 1; i < ids.length; i++) add.push({ id: ids[i], byUser: byUser })
+        root.sweepQueue = root.sweepQueue.concat(add)
+    }
+
+    // ── Which cards have already made their entrance ──────────────────────
+    // The Repeater rebuilds every delegate whenever the array is reassigned,
+    // so a card would replay its entry animation each time a new notification
+    // arrived. The view asks here whether it is genuinely new. Plain array, no
+    // published copy: it is only ever read while a delegate is being built.
+    property var seenPopups: []
+    function hasEntered(id) { return root.seenPopups.indexOf(id) !== -1 }
+    function markEntered(id) { if (!root.hasEntered(id)) root.seenPopups.push(id) }
+
     function pushPopup(entry) {
         let popupEntry = Object.assign({}, entry)
+        popupEntry.holdMs = root.popupHold(entry)
+        popupEntry.expiresAt = 0
+        popupEntry.leaveAt = 0
         root.activePopups = [popupEntry].concat(root.activePopups)
     }
 
-    // Sweeps the toast stack only; the history keeps every entry
+    // Sweeps the toast stack only; the history keeps every entry. Bottom of
+    // the stack first: the pile collapses towards the pill it came from.
     function dismissAllPopups() {
-        root.activePopups = []
+        const ids = root.activePopups.map(p => p.id).reverse()
+        root.queueLeave(ids, true)
     }
 
-    function dismissPopup(id) {
-        root.activePopups = root.activePopups.filter(p => p.id !== id)
+    function dismissPopup(id) { root.beginLeave(id, true) }
+
+    // ── Live D-Bus notifications ──────────────────────────────────────────
+    // The Notification object is the only thing that can invoke an action or
+    // tell the sender the notice was closed, so it is kept alive past its
+    // toast for anything the panel can still act on. Everything else is
+    // released as its toast leaves, or the shell would sit on every
+    // notification of the session.
+    property var liveNotifs: ({})
+    // What the views bind against: a plain object mutation notifies nobody.
+    property var liveIds: []
+    readonly property int maxLive: 60
+
+    function publishLive() { root.liveIds = Object.keys(root.liveNotifs) }
+
+    function trackLive(id, notif) {
+        root.liveNotifs[id] = notif
+        let ids = Object.keys(root.liveNotifs)
+        if (ids.length > root.maxLive) {
+            // Our ids start with the epoch millis they were made, so plain
+            // string order is oldest first.
+            ids.sort()
+            for (let i = 0; i < ids.length - root.maxLive; i++) root.closeLive(ids[i], false)
+        }
+        root.publishLive()
+    }
+
+    function closeLive(id, byUser) {
+        let n = root.liveNotifs[id]
+        if (!n) return
+        delete root.liveNotifs[id]
+        root.publishLive()
+        if (byUser) n.dismiss()
+        else n.expire()
+    }
+
+    // A toast just left the screen: keep the ones that still offer something
+    // to press, let the rest go.
+    function releaseLive(id, byUser) {
+        if (!byUser) {
+            let ent = root.history.find(e => e.id === id)
+            if (ent && ent.actions && ent.actions.length > 0) return
+        }
+        root.closeLive(id, byUser)
+    }
+
+    function isActionable(id) { return root.liveIds.indexOf(id) !== -1 }
+
+    function invokeAction(id, actionId) {
+        let n = root.liveNotifs[id]
+        if (!n) return
+        let acts = n.actions || []
+        for (let i = 0; i < acts.length; i++) {
+            if (acts[i].identifier === actionId) { acts[i].invoke(); break }
+        }
+        // invoke() closes the notification unless it is resident, so the
+        // reference is dropped here rather than closed a second time.
+        delete root.liveNotifs[id]
+        root.publishLive()
+        root.markRead(id)
+        root.beginLeave(id, true)
+    }
+
+    // Clicking a toast's body: senders put the interesting thing (open the
+    // chat, focus the window) behind an action called "default". Without one
+    // the click just means "seen".
+    function activateDefault(id) {
+        let n = root.liveNotifs[id]
+        if (n) {
+            const acts = n.actions || []
+            for (let i = 0; i < acts.length; i++) {
+                if (acts[i].identifier === "default") {
+                    root.invokeAction(id, "default")
+                    return
+                }
+            }
+        }
+        root.markRead(id)
+        root.beginLeave(id, true)
+    }
+
+    // The sender took its notification back: the toast goes with it.
+    function onLiveClosed(id) {
+        if (root.liveNotifs[id]) {
+            delete root.liveNotifs[id]
+            root.publishLive()
+        }
+        if (root.activePopups.find(p => p.id === id)) root.beginLeave(id, true)
     }
 
     property bool lastCapsLock: false
@@ -69,16 +286,101 @@ Singleton {
         return ""
     }
 
-    function addEntry(entry) {
+    function addEntry(entry, notif) {
         entry.id = Date.now() + "-" + Math.floor(Math.random() * 100000)
         entry.timestamp = Date.now()
-        root.history = [entry].concat(root.history).slice(0, 300)
+        entry.read = false
+        if (notif) {
+            // Only each action's label is stored; pressing one goes back
+            // through the live object, the only thing that can invoke it.
+            let acts = []
+            const raw = notif.actions || []
+            for (let i = 0; i < raw.length; i++) acts.push({ id: raw[i].identifier, text: raw[i].text })
+            entry.actions = acts
+            root.trackLive(entry.id, notif)
+            notif.closed.connect(function(reason) { root.onLiveClosed(entry.id) })
+        }
+        // A transient notification is a passing status (another shell's volume
+        // popup, a download bar): show it, never log it.
+        if (!entry.transient) {
+            const dropped = root.history.slice(299)
+            for (let d = 0; d < dropped.length; d++) root.closeLive(dropped[d].id, false)
+            root.history = [entry].concat(root.history).slice(0, 300)
+        }
         // Do Not Disturb hides toasts, but urgency 2 (critical) always breaks
         // through -- low-battery and the like must not be swallowed.
         if (!Services.AppState.doNotDisturb || entry.urgency === 2) {
             root.pushPopup(entry)
         }
         saveHistory()
+    }
+
+    // ── Unread ─────────────────────────────────────────────────────────────
+    readonly property int unreadCount: {
+        let n = 0
+        for (let i = 0; i < root.history.length; i++) if (!root.history[i].read) n++
+        return n
+    }
+
+    function markRead(id) {
+        let arr = root.history.slice()
+        let hit = false
+        for (let i = 0; i < arr.length; i++) {
+            if (arr[i].id === id && !arr[i].read) { arr[i] = Object.assign({}, arr[i], { read: true }); hit = true }
+        }
+        if (!hit) return
+        root.history = arr
+        saveHistory()
+    }
+
+    function markAllRead() {
+        if (root.unreadCount === 0) return
+        root.history = root.history.map(e => e.read ? e : Object.assign({}, e, { read: true }))
+        saveHistory()
+    }
+
+    // ── Grouping ───────────────────────────────────────────────────────────
+    // The history is one long column of rows otherwise, and a chatty app buries
+    // everything else. Groups come out newest-first because the history is.
+    function groupKey(entry) {
+        if (entry.source === "system") return "System"
+        return entry.appName || "Unknown"
+    }
+
+    readonly property var groupedHistory: {
+        let out = []
+        let byApp = ({})
+        for (let i = 0; i < root.history.length; i++) {
+            const e = root.history[i]
+            const key = root.groupKey(e)
+            if (!byApp[key]) {
+                byApp[key] = { app: key, icon: e.icon || "", items: [], unread: 0, latest: e.timestamp }
+                out.push(byApp[key])
+            }
+            let g = byApp[key]
+            g.items.push(e)
+            if (!e.read) g.unread++
+            if (!g.icon && e.icon) g.icon = e.icon
+            if (e.timestamp > g.latest) g.latest = e.timestamp
+        }
+        return out
+    }
+
+    // ── Relative time ──────────────────────────────────────────────────────
+    // Bumped on a slow tick so the labels age without a timer per row.
+    property int clockTick: 0
+    Timer { interval: 30000; running: true; repeat: true; onTriggered: root.clockTick++ }
+
+    // `tick` is passed in by the caller so its binding depends on it plainly;
+    // reading it inside the function only is too easy to lose in a refactor.
+    function relTime(ts, tick) {
+        if (!ts) return ""
+        const d = Date.now() - ts
+        if (d < 45000) return "now"
+        if (d < 3600000) return Math.max(1, Math.round(d / 60000)) + "m"
+        if (d < 86400000) return Math.round(d / 3600000) + "h"
+        if (d < 604800000) return Math.round(d / 86400000) + "d"
+        return Qt.formatDateTime(new Date(ts), "MMM d")
     }
 
     function addSystemToast(message, glyph, isLetter, typeKey) {
@@ -101,14 +403,24 @@ Singleton {
         root.pushPopup(entry)
     }
 
-    function removeAt(index) {
-        let arr = root.history.slice()
-        arr.splice(index, 1)
-        root.history = arr
+    // By id, not by row: grouping means a row's position is no longer its
+    // index in the history.
+    function removeById(id) {
+        root.closeLive(id, true)
+        root.history = root.history.filter(e => e.id !== id)
+        saveHistory()
+    }
+
+    function clearApp(app) {
+        const gone = root.history.filter(e => root.groupKey(e) === app)
+        for (let i = 0; i < gone.length; i++) root.closeLive(gone[i].id, true)
+        root.history = root.history.filter(e => root.groupKey(e) !== app)
         saveHistory()
     }
 
     function clearAll() {
+        const ids = Object.keys(root.liveNotifs)
+        for (let i = 0; i < ids.length; i++) root.closeLive(ids[i], true)
         root.history = []
         saveHistory()
     }
@@ -117,9 +429,39 @@ Singleton {
     // old route base64-encoded it with Qt.btoa, which Qt deprecated and warned
     // about on every write.
     function saveHistory() {
+        // Until the file on disk has been read, the file is the truth. Writing
+        // over it first is how entries vanished: a notification arriving in the
+        // gap between startup and the read landing wrote a one-entry history
+        // over everything that was already there.
+        if (!root.initialized) return
+        saveDebounce.restart()
+    }
+
+    // A burst of notifications used to start -- and immediately kill -- one
+    // write per entry. Coalesced into a single write once things settle.
+    Timer {
+        id: saveDebounce
+        interval: 250
+        onTriggered: root.writeHistory()
+    }
+
+    function writeHistory() {
+        // `image` is an image:// handle owned by a live Notification and
+        // `actions` need one to be invoked, so neither survives a restart.
+        // Writing them would only leave rows with dead art and dead buttons.
+        const body = JSON.stringify(root.history, function(k, v) {
+            return (k === "image" || k === "actions") ? undefined : v
+        })
         saveProc.running = false
-        saveProc.command = ["sh", "-c", "mkdir -p \"$(dirname \"$2\")\" && printf %s \"$1\" > \"$2\"",
-                            "sh", JSON.stringify(root.history), root.historyPath]
+        // Write to a temporary file and move it into place. `> "$2"` truncates
+        // the real file the instant the shell starts, so a write cut short --
+        // by the next save restarting the Process, or by a reload tearing it
+        // down -- left an EMPTY history behind. That is how the whole file was
+        // lost. A rename is atomic: the worst a killed write can leave now is
+        // a stray .tmp.
+        saveProc.command = ["sh", "-c",
+                            "mkdir -p \"$(dirname \"$2\")\" && printf %s \"$1\" > \"$2.tmp\" && mv -f \"$2.tmp\" \"$2\"",
+                            "sh", body, root.historyPath]
         saveProc.running = true
     }
 
@@ -131,13 +473,32 @@ Singleton {
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
+                let loaded = []
                 try {
                     let parsed = JSON.parse(text.trim() || "[]")
-                    root.history = Array.isArray(parsed) ? parsed : []
+                    // Entries written before this session count as seen: a
+                    // history file from last week is not a pile of unread.
+                    if (Array.isArray(parsed))
+                        loaded = parsed.map(e => e.read === undefined ? Object.assign({}, e, { read: true }) : e)
                 } catch (e) {
-                    root.history = []
+                    loaded = []
                 }
+                // Notifications that landed while the file was being read are
+                // already in `history`; the read must join them, not replace
+                // them. A reload takes long enough for this to happen often.
+                const pending = root.history
+                let seen = ({})
+                let merged = []
+                const all = pending.concat(loaded)
+                for (let i = 0; i < all.length; i++) {
+                    if (seen[all[i].id]) continue
+                    seen[all[i].id] = true
+                    merged.push(all[i])
+                }
+                merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+                root.history = merged.slice(0, 300)
                 root.initialized = true
+                if (pending.length > 0) root.saveHistory()
             }
         }
     }
@@ -146,6 +507,7 @@ Singleton {
         id: saveProc
         running: false
     }
+
 
     // --- Real D-Bus notification server (org.freedesktop.Notifications) ---
     NotificationServer {
@@ -168,9 +530,14 @@ Singleton {
                 summary: notification.summary || "",
                 body: notification.body || "",
                 icon: root.resolveIcon(notification.appName, notification.appIcon),
+                // The image hint is the notification's own art (a contact's
+                // avatar, album cover) and beats a generic app icon when it is
+                // there. It dies with the live object, so it is never saved.
+                image: notification.image || "",
                 urgency: notification.urgency,
+                transient: notification.transient === true,
                 source: "app"
-            })
+            }, notification)
         }
     }
 

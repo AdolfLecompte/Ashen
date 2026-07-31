@@ -6,6 +6,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 
+import "root:/modules/widgets" as Widgets
 import "root:/services" as Services
 
 Scope {
@@ -23,8 +24,16 @@ Scope {
         onShownChanged: {
             if (!shown) { closeDelay.restart(); return }
             win.refresh()
+            focusArm.restart()
         }
-        Timer { id: closeDelay; interval: 300 }
+        Timer { id: closeDelay; interval: card.closeMs }
+        // The surface is not on screen the frame the flag flips, and focusing a
+        // field on an unmapped window does nothing.
+        Timer {
+            id: focusArm
+            interval: Services.Sizes.panelArmMs + 40
+            onTriggered: searchField.forceActiveFocus()
+        }
 
         WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
@@ -33,6 +42,12 @@ Scope {
         property int selectedIndex: 0
 
         property string activeTab: "Text"
+        readonly property int imageCount: entries.filter(e => e.isImage).length
+        readonly property int textCount: entries.length - imageCount
+        readonly property bool onImages: activeTab === "Images"
+        // The grid lays images three across, so up/down has to jump a row.
+        readonly property int gridCols: 3
+
         property var filtered: {
             let list = entries.filter(e => activeTab === "Images" ? e.isImage : !e.isImage)
             if (searchText.length === 0) return list
@@ -73,16 +88,14 @@ Scope {
             onExited: win.refresh()
         }
 
-        Process { id: thumbProc; running: false
+        Process {
+            id: thumbProc
+            running: false
             onExited: {
-                console.log("[Clipboard] thumbProc termino, ids de imagenes:", JSON.stringify(win.entries.filter(e => e.isImage).map(e => e.id)))
                 win.entries = win.entries.map(e => {
                     if (!e.isImage) return e
-                    let path = "/tmp/ashen_clip_thumbs/" + e.id + ".png"
-                    console.log("[Clipboard] assigning thumbPath for id", e.id, "->", path)
-                    return Object.assign({}, e, { thumbPath: path })
+                    return Object.assign({}, e, { thumbPath: "/tmp/ashen_clip_thumbs/" + e.id + ".png" })
                 })
-                console.log("[Clipboard] entries actualizado, primer thumbPath:", win.entries.length > 0 ? win.entries[0].thumbPath : "ninguno")
             }
         }
 
@@ -115,7 +128,25 @@ Scope {
         function moveSelection(dir) {
             if (filtered.length === 0) return
             selectedIndex = Math.max(0, Math.min(filtered.length - 1, selectedIndex + dir))
-            list.positionViewAtIndex(selectedIndex, ListView.Contain)
+            if (win.onImages) imageGrid.positionViewAtIndex(selectedIndex, GridView.Contain)
+            else textList.positionViewAtIndex(selectedIndex, ListView.Contain)
+        }
+
+        function setTab(name) {
+            if (win.activeTab === name) return
+            win.activeTab = name
+            win.selectedIndex = 0
+            listFade.restart()
+        }
+        // Same cross-fade the Settings sections use: text and images are
+        // different shapes, and cutting between them read as a flinch.
+        property real listOpacity: 1
+        NumberAnimation {
+            id: listFade
+            target: win; property: "listOpacity"
+            from: 0.0; to: 1.0
+            duration: Services.Sizes.msStandard
+            easing.type: Easing.OutCubic
         }
 
         MouseArea {
@@ -124,204 +155,295 @@ Scope {
             onClicked: Services.AppState.clipboardVisible = false
         }
 
-        Rectangle {
-            anchors.centerIn: parent
-            width: 900
-            height: 580
-            radius: 16
-            color: Services.Colors.surfaceAlpha(0.96)
-            border.color: Services.Colors.ghostAlpha(0.2)
-            border.width: 0
-            clip: true
+        // Same drop as Process and the bar's own panels: it grows out of the
+        // clipboard chip on the utility pill, which can be on any of the three
+        // edges the bar is not using.
+        // Live from the pill, not a value written when something was clicked:
+    // a keybind never clicks, and the panel used to grow from wherever the
+    // last click had left the numbers.
+    readonly property var chip: Services.AppState.utilChipOf(win.srcEdge, "clipboard")
+    readonly property string srcEdge: Services.AppState.clipboardSourceEdge
+        readonly property real openXCalc: srcEdge === "left" ? Services.Sizes.panelTop
+            : srcEdge === "right" ? win.width - card.openW - Services.Sizes.panelTop
+            : (win.width - card.openW) / 2
+        readonly property real openYCalc: srcEdge === "top" ? Services.Sizes.panelTop
+            : srcEdge === "bottom" ? win.height - card.openH - Math.max(68, Services.Sizes.marginBottom + 18)
+            : (win.height - card.openH) / 2
 
-            opacity: Services.AppState.clipboardVisible ? 1.0 : 0.0
-            scale: Services.AppState.clipboardVisible ? 1.0 : 0.96
-            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-            Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        Widgets.DropCard {
+            id: card
+            shown: win.shown
+            sourceEdge: win.srcEdge
+            openXOverride: win.openXCalc
+            openYOverride: win.openYCalc
 
-            MouseArea { anchors.fill: parent; onClicked: {} }
+            pillCX: (win.chip ? win.chip.cx : 0)
+            pillCY: (win.chip ? win.chip.cy : 0)
+            pillW: (win.chip ? win.chip.w : 44)
+            pillH: (win.chip ? win.chip.h : 44)
+            // The chip is icon-only, so the icon is the only piece with
+            // anywhere to travel from.
 
-            Column {
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.margins: 16
-                spacing: 12
+            openW: Math.min(980, win.width - 80)
+            openH: Math.min(560, win.height - 120)
+            cardRadius: 22
 
-                // Tabs as one sliding capsule (workspace-style); wipe sits at the end.
-                Item {
-                    id: tabSelect
-                    width: parent.width
-                    height: 30
-                    property Item activeTabItem: null
+            // Sections of one panel: a single accent that TRAVELS between
+            // them, no box per row. See docs/DESIGN.md.
+            component TabRow: Item {
+                id: tab
+                property string name: ""
+                property string glyph: ""
+                property int count: 0
+                readonly property bool active: win.activeTab === tab.name
+                readonly property color fg: active
+                    ? Services.Colors.onColor(Services.Colors.ghost)
+                    : (tabHover.containsMouse ? Services.Colors.snow : Services.Colors.mist)
+
+                height: 38
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 10
+                    Text {
+                        text: tab.glyph
+                        color: tab.fg
+                        font.pixelSize: 16
+                        font.family: "Material Symbols Rounded"
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                    }
+                    Text {
+                        text: tab.name
+                        color: tab.fg
+                        font.pixelSize: Services.Sizes.fsBody
+                        font.bold: true
+                        font.family: "JetBrainsMono NF"
+                        Layout.fillWidth: true
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                    }
+                    Text {
+                        text: tab.count
+                        color: tab.fg
+                        opacity: 0.7
+                        font.pixelSize: 11
+                        font.family: "JetBrainsMono NF"
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                    }
+                }
+
+                MouseArea {
+                    id: tabHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: win.setTab(tab.name)
+                }
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 16
+
+                // ── Left: what you are looking at ──────────────────
+                ColumnLayout {
+                    Layout.fillWidth: false
+                    Layout.preferredWidth: 200
+                    Layout.fillHeight: true
+                    spacing: 12
+
+                    // The travelling accent sits behind whichever tab is on.
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 38 * 2 + 2
+
+                        Rectangle {
+                            width: parent.width
+                            height: 38
+                            radius: Services.Sizes.innerR
+                            color: Services.Colors.ghost
+                            gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
+                            y: win.onImages ? 40 : 0
+                            Behavior on y { SmoothedAnimation { duration: 260 } }
+                        }
+
+                        Column {
+                            anchors.fill: parent
+                            spacing: 2
+                            TabRow {
+                                width: parent.width
+                                name: "Text"
+                                glyph: "\ue14d"
+                                count: win.textCount
+                            }
+                            TabRow {
+                                width: parent.width
+                                name: "Images"
+                                glyph: "\ue3f4"
+                                count: win.imageCount
+                            }
+                        }
+                    }
+
+                    Item { Layout.fillHeight: true }
+
+                    // Wipe: a named button down here rather than a bare icon
+                    // wedged into the tab row, where nothing said what it did.
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 38
+                        radius: 12
+                        color: wipeHover.containsMouse ? Services.Colors.ghostAlpha(0.22)
+                                                       : Services.Colors.ghostAlpha(0.06)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        RowLayout {
+                            anchors.centerIn: parent
+                            spacing: 8
+                            Text {
+                                text: "\ue0b8"
+                                color: wipeHover.containsMouse ? Services.Colors.snow : Services.Colors.mist
+                                font.pixelSize: 16
+                                font.family: "Material Symbols Rounded"
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                            }
+                            Text {
+                                text: "Clear all"
+                                color: wipeHover.containsMouse ? Services.Colors.snow : Services.Colors.mist
+                                font.pixelSize: 11
+                                font.bold: true
+                                font.family: "JetBrainsMono NF"
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                            }
+                        }
+
+                        MouseArea {
+                            id: wipeHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: wipeProc.running = true
+                        }
+                    }
+                }
+
+                // ── Right: the entries themselves ──────────────────
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    spacing: 12
 
                     Rectangle {
-                        visible: tabSelect.activeTabItem !== null
-                        x: tabSelect.activeTabItem ? tabSelect.activeTabItem.x : 0
-                        width: tabSelect.activeTabItem ? tabSelect.activeTabItem.width : 0
-                        height: 30
-                        radius: 8
-                        color: Services.Colors.ghost
-                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                        Behavior on x { SmoothedAnimation { duration: 250 } }
-                        Behavior on width { SmoothedAnimation { duration: 220 } }
-                    }
+                        Layout.fillWidth: true
+                        Layout.fillHeight: false
+                        Layout.preferredHeight: 42
+                        radius: 12
+                        color: Services.Colors.ghostAlpha(0.1)
+                        // A resting outline is decoration; only focus earns one.
+                        border.color: Services.Colors.ghost
+                        border.width: searchField.activeFocus ? 1 : 0
+                        Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                    RowLayout {
-                        anchors.fill: parent
-                        spacing: 8
-                        Repeater {
-                            model: ["Text", "Images"]
-                            delegate: Rectangle {
-                                required property string modelData
-                                readonly property bool active: win.activeTab === modelData
-                                onActiveChanged: if (active) tabSelect.activeTabItem = this
-                                Component.onCompleted: if (active) tabSelect.activeTabItem = this
-                                Layout.fillWidth: true
-                                height: 30
-                                radius: 8
-                                color: active ? "transparent"
-                                    : tabHover.containsMouse ? Services.Colors.ghostAlpha(0.12) : "transparent"
-                                Behavior on color { ColorAnimation { duration: 150 } }
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: modelData
-                                    color: active ? Services.Colors.abyss : Services.Colors.mist
-                                    font.pixelSize: 12
-                                    font.bold: true
-                                    font.family: "JetBrainsMono NF"
-                                }
-                                MouseArea {
-                                    id: tabHover
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: { win.activeTab = modelData; win.selectedIndex = 0 }
-                                }
-                            }
-                        }
-                        Rectangle {
-                            Layout.preferredWidth: 30
-                            Layout.preferredHeight: 30
-                            radius: 8
-                            color: wipeHover.containsMouse ? Services.Colors.ghostAlpha(0.15) : "transparent"
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 14
+                            spacing: 10
                             Text {
-                                anchors.centerIn: parent
-                                text: "\uE16C"
+                                text: "\ue8b6"
                                 color: Services.Colors.ghost
-                                font.pixelSize: 18
+                                font.pixelSize: 16
                                 font.family: "Material Symbols Rounded"
                             }
-                            MouseArea {
-                                id: wipeHover
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                hoverEnabled: true
-                                onClicked: wipeProc.running = true
+                            Item {
+                                Layout.fillWidth: true
+                                height: 26
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: win.onImages ? "Search captures..." : "Search clipboard..."
+                                    color: Services.Colors.ash
+                                    font.pixelSize: 13
+                                    font.family: "JetBrainsMono NF"
+                                    visible: searchField.text.length === 0
+                                }
+                                TextInput {
+                                    id: searchField
+                                    anchors.fill: parent
+                                    color: Services.Colors.snow
+                                    font.pixelSize: 13
+                                    font.family: "JetBrainsMono NF"
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    onTextChanged: { win.searchText = text; win.selectedIndex = 0 }
+                                    Keys.onEscapePressed: Services.AppState.clipboardVisible = false
+                                    Keys.onReturnPressed: win.copySelected()
+                                    // On the grid the arrows have to move by a
+                                    // row, not by one tile, or the selection
+                                    // crawls sideways through the whole page.
+                                    Keys.onUpPressed: win.moveSelection(win.onImages ? -win.gridCols : -1)
+                                    Keys.onDownPressed: win.moveSelection(win.onImages ? win.gridCols : 1)
+                                    Keys.onLeftPressed: if (win.onImages) win.moveSelection(-1)
+                                    Keys.onRightPressed: if (win.onImages) win.moveSelection(1)
+                                }
                             }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: 44
-                    radius: 10
-                    color: Services.Colors.ghostAlpha(0.1)
-                    border.color: searchField.activeFocus ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.2)
-                    border.width: 1
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 14
-                        anchors.rightMargin: 14
-                        spacing: 10
-                        Text { text: "\ue8b6"; color: Services.Colors.ghost; font.pixelSize: 16; font.family: "Material Symbols Rounded" }
-                        Item {
-                            Layout.fillWidth: true
-                            height: 26
                             Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: "Search clipboard..."
+                                text: win.filtered.length + (win.filtered.length === 1 ? " item" : " items")
                                 color: Services.Colors.ash
-                                font.pixelSize: 13
+                                font.pixelSize: 10
                                 font.family: "JetBrainsMono NF"
-                                visible: searchField.text.length === 0
-                            }
-                            TextInput {
-                                id: searchField
-                                anchors.fill: parent
-                                color: Services.Colors.snow
-                                font.pixelSize: 13
-                                font.family: "JetBrainsMono NF"
-                                verticalAlignment: TextInput.AlignVCenter
-                                onTextChanged: { win.searchText = text; win.selectedIndex = 0 }
-                                Keys.onEscapePressed: Services.AppState.clipboardVisible = false
-                                Keys.onReturnPressed: win.copySelected()
-                                Keys.onUpPressed: win.moveSelection(-1)
-                                Keys.onDownPressed: win.moveSelection(1)
                             }
                         }
                     }
-                }
 
-                Text { text: win.filtered.length + " items"; color: Services.Colors.ash; font.pixelSize: 10; font.family: "JetBrainsMono NF" }
+                    // Nothing to show: say so rather than leaving a hole where
+                    // the list would be.
+                    Text {
+                        visible: win.filtered.length === 0
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        text: win.searchText.length > 0 ? "Nothing matches that."
+                             : win.onImages ? "No captures kept yet." : "Nothing copied yet."
+                        color: Services.Colors.ash
+                        font.pixelSize: 12
+                        font.family: "JetBrainsMono NF"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
 
-                Rectangle {
-                    width: parent.width
-                    // fills the space the removed title header used to occupy
-                    height: 428
-                    color: "transparent"
-                    clip: true
-
+                    // ── Text: one row each ─────────────────────
                     ListView {
-                        id: list
-                        anchors.fill: parent
-                        model: win.filtered
+                        id: textList
+                        opacity: win.listOpacity
+                        visible: !win.onImages && win.filtered.length > 0
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        model: win.onImages ? [] : win.filtered
                         spacing: 4
-
+                        clip: true
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded; width: 4 }
 
                         delegate: Rectangle {
                             required property var modelData
                             required property int index
-                            width: list.width
-                            // Image rows are a bit taller to fit the fixed tile;
-                            // text rows stay compact.
-                            height: modelData.isImage ? 76 : 48
-                            radius: 8
-                            color: index === win.selectedIndex ? Services.Colors.ghostAlpha(0.2) : Services.Colors.ghostAlpha(0.08)
+                            width: textList.width
+                            height: 46
+                            radius: 10
+                            color: index === win.selectedIndex ? Services.Colors.ghostAlpha(0.2)
+                                                               : Services.Colors.ghostAlpha(0.06)
                             Behavior on color { ColorAnimation { duration: 100 } }
 
                             RowLayout {
-                                visible: !modelData.isImage
                                 anchors.fill: parent
                                 anchors.leftMargin: 12
                                 anchors.rightMargin: 8
                                 spacing: 10
 
-                                Rectangle {
-                                    width: 36; height: 36
-                                    radius: 6
-                                    color: Services.Colors.ghostAlpha(0.15)
-                                    clip: true
-                                    Image {
-                                        anchors.fill: parent
-                                        source: modelData.isImage && modelData.thumbPath !== "" ? "file://" + modelData.thumbPath : ""
-                                        fillMode: Image.PreserveAspectCrop
-                                        visible: modelData.isImage && modelData.thumbPath !== "" && status === Image.Ready
-                                        asynchronous: true
-                                        cache: false
-                                    }
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: modelData.isImage ? "" : ""
-                                        color: Services.Colors.ghost
-                                        font.pixelSize: 18
-                                        font.family: "Material Symbols Rounded"
-                                        visible: !modelData.isImage || modelData.thumbPath === ""
-                                    }
+                                Text {
+                                    text: "\ue14d"
+                                    color: Services.Colors.ghost
+                                    font.pixelSize: 16
+                                    font.family: "Material Symbols Rounded"
                                 }
                                 Text {
                                     Layout.fillWidth: true
@@ -331,95 +453,110 @@ Scope {
                                     font.family: "JetBrainsMono NF"
                                     elide: Text.ElideRight
                                 }
-                                Rectangle {
-                                    width: 26; height: 26; radius: 7; color: "transparent"
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: ""
-                                        color: Services.Colors.ash
-                                        font.pixelSize: 14
-                                        font.family: "Material Symbols Rounded"
-                                    }
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        hoverEnabled: true
-                                        onEntered: parent.color = Services.Colors.ghostAlpha(0.2)
-                                        onExited: parent.color = "transparent"
-                                        onClicked: win.deleteEntry(modelData)
-                                    }
-                                }
-                            }
-
-                            // Image row: fixed rounded tile on the left + the
-                            // capture name beside it, like the settings wallpaper card.
-                            RowLayout {
-                                visible: modelData.isImage
-                                anchors.fill: parent
-                                anchors.leftMargin: 12
-                                anchors.rightMargin: 8
-                                spacing: 12
-
-                                // ClippingRectangle clips children to its rounded shape
-                                // (plain `clip` only clips to the square bounds, so the
-                                // image corners would poke past the frame).
-                                ClippingRectangle {
-                                    Layout.preferredWidth: 132
-                                    Layout.preferredHeight: 60
-                                    radius: 8
-                                    color: Services.Colors.ghostAlpha(0.15)
-                                    Image {
-                                        anchors.fill: parent
-                                        source: modelData.thumbPath !== "" ? "file://" + modelData.thumbPath : ""
-                                        fillMode: Image.PreserveAspectCrop
-                                        visible: modelData.thumbPath !== "" && status === Image.Ready
-                                        asynchronous: true
-                                        cache: false
-                                    }
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: ""
-                                        color: Services.Colors.ghost
-                                        font.pixelSize: 22
-                                        font.family: "Material Symbols Rounded"
-                                        visible: modelData.thumbPath === ""
-                                    }
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: modelData.preview
-                                    color: Services.Colors.snow
-                                    font.pixelSize: 12
-                                    font.family: "JetBrainsMono NF"
-                                    elide: Text.ElideRight
-                                }
-                                Rectangle {
-                                    Layout.preferredWidth: 26; Layout.preferredHeight: 26; radius: 7
-                                    color: delImgMouse.containsMouse ? Services.Colors.ghostAlpha(0.2) : "transparent"
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: ""
-                                        color: Services.Colors.ash
-                                        font.pixelSize: 14
-                                        font.family: "Material Symbols Rounded"
-                                    }
-                                    MouseArea {
-                                        id: delImgMouse
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        hoverEnabled: true
-                                        onClicked: win.deleteEntry(modelData)
-                                    }
+                                Widgets.IconButton {
+                                    id: rowDel
+                                    size: 24
+                                    glyph: "\ue5cd"
+                                    // Only on the row under the pointer. Filled
+                                    // plates down every line at once read as a
+                                    // column of buttons rather than as a list.
+                                    opacity: rowHover.containsMouse || rowDel.hovered ? 1 : 0
+                                    visible: opacity > 0.01
+                                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                                    onActivated: win.deleteEntry(modelData)
                                 }
                             }
 
                             MouseArea {
+                                id: rowHover
                                 anchors.fill: parent
                                 z: -1
                                 cursorShape: Qt.PointingHandCursor
                                 hoverEnabled: true
                                 onEntered: win.selectedIndex = index
                                 onClicked: win.copySelected()
+                            }
+                        }
+                    }
+
+                    // ── Images: a wall of thumbnails ───────────
+                    // A capture is its picture; down a list at 132 px wide they
+                    // were all "binary data" with a stamp beside it, and the
+                    // panel is wide enough now to just show them.
+                    GridView {
+                        id: imageGrid
+                        opacity: win.listOpacity
+                        visible: win.onImages && win.filtered.length > 0
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        model: win.onImages ? win.filtered : []
+                        clip: true
+                        cellWidth: width / win.gridCols
+                        cellHeight: 132
+                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded; width: 4 }
+
+                        delegate: Item {
+                            required property var modelData
+                            required property int index
+                            width: imageGrid.cellWidth
+                            height: imageGrid.cellHeight
+
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: 4
+                                radius: 12
+                                color: index === win.selectedIndex ? Services.Colors.ghostAlpha(0.24)
+                                                                   : Services.Colors.ghostAlpha(0.06)
+                                Behavior on color { ColorAnimation { duration: 120 } }
+
+                                ClippingRectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: 6
+                                    radius: 9
+                                    color: Services.Colors.ghostAlpha(0.12)
+
+                                    Image {
+                                        anchors.fill: parent
+                                        source: modelData.thumbPath !== "" ? "file://" + modelData.thumbPath : ""
+                                        fillMode: Image.PreserveAspectCrop
+                                        visible: modelData.thumbPath !== "" && status === Image.Ready
+                                        asynchronous: true
+                                        // The path is reused as entries come
+                                        // and go, so a cached frame would show
+                                        // the previous capture.
+                                        cache: false
+                                    }
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "\ue3f4"
+                                        color: Services.Colors.ghost
+                                        font.pixelSize: 24
+                                        font.family: "Material Symbols Rounded"
+                                        visible: modelData.thumbPath === ""
+                                    }
+                                }
+
+                                Widgets.IconButton {
+                                    anchors.top: parent.top
+                                    anchors.right: parent.right
+                                    anchors.margins: 8
+                                    size: 24
+                                    glyph: "\ue5cd"
+                                    opacity: tileHover.containsMouse ? 1 : 0
+                                    visible: opacity > 0.01
+                                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                                    onActivated: win.deleteEntry(modelData)
+                                }
+
+                                MouseArea {
+                                    id: tileHover
+                                    anchors.fill: parent
+                                    z: -1
+                                    cursorShape: Qt.PointingHandCursor
+                                    hoverEnabled: true
+                                    onEntered: win.selectedIndex = index
+                                    onClicked: win.copySelected()
+                                }
                             }
                         }
                     }

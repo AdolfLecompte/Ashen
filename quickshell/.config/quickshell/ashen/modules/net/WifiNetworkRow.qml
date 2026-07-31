@@ -65,7 +65,7 @@ Rectangle {
             color: forgetMouse.containsMouse ? Services.Colors.ghostAlpha(0.18) : "transparent"
             Text {
                 anchors.centerIn: parent
-                text: ""
+                text: "\ue5cd"
                 color: Services.Colors.ash
                 font.pixelSize: 16
                 font.family: "Material Symbols Rounded"
