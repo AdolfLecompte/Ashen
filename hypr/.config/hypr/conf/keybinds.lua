@@ -9,8 +9,6 @@ hl.bind(mod .. " + SHIFT + W", hl.dsp.exec_cmd("qs ipc -c ashen call wallpaper t
 hl.bind(mod .. " + N",         hl.dsp.exec_cmd("qs ipc -c ashen call notifications toggle"))
 hl.bind(mod .. " + I",         hl.dsp.exec_cmd("qs ipc -c ashen call settings toggle"))
 hl.bind("SUPER + SHIFT + V", hl.dsp.exec_cmd("sh -c 'qs ipc -c ashen call clipboard toggle'"), { locked = true })
-hl.bind("SUPER + comma", hl.dsp.exec_cmd("sh -c 'qs ipc -c ashen call emojis toggle'"), { locked = true })
-hl.bind("SUPER + period", hl.dsp.exec_cmd("sh -c 'qs ipc -c ashen call glyph toggle'"), { locked = true })
 hl.bind(mod .. " + SHIFT + P", hl.dsp.exec_cmd("qs ipc -c ashen call process toggle"), { locked = true })
 
 

@@ -69,7 +69,7 @@ Singleton {
         const target = m[1], fn = m[2]
         const names = {
             "settings": "Settings", "notifications": "Notifications", "wallpaper": "Wallpaper picker",
-            "clipboard": "Clipboard", "emojis": "Emoji picker", "glyph": "Glyph picker",
+            "clipboard": "Clipboard",
             "process": "Process monitor", "launcher": "Launcher", "lockscreen": "Lock screen",
             "power": "Power menu", "osd": "On-screen display"
         }
