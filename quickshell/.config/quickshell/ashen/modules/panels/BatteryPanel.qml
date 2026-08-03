@@ -93,165 +93,168 @@ PanelWindow {
         onClicked: Services.AppState.batteryVisible = false
     }
 
-    // Falls out of its chip like a drop, the same opening as the clock.
-    Widgets.DropCard {
+    // Grows out of its chip when the chip is on the bar; unfolds where it
+    // lives when the chip is hidden.
+    Widgets.PanelHost {
         id: card
         shown: Services.AppState.batteryVisible
+        pillKey: "battery"
         pillCX: Services.AppState.batteryPillCenterX
         pillCY: Services.AppState.batteryPillCenterY
+        pillW: Services.AppState.batteryPillW
+        pillH: Services.AppState.batteryPillH
         pillActive: Services.Battery.charging
         pillGlyph: Services.AppState.pillGlyph("battery")
         pillLabel: Services.AppState.pillLabel("battery")
-        // Straight into the big readout: same glyph, same number, grown.
-        glyphTarget: dial.glyphItem
-        labelTarget: dial.labelItem
-        pillW: Services.AppState.batteryPillW
-        pillH: Services.AppState.batteryPillH
         openW: 440
-        // 40 margins + 200 dial + 20 status + 1 rule + 13 caption + 64
-        // profiles + the four 12 px gaps between them. The old 330 was sized
-        // for a 120 px gauge; the dial is 200 and everything under it fell off
-        // the bottom of the card.
         openH: 400
         cardRadius: 18
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 20
-            spacing: 12
-
-            // The same dial as sound and brightness, grown: reading in the
-            // middle, charge around the rim. It used to be a rounded-rectangle
-            // outline traced along its own border, which was a shape nothing
-            // else in the shell used and had its own ladder of thresholds so
-            // the trace could sit at 86% while the number said 91.
-            Widgets.DialGauge {
-                id: dial
-                Layout.alignment: Qt.AlignHCenter
-                size: 200
-                lw: 13
-                value: Math.max(0, Math.min(1, Services.Battery.level / 100))
-                glyph: Services.AppState.pillGlyph("battery")
-                glyphSize: 34
-                label: Math.round(dial.frac * 100) + "%"
-                labelSize: 40
-                captionSize: 0
-                // Accent at every level, never red: error_ is for things
-                // that actually went wrong, and a low battery is the panel
-                // doing its job. The old gauge made the same choice.
-                fillColor: Services.Colors.ghost
-                // Breathes while it is filling. Charging is the one state here
-                // that is still happening rather than simply being.
-                glow: Services.Battery.charging
-                armed: win.battArmed
-                sweepMs: 1500
-                hideGlyph: card.morphingGlyph
-                hideLabel: card.morphingLabel
-            }
-
-            // Status under the box: charging state + time to full/empty
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                Text {
-                    visible: Services.Battery.charging
-                    text: "\uea0b"
-                    font.family: "Material Symbols Rounded"
-                    font.pixelSize: 16
-                    color: Services.Colors.ghost
-                }
-                Text {
-                    text: Services.Battery.charging ? "Charging" : "On battery"
-                    color: Services.Colors.snow
-                    font.pixelSize: 13
-                    font.bold: true
-                    font.family: "JetBrainsMono NF"
-                }
-                Item { Layout.fillWidth: true }
-                Text {
-                    text: win.timeRemaining !== "--"
-                        ? (Services.Battery.charging ? ("Full in " + win.timeRemaining) : (win.timeRemaining + " left"))
-                        : (Services.Battery.charging ? "Fully charged" : "Calculating...")
-                    color: Services.Colors.ash
-                    font.pixelSize: 11
-                    font.bold: true
-                    font.family: "JetBrainsMono NF"
-                }
-            }
-
-            Rectangle { Layout.fillWidth: true; height: 1; color: Services.Colors.ghostAlpha(0.15) }
-
-            Text {
-                text: "POWER PROFILE"
-                color: Services.Colors.ash
-                font.pixelSize: 10
-                font.family: "JetBrainsMono NF"
-                font.letterSpacing: 1
-            }
-
+        body: Component {
             Item {
-                id: profSelect
-                Layout.fillWidth: true
-                Layout.preferredHeight: 64
-                property Item activeProf: null
+                // Where the chip's glyph and reading land.
+                readonly property Item glyphTarget: dial.glyphItem
+                readonly property Item labelTarget: dial.labelItem
 
-                // Sliding highlight behind the active profile (workspace-style)
-                Rectangle {
-                    visible: profSelect.activeProf !== null
-                    x: profSelect.activeProf ? profSelect.activeProf.x : 0
-                    width: profSelect.activeProf ? profSelect.activeProf.width : 0
-                    height: 64
-                    radius: 12
-                    color: Services.Colors.ghost
-                    gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                    Behavior on x { SmoothedAnimation { duration: 250 } }
-                }
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    spacing: 12
 
-                RowLayout {
-                anchors.fill: parent
-                spacing: 10
+                    // The same dial as sound and brightness, grown: reading in the
+                    // middle, charge around the rim. It used to be a rounded-rectangle
+                    // outline traced along its own border, which was a shape nothing
+                    // else in the shell used and had its own ladder of thresholds so
+                    // the trace could sit at 86% while the number said 91.
+                    Widgets.DialGauge {
+                        id: dial
+                        Layout.alignment: Qt.AlignHCenter
+                        size: 200
+                        lw: 13
+                        value: Math.max(0, Math.min(1, Services.Battery.level / 100))
+                        glyph: Services.AppState.pillGlyph("battery")
+                        glyphSize: 34
+                        label: Math.round(dial.frac * 100) + "%"
+                        labelSize: 40
+                        captionSize: 0
+                        // Accent at every level, never red: error_ is for things
+                        // that actually went wrong, and a low battery is the panel
+                        // doing its job. The old gauge made the same choice.
+                        fillColor: Services.Colors.ghost
+                        // Breathes while it is filling. Charging is the one state here
+                        // that is still happening rather than simply being.
+                        glow: Services.Battery.charging
+                        armed: win.battArmed
+                        sweepMs: 1500
+                        hideGlyph: card.morphingGlyph
+                        hideLabel: card.morphingLabel
+                    }
 
-                Repeater {
-                    model: [
-                        { id: "power-saver", icon: "" },
-                        { id: "balanced", icon: "" },
-                        { id: "performance", icon: "" },
-                    ]
-                    delegate: Rectangle {
-                        required property var modelData
-                        property bool available: win.availableProfiles.includes(modelData.id)
-                        readonly property bool active: win.activeProfile === modelData.id
-                        onActiveChanged: if (active) profSelect.activeProf = this
-                        Component.onCompleted: if (active) profSelect.activeProf = this
+                    // Status under the box: charging state + time to full/empty
+                    RowLayout {
                         Layout.fillWidth: true
-                        height: 64
-                        radius: 12
-                        // Only the sliding indicator carries the active fill;
-                        // idle slots are bare (hover just brightens them).
-                        color: active ? "transparent"
-                            : profHover.containsMouse ? Services.Colors.ghostAlpha(0.12) : "transparent"
-                        opacity: available ? 1.0 : 0.35
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
+                        spacing: 8
                         Text {
-                            anchors.centerIn: parent
-                            text: modelData.icon
+                            visible: Services.Battery.charging
+                            text: "\uea0b"
                             font.family: "Material Symbols Rounded"
-                            font.pixelSize: 28
-                            color: active ? Services.Colors.abyss : Services.Colors.mist
+                            font.pixelSize: 16
+                            color: Services.Colors.ghost
                         }
-
-                        MouseArea {
-                            id: profHover
-                            anchors.fill: parent
-                            hoverEnabled: parent.available
-                            cursorShape: parent.available ? Qt.PointingHandCursor : Qt.ForbiddenCursor
-                            enabled: parent.available
-                            onClicked: win.setProfile(modelData.id)
+                        Text {
+                            text: Services.Battery.charging ? "Charging" : "On battery"
+                            color: Services.Colors.snow
+                            font.pixelSize: 13
+                            font.bold: true
+                            font.family: "JetBrainsMono NF"
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text {
+                            text: win.timeRemaining !== "--"
+                                ? (Services.Battery.charging ? ("Full in " + win.timeRemaining) : (win.timeRemaining + " left"))
+                                : (Services.Battery.charging ? "Fully charged" : "Calculating...")
+                            color: Services.Colors.ash
+                            font.pixelSize: 11
+                            font.bold: true
+                            font.family: "JetBrainsMono NF"
                         }
                     }
+
+                    Rectangle { Layout.fillWidth: true; height: 1; color: Services.Colors.ghostAlpha(0.15) }
+
+                    Text {
+                        text: "POWER PROFILE"
+                        color: Services.Colors.ash
+                        font.pixelSize: 10
+                        font.family: "JetBrainsMono NF"
+                        font.letterSpacing: 1
+                    }
+
+                    Item {
+                        id: profSelect
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 64
+                        property Item activeProf: null
+
+                        // Sliding highlight behind the active profile (workspace-style)
+                        Rectangle {
+                            visible: profSelect.activeProf !== null
+                            x: profSelect.activeProf ? profSelect.activeProf.x : 0
+                            width: profSelect.activeProf ? profSelect.activeProf.width : 0
+                            height: 64
+                            radius: 12
+                            color: Services.Colors.ghost
+                            gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
+                            Behavior on x { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
+                        }
+
+                        RowLayout {
+                        anchors.fill: parent
+                        spacing: 10
+
+                        Repeater {
+                            model: [
+                                { id: "power-saver", icon: "" },
+                                { id: "balanced", icon: "" },
+                                { id: "performance", icon: "" },
+                            ]
+                            delegate: Rectangle {
+                                required property var modelData
+                                property bool available: win.availableProfiles.includes(modelData.id)
+                                readonly property bool active: win.activeProfile === modelData.id
+                                onActiveChanged: if (active) profSelect.activeProf = this
+                                Component.onCompleted: if (active) profSelect.activeProf = this
+                                Layout.fillWidth: true
+                                height: 64
+                                radius: 12
+                                // Only the sliding indicator carries the active fill;
+                                // idle slots are bare (hover just brightens them).
+                                color: active ? "transparent"
+                                    : profHover.containsMouse ? Services.Colors.ghostAlpha(0.12) : "transparent"
+                                opacity: available ? 1.0 : 0.35
+                                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData.icon
+                                    font.family: "Material Symbols Rounded"
+                                    font.pixelSize: 28
+                                    color: active ? Services.Colors.abyss : Services.Colors.mist
+                                }
+
+                                MouseArea {
+                                    id: profHover
+                                    anchors.fill: parent
+                                    hoverEnabled: parent.available
+                                    cursorShape: parent.available ? Qt.PointingHandCursor : Qt.ForbiddenCursor
+                                    enabled: parent.available
+                                    onClicked: win.setProfile(modelData.id)
+                                }
+                            }
+                        }
+                    }
+                    }
                 }
-            }
             }
         }
     }

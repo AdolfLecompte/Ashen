@@ -1,17 +1,8 @@
 import QtQuick
 
 // The bridge of goo tying a panel to the thing it fell out of, until it thins
-// out and pinches off.
-//
-// This was written four times -- in DropCard, the media island, the calendar
-// and the workspace preview -- with the same curve, the same 0.72, the same
-// `1 - pinch^2` fade and the same `fall / 0.55`. Four copies of a shape is four
-// places to forget when the shape changes.
-//
-// It takes numbers, not services: where the two edges are, how wide the pill
-// is, how far along the pinch is. That way a panel hanging off the bar and one
-// hanging off a peek button on the far edge of the screen use the same neck
-// without it having to know which is which.
+// out and pinches off. Takes numbers, not services, so a panel hanging off the
+// bar and one hanging off a screen-edge peek share it.
 Canvas {
     id: neck
 

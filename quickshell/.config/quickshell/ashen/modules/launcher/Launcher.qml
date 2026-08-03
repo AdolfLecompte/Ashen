@@ -32,7 +32,7 @@ Scope {
         }
         // Long enough for the whole exit: the window used to unmap at 300 ms
         // while the collapse still had 220 to run, which cut it dead.
-        Timer { id: closeDelay; interval: card.closeMs }
+        Timer { id: closeDelay; interval: arrive.holdMs }
         // The card's contents are held back until the drop has landed, and an
         // item that is not on screen cannot take focus.
         Timer {
@@ -173,59 +173,45 @@ Scope {
             onClicked: Services.AppState.launcherVisible = false
         }
 
-        // It falls out of the utility pill, exactly like Process, Settings and
-        // the drawer do. It used to be an EdgeEntry pill that came out of a
-        // bare screen edge with nothing behind it and stopped dead in the
-        // middle of the screen -- next to three panels unfolding from a thing
-        // you can actually see, the launcher was the only one arriving from
-        // nowhere, and the trip across half the monitor read as a window
-        // appearing rather than a panel opening.
+        // Which end of the screen it rests at: the one the bar is not on.
         readonly property string srcEdge:
             Services.Sizes.barPosition === "bottom" ? "top" : "bottom"
 
-        // The utility pill's rect on that edge: centred across the screen and
-        // glued to the edge. Straight out of Sizes, so the pill and the drop
-        // falling out of it cannot disagree about where it is.
-        readonly property real pillCXCalc: win.width / 2
-        readonly property real pillCYCalc: win.srcEdge === "bottom"
-            ? win.height - Services.Sizes.utilPillThick / 2
-            : Services.Sizes.utilPillThick / 2
-
-        // Where it lands: centred across, but NOT down the middle -- it rests
-        // near the edge it came from, the same offset the utility drawer and
-        // Process use, so all four sit at the same height.
+        // Rests near that edge, at the same offset as the drawer and Process,
+        // so all of them sit at the same height.
         readonly property real openYCalc: win.srcEdge === "bottom"
-            ? win.height - card.openH - Math.max(68, Services.Sizes.marginBottom + 18)
+            ? win.height - card.fullH - Math.max(68, Services.Sizes.marginBottom + 18)
             : Services.Sizes.panelTop
 
-        // Contents assemble in three beats once the drop has landed. DropCard
-        // publishes one number for all of its content; the stagger is the
-        // launcher's own, kept from the EdgeEntry version because a search
-        // field, a category strip and a list of apps appearing at the same
-        // instant read as a screenshot rather than as something opening.
+        // Contents assemble in three beats once the box has opened.
         function stage(i) {
             const start = Math.min(0.5, i * 0.14)
-            return Math.max(0, Math.min(1, (card.contentAmt - start) / (1 - start)))
+            return Math.max(0, Math.min(1, (arrive.contentAmt - start) / (1 - start)))
         }
         function riseOf(i) { return (1 - win.stage(i)) * 10 }
 
-        Widgets.DropCard {
-            id: card
+        Widgets.PanelArrive {
+            id: arrive
             shown: win.shown
-            sourceEdge: win.srcEdge
+            // Comes up off the bottom, whichever end it rests at.
+            rise: 48
+        }
 
-            pillCX: win.pillCXCalc
-            pillCY: win.pillCYCalc
-            pillW: Services.Sizes.utilPillLen
-            pillH: Services.Sizes.utilPillThick
-
-            // What it becomes. The drop grows into these.
+        Rectangle {
+            id: card
+            // What it opens to; the box unfolds into these.
             readonly property int fullW: 700
-            openW: fullW
-            openH: contentCol.height + 32
-            openXOverride: (win.width - card.openW) / 2
-            openYOverride: win.openYCalc
-            cardRadius: Services.Sizes.panelR
+            readonly property int fullH: contentCol.height + 32
+
+            x: arrive.boxX((win.width - fullW) / 2, fullW)
+            y: arrive.boxY(win.openYCalc, fullH)
+            width: arrive.boxW(fullW)
+            height: arrive.boxH(fullH)
+            radius: Services.Sizes.panelR
+            color: Services.Colors.surfacePanel
+            clip: true
+            opacity: arrive.fade
+            transform: Translate { y: arrive.offY }
 
             MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -248,7 +234,7 @@ Scope {
                     color: Services.Colors.ghostAlpha(0.1)
                     border.color: searchField.activeFocus ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.2)
                     border.width: 1
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                     RowLayout {
                         anchors.fill: parent
@@ -321,7 +307,7 @@ Scope {
                         radius: 8
                         color: Services.Colors.ghost
                         gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                        Behavior on x { SmoothedAnimation { duration: 250 } }
+                        Behavior on x { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
                     }
 
                     RowLayout {
@@ -341,7 +327,7 @@ Scope {
                                 // idle slots are bare (hover just brightens them).
                                 color: active ? "transparent"
                                     : catHover.containsMouse ? Services.Colors.ghostAlpha(0.15) : "transparent"
-                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                                 Text {
                                     anchors.fill: parent
@@ -397,7 +383,7 @@ Scope {
                             // a glow and nothing else in the shell frames a row.
                             color: index === win.selectedIndex ? Services.Colors.ghostAlpha(0.18) : "transparent"
                             border.width: 0
-                            Behavior on color { ColorAnimation { duration: 100 } }
+                            Behavior on color { ColorAnimation { duration: Services.Sizes.msInstant } }
 
                             RowLayout {
                                 anchors.fill: parent

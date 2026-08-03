@@ -33,36 +33,25 @@ Item {
     // Where they land. Text items, so their size and colour are read off them.
     property Item glyphTarget: null
     property Item labelTarget: null
-    // Whether the chip it came from was lit. If it was, the card is born that
-    // same accent and settles to the panel's surface while the box is still
-    // opening out — before anything travels, so the pieces make the trip over
-    // a card that has already decided what colour it is.
+    // Whether the chip it came from was lit.
     property bool pillActive: false
+    // The plate the card is born on and returns to: the chip's own colour, so
+    // the hand-over at either end is not a change of colour.
+    property color pillColor: pillActive ? Services.Colors.ghost
+                                         : Services.Colors.fillRest
     readonly property real tone: card.relay
-    readonly property color cardColor: pillActive
-        ? card.mix(Services.Colors.ghost, Services.Colors.surfacePanel, tone)
-        : Services.Colors.surfacePanel
-    // The letters are never interpolated between two colours — that was the
-    // fault: a card halfway between light and dark carried text halfway
-    // between dark and light, and for a few frames the two were the same grey.
-    // While the card is still crossing they are simply whichever of black and
-    // white can be read on it as it is right now; once it has settled they take
-    // the colour of the thing they are flying to, which was chosen to be read
-    // on the panel's surface in the first place. The card settles before the
-    // flight begins, so a piece wears its landing colour for the whole trip and
-    // arrives without a change of any kind.
+    readonly property color cardColor:
+        card.mix(pillColor, Services.Colors.surfacePanel, tone)
+    // Once the card has settled a flying piece wears its landing colour.
     readonly property bool pieceSettled: card.relay >= 0.999
-    // A piece only travels if it is the same piece at both ends. "Mute" in the
-    // chip and "Muted" in the panel are two different words, and flying one
-    // onto the other just stacks them; the word stays behind and only the icon
-    // makes the trip. Same test for the icon itself.
+    // A piece only travels if it is the same piece at both ends.
     readonly property bool glyphFlies: glyphTarget !== null && pillGlyph !== ""
         && glyphTarget.text === pillGlyph
     readonly property bool labelFlies: labelTarget !== null && pillLabel !== ""
         && labelTarget.text === pillLabel
 
-    // True while the pieces are still in flight: the panel hides the real ones,
-    // but only the ones that are actually being carried.
+    // In flight: the copy is drawn and the real one is hidden. One flag drives
+    // both, so the two are never on screen at once.
     readonly property bool morphing: card.morph < 0.995 && (shown || card.fall > 0.01)
     readonly property bool morphingGlyph: morphing && glyphFlies
     readonly property bool morphingLabel: morphing && labelFlies
@@ -84,6 +73,9 @@ Item {
     // Content fades in only once the drop has landed, and the caller can hang
     // its own timings off this.
     readonly property alias contentAmt: card.contentAmt
+    // For a panel that carries shared pieces of its own (the clock, media):
+    // 0 = they sit where the pill has them, 1 = where the panel does.
+    readonly property alias morph: card.morph
     readonly property alias card: card
     // Everything declared inside goes in the card, clipped to it.
     default property alias content: body.data
@@ -170,18 +162,20 @@ Item {
                            c1.b + (c2.b - c1.b) * t,
                            c1.a + (c2.a - c1.a) * t)
         }
-        // Centre of a target in card coordinates. Recomputed whenever the card
-        // moves or resizes, which is every frame of the fall — mapToItem has no
-        // change signal of its own.
+        // Centre of a target in card coordinates. mapToItem has no change
+        // signal, so the card's geometry and the target's own are touched to
+        // make the binding re-run when either moves.
         function tgtX(item) {
             if (!item) return width / 2
             card.width; card.height; card.x
+            item.x; item.y; item.width; item.height
             const p = item.mapToItem(card, item.width / 2, item.height / 2)
             return p.x
         }
         function tgtY(item) {
             if (!item) return height / 2
             card.width; card.height; card.y
+            item.x; item.y; item.width; item.height
             const p = item.mapToItem(card, item.width / 2, item.height / 2)
             return p.y
         }
@@ -190,22 +184,22 @@ Item {
             id: openAnim
             NumberAnimation {
                 target: card; property: "fall"; to: 1
-                duration: root.ms(380); easing.type: Easing.OutCubic
+                duration: root.ms(380); easing.type: Services.Sizes.easeOut
             }
             NumberAnimation {
                 target: card; property: "stretch"; to: 1
-                duration: root.ms(300); easing.type: Easing.OutCubic
+                duration: root.ms(300); easing.type: Services.Sizes.easeOut
             }
             NumberAnimation {
                 target: card; property: "spread"; to: 1
-                duration: root.ms(460); easing.type: Easing.OutBack; easing.overshoot: 0.7
+                duration: root.ms(460); easing.type: Easing.OutBack; easing.overshoot: Services.Sizes.overshoot
             }
             // The colour goes over first and fast, while the box is still
             // opening out: by the time anything travels, the card has settled
             // on one tone and the pieces know what colour to be against it.
             NumberAnimation {
                 target: card; property: "relay"; to: 1
-                duration: root.ms(180); easing.type: Easing.InOutCubic
+                duration: root.ms(180); easing.type: Services.Sizes.easeInOut
             }
             // The flight starts while the box is still spreading — that overlap
             // is what makes the two read as one movement rather than two moves
@@ -219,7 +213,7 @@ Item {
                 PauseAnimation { duration: root.ms(190) }
                 NumberAnimation {
                     target: card; property: "morph"; to: 1
-                    duration: root.ms(300); easing.type: Easing.OutCubic
+                    duration: root.ms(300); easing.type: Services.Sizes.easeOut
                 }
             }
             SequentialAnimation {
@@ -239,7 +233,7 @@ Item {
                 PauseAnimation { duration: root.ms(100) }
                 NumberAnimation {
                     target: card; property: "morph"; to: 0
-                    duration: root.ms(230); easing.type: Easing.InOutCubic
+                    duration: root.ms(230); easing.type: Services.Sizes.easeInOut
                 }
             }
             // The colour goes back last, so the card is already shrinking into
@@ -249,7 +243,7 @@ Item {
                 PauseAnimation { duration: root.ms(250) }
                 NumberAnimation {
                     target: card; property: "relay"; to: 0
-                    duration: root.ms(180); easing.type: Easing.InOutCubic
+                    duration: root.ms(180); easing.type: Services.Sizes.easeInOut
                 }
             }
             SequentialAnimation {
@@ -257,15 +251,15 @@ Item {
                 ParallelAnimation {
                     NumberAnimation {
                         target: card; property: "fall"; to: 0
-                        duration: root.ms(290); easing.type: Easing.InOutCubic
+                        duration: root.ms(290); easing.type: Services.Sizes.easeInOut
                     }
                     NumberAnimation {
                         target: card; property: "stretch"; to: 0
-                        duration: root.ms(260); easing.type: Easing.InOutCubic
+                        duration: root.ms(260); easing.type: Services.Sizes.easeInOut
                     }
                     NumberAnimation {
                         target: card; property: "spread"; to: 0
-                        duration: root.ms(260); easing.type: Easing.InOutCubic
+                        duration: root.ms(260); easing.type: Services.Sizes.easeInOut
                     }
                 }
             }
@@ -296,7 +290,7 @@ Item {
         // centre, so scaling never drags them sideways.
         Text {
             id: flyGlyph
-            visible: root.glyphFlies
+            visible: root.morphingGlyph
             text: root.pillGlyph
             font.family: "Material Symbols Rounded"
             font.pixelSize: root.glyphTarget ? root.glyphTarget.font.pixelSize : 18
@@ -326,7 +320,7 @@ Item {
 
         Text {
             id: flyLabel
-            visible: root.labelFlies
+            visible: root.morphingLabel
             text: root.pillLabel
             font.family: "JetBrainsMono NF"
             font.bold: true

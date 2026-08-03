@@ -24,6 +24,14 @@ PanelWindow {
     // One tab per question the user is actually asking ("how does the bar look?",
     // "what is this machine talking to?"). Wi-Fi and Bluetooth share one, since
     // they are the same question, and each tab is small enough to scan.
+    // Where the section you picked sits in the rail, so the slide knows which
+    // way it moved.
+    readonly property int tabIndex: {
+        for (let i = 0; i < win.categories.length; i++)
+            if (win.categories[i].id === Services.AppState.settingsTab) return i
+        return 0
+    }
+
     property var categories: [
         { id: "system", icon: "\ue429", label: "System" },
         { id: "bar", icon: "\ue98c", label: "Bar" },
@@ -77,26 +85,29 @@ PanelWindow {
     // Live from the pill, not a value written when something was clicked:
     // a keybind never clicks, and the panel used to grow from wherever the
     // last click had left the numbers.
-    readonly property var chip: Services.AppState.utilChipOf(win.srcEdge, "settings")
-    readonly property string srcEdge: Services.AppState.settingsSourceEdge
-    readonly property real openXCalc: srcEdge === "left" ? Services.Sizes.panelTop
+        readonly property string srcEdge: Services.AppState.settingsSourceEdge
+    // Its chip: on the utility pill of that edge, or on the bar.
+    readonly property var chipRect: Services.AppState.chipRectOf("settings", win.srcEdge)
+    readonly property real openXCalc: srcEdge === "" ? NaN
+        : srcEdge === "left" ? Services.Sizes.panelTop
         : srcEdge === "right" ? win.width - card.openW - Services.Sizes.panelTop
         : (win.width - card.openW) / 2
-    readonly property real openYCalc: srcEdge === "top" ? Services.Sizes.panelTop
+    readonly property real openYCalc: srcEdge === "" ? NaN
+        : srcEdge === "top" ? Services.Sizes.panelTop
         : srcEdge === "bottom" ? win.height - card.openH - Math.max(68, Services.Sizes.marginBottom + 18)
         : (win.height - card.openH) / 2
 
-    Widgets.DropCard {
+    Widgets.PanelHost {
         id: card
         shown: win.shown
         sourceEdge: win.srcEdge
         openXOverride: win.openXCalc
         openYOverride: win.openYCalc
 
-        pillCX: (win.chip ? win.chip.cx : 0)
-        pillCY: (win.chip ? win.chip.cy : 0)
-        pillW: (win.chip ? win.chip.w : 44)
-        pillH: (win.chip ? win.chip.h : 44)
+        pillCX: win.chipRect.cx
+        pillCY: win.chipRect.cy
+        pillW: win.chipRect.w
+        pillH: win.chipRect.h
 
         // Wide, not a tall narrow drawer. The rail used to run across the top
         // because the drawer was a narrow column and a second vertical strip
@@ -112,117 +123,122 @@ PanelWindow {
         openH: Math.min(800, win.height - 80)
         cardRadius: Services.Sizes.panelR
 
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 18
-            spacing: 16
+        pillKey: "settings"
+        restSide: "right"
 
-            // ── Left: where you are ────────────────────────────
-            // One accent that TRAVELS between the sections, the way the
-            // workspace strip does, instead of a plate per row lighting up.
-            // A box around every item made nine outlines compete with the
-            // content; with the indicator doing the work the rail is just
-            // words, and the movement says which one you picked.
+        body: Component {
             Item {
-                Layout.fillWidth: false
-                Layout.preferredWidth: 190
-                Layout.fillHeight: true
-
-                readonly property int rowH: 36
-                readonly property int gap: 2
-
-                Rectangle {
-                    id: slide
-                    width: parent.width
-                    height: parent.rowH
-                    radius: Services.Sizes.innerR
-                    color: Services.Colors.ghost
-                    gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                    y: {
-                        for (let i = 0; i < win.categories.length; i++)
-                            if (win.activeId === win.categories[i].id)
-                                return i * (parent.rowH + parent.gap)
-                        return 0
-                    }
-                    Behavior on y { SmoothedAnimation { duration: 260 } }
-                }
-
-                Column {
+                RowLayout {
                     anchors.fill: parent
-                    spacing: parent.gap
+                    anchors.margins: 18
+                    spacing: 16
 
-                    Repeater {
-                        model: win.categories
+                    // ── Left: where you are ────────────────────────────
+                    // One accent that TRAVELS between the sections, the way the
+                    // workspace strip does, instead of a plate per row lighting up.
+                    // A box around every item made nine outlines compete with the
+                    // content; with the indicator doing the work the rail is just
+                    // words, and the movement says which one you picked.
+                    Item {
+                        Layout.fillWidth: false
+                        Layout.preferredWidth: 190
+                        Layout.fillHeight: true
 
-                        delegate: Item {
-                            id: railItem
-                            required property var modelData
-                            readonly property bool active: win.activeId === modelData.id
+                        readonly property int rowH: 36
+                        readonly property int gap: 2
+
+                        Rectangle {
+                            id: slide
                             width: parent.width
-                            height: 36
-
-                            readonly property color fg: railItem.active
-                                ? Services.Colors.onColor(Services.Colors.ghost)
-                                : (railHover.containsMouse ? Services.Colors.snow
-                                                           : Services.Colors.mist)
-
-                            Row {
-                                anchors.left: parent.left
-                                anchors.leftMargin: 12
-                                anchors.verticalCenter: parent.verticalCenter
-                                spacing: 10
-                                Text {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: railItem.modelData.icon
-                                    color: railItem.fg
-                                    font.pixelSize: 16
-                                    font.family: "Material Symbols Rounded"
-                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                                }
-                                Text {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: railItem.modelData.label
-                                    color: railItem.fg
-                                    font.pixelSize: Services.Sizes.fsBody
-                                    font.bold: true
-                                    font.family: "JetBrainsMono NF"
-                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                                }
+                            height: parent.rowH
+                            radius: Services.Sizes.innerR
+                            color: Services.Colors.ghost
+                            gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
+                            y: {
+                                for (let i = 0; i < win.categories.length; i++)
+                                    if (win.activeId === win.categories[i].id)
+                                        return i * (parent.rowH + parent.gap)
+                                return 0
                             }
+                            Behavior on y { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
+                        }
 
-                            MouseArea {
-                                id: railHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Services.AppState.settingsTab = railItem.modelData.id
+                        Column {
+                            anchors.fill: parent
+                            spacing: parent.gap
+
+                            Repeater {
+                                model: win.categories
+
+                                delegate: Item {
+                                    id: railItem
+                                    required property var modelData
+                                    readonly property bool active: win.activeId === modelData.id
+                                    width: parent.width
+                                    height: 36
+
+                                    readonly property color fg: railItem.active
+                                        ? Services.Colors.onColor(Services.Colors.ghost)
+                                        : (railHover.containsMouse ? Services.Colors.snow
+                                                                   : Services.Colors.mist)
+
+                                    Row {
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 12
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 10
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: railItem.modelData.icon
+                                            color: railItem.fg
+                                            font.pixelSize: 16
+                                            font.family: "Material Symbols Rounded"
+                                            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                        }
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: railItem.modelData.label
+                                            color: railItem.fg
+                                            font.pixelSize: Services.Sizes.fsBody
+                                            font.bold: true
+                                            font.family: "JetBrainsMono NF"
+                                            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: railHover
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: Services.AppState.settingsTab = railItem.modelData.id
+                                    }
+                                }
                             }
                         }
                     }
-                }
-            }
 
-            // ── Right: the section itself ──────────────────────
-            // Sections cross-fade. Swapped outright, a whole page of
-            // different content replaced another between two frames and the
-            // change read as a flinch rather than as a move.
-            Loader {
-                id: tabLoader
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                opacity: 0
-                source: win.tabSource(Services.AppState.settingsTab)
-                onSourceChanged: fadeIn.restart()
-                onLoaded: fadeIn.restart()
-                NumberAnimation {
-                    id: fadeIn
-                    target: tabLoader; property: "opacity"
-                    from: 0.0; to: 1.0
-                    duration: Services.Sizes.msStandard
-                    easing.type: Easing.OutCubic
+                    // ── Right: the section itself ──────────────────────
+                    // The rail runs down the side, so a section leaves upwards
+                    // or downwards, whichever way you moved along it.
+                    Widgets.SlideSwap {
+                        id: sectionSlide
+                        axis: "vertical"
+                        index: win.tabIndex
+                        onCommit: tabLoader.source = win.tabSource(Services.AppState.settingsTab)
+                    }
+
+                    Loader {
+                        id: tabLoader
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        opacity: sectionSlide.fade
+                        transform: Translate { y: sectionSlide.offY }
+                        Component.onCompleted: source = win.tabSource(Services.AppState.settingsTab)
+                        onStatusChanged: if (status === Loader.Error)
+                            console.log("[SettingsPanel] ERROR loading", source)
+                    }
                 }
-                onStatusChanged: if (status === Loader.Error)
-                    console.log("[SettingsPanel] ERROR loading", source)
             }
         }
     }

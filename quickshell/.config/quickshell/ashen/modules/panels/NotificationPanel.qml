@@ -33,18 +33,9 @@ Scope {
     }
     Timer { id: closeDelay; interval: arrive.holdMs }
 
-    Widgets.EdgeEntry {
+    Widgets.PanelArrive {
         id: arrive
         shown: win.shown
-        // Always the left, whatever the bar is doing. It used to jump to the
-        // right whenever the bar moved there, so the place you look for your
-        // notifications changed with an unrelated setting. A rail you have to
-        // hunt for is worse than one that occasionally sits near the bar.
-        edge: "left"
-        // Starts flush against that edge and separates by exactly the margin
-        // it comes to rest at -- which already clears the bar when the bar is
-        // the thing on the left.
-        restMargin: Services.Sizes.marginLeft
     }
 
     // Nothing to show is not an error, so it does not get an error's voice.
@@ -107,27 +98,18 @@ Scope {
         readonly property int fullW: 400
         readonly property int fullH: parent.height - Services.Sizes.marginTop - Services.Sizes.marginBottom
 
-        // Sits on the same side as the bell it belongs to, so the pill unfolds
-        // sideways out of that edge and downwards from the middle.
-        x: Services.Sizes.marginLeft
-        y: Services.Sizes.marginTop + (fullH - height) / 2
+        // Always on the left, whatever the bar is doing: the place you look
+        // for your notifications must not move with an unrelated setting.
+        x: arrive.boxX(Services.Sizes.marginLeft, fullW)
+        y: arrive.boxY(Services.Sizes.marginTop, fullH)
         width: arrive.boxW(fullW)
         height: arrive.boxH(fullH)
-        radius: arrive.boxRadius(20)
-        // Square where it meets the screen edge, rounding as it pulls off it.
-        topLeftRadius: Services.Sizes.barPosition === "right" ? radius : arrive.edgeRadius(radius)
-        bottomLeftRadius: Services.Sizes.barPosition === "right" ? radius : arrive.edgeRadius(radius)
-        topRightRadius: Services.Sizes.barPosition === "right" ? arrive.edgeRadius(radius) : radius
-        bottomRightRadius: Services.Sizes.barPosition === "right" ? arrive.edgeRadius(radius) : radius
+        radius: 20
         color: Services.Colors.surfacePanel
         border.width: 0
         clip: true
 
-        // A pill comes in from the screen edge and grows into the rail. It used
-        // to grow out of the bell, which hung the whole rail's weight on a
-        // 44 px chip.
         opacity: arrive.fade
-        transform: Translate { x: arrive.offX; y: arrive.offY }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -262,11 +244,11 @@ Scope {
                 // Rows that arrive while the rail is open slide in rather than
                 // appearing fully formed at the top of the list.
                 add: Transition {
-                    NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 220; easing.type: Easing.OutCubic }
-                    NumberAnimation { property: "x"; from: -20; to: 0; duration: 320; easing.type: Easing.OutQuint }
+                    NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 220; easing.type: Services.Sizes.easeOut }
+                    NumberAnimation { property: "x"; from: -20; to: 0; duration: 320; easing.type: Services.Sizes.easeBox }
                 }
                 displaced: Transition {
-                    NumberAnimation { properties: "x,y"; duration: 280; easing.type: Easing.OutQuint }
+                    NumberAnimation { properties: "x,y"; duration: 280; easing.type: Services.Sizes.easeBox }
                 }
 
                 ScrollBar.vertical: ScrollBar {
@@ -313,7 +295,7 @@ Scope {
                             height: 15
                             radius: 7
                             color: Services.Colors.ghostAlpha(group.modelData.unread > 0 ? 0.4 : 0.16)
-                            Behavior on color { ColorAnimation { duration: 160 } }
+                            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                             Text {
                                 id: countTxt
                                 anchors.centerIn: parent
@@ -404,7 +386,7 @@ Scope {
 
         readonly property int contentH: isSystem ? 38 : (bodyText.visible ? 84 : 62)
         height: contentH + (hasActs ? 38 : 0)
-        Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+        Behavior on height { NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut } }
 
         // The sweep: each row leaves towards the edge, in its own turn.
         onClearingChanged: if (clearing) sweepOut.start()
@@ -412,8 +394,8 @@ Scope {
             id: sweepOut
             PauseAnimation { duration: row.clearDelay }
             ParallelAnimation {
-                NumberAnimation { target: plate; property: "opacity"; to: 0; duration: 200; easing.type: Easing.InCubic }
-                NumberAnimation { target: rowSlide; property: "x"; to: -34; duration: 240; easing.type: Easing.InCubic }
+                NumberAnimation { target: plate; property: "opacity"; to: 0; duration: 200; easing.type: Services.Sizes.easeIn }
+                NumberAnimation { target: rowSlide; property: "x"; to: -34; duration: 240; easing.type: Services.Sizes.easeIn }
             }
         }
 
@@ -423,7 +405,7 @@ Scope {
             radius: 12
             color: row.isSystem ? "transparent"
                                 : Services.Colors.ghostAlpha(rowHover.containsMouse ? 0.14 : 0.08)
-            Behavior on color { ColorAnimation { duration: 150 } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
             transform: Translate { id: rowSlide }
             clip: true
 
@@ -585,7 +567,7 @@ Scope {
                 size: 24
                 glyph: ""
                 opacity: rowHover.containsMouse ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 150 } }
+                Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
                 onActivated: Services.Notifications.removeById(row.entry.id)
             }
 
@@ -610,9 +592,9 @@ Scope {
                         radius: 8
                         color: rowActHover.containsMouse ? Services.Colors.ghostAlpha(0.4)
                                                          : Services.Colors.ghostAlpha(0.16)
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                         scale: Services.Sizes.hoverScale(rowActHover.containsMouse, rowActHover.pressed)
-                        Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+                        Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
 
                         Text {
                             id: rowActLabel
@@ -622,7 +604,7 @@ Scope {
                             font.pixelSize: 10
                             font.family: "JetBrainsMono NF"
                             elide: Text.ElideRight
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                         }
 
                         MouseArea {

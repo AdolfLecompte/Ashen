@@ -1,0 +1,100 @@
+import QtQuick
+
+import "root:/services" as Services
+
+// Picks how a panel arrives. If its pill is placed somewhere you can see --
+// on the bar or on the utility pill -- the panel grows out of it (DropCard).
+// If the pill is hidden there is nothing to grow from, so it unfolds where it
+// lives instead (ArriveCard).
+//
+// The panel writes its contents once, as `body`, and this hands them to
+// whichever card is in charge. A body may publish `glyphTarget` / `labelTarget`
+// on its root for the pieces that fly out of the chip.
+Item {
+    id: host
+    anchors.fill: parent
+
+    property bool shown: false
+    // Which pill this panel belongs to, as named in Pills.qml. Empty means the
+    // panel never had one and always unfolds.
+    property string pillKey: ""
+    readonly property bool fromPill: pillKey !== "" && Services.Prefs.pillVisible(pillKey)
+
+    // The pill's rect, for the drop.
+    property real pillCX: 0
+    property real pillCY: 0
+    property real pillW: 44
+    property real pillH: 32
+    property bool pillActive: false
+    property color pillColor: pillActive ? Services.Colors.ghost
+                                         : Services.Colors.fillRest
+    property string pillGlyph: ""
+    property string pillLabel: ""
+
+    property real openW: 400
+    property real openH: 300
+    property real cardRadius: Services.Sizes.panelR
+    property real openXOverride: NaN
+    property real openYOverride: NaN
+    property string sourceEdge: ""
+    // Only used when it unfolds: where on screen, and how far it comes up.
+    property string restSide: "center"
+    property int rise: 0
+
+    property Component body: null
+
+    readonly property Item cardItem: dropLoader.active ? dropLoader.item : arriveLoader.item
+    readonly property int closeMs: cardItem ? cardItem.closeMs : Services.Sizes.panelCloseMs
+    readonly property int holdMs: closeMs + 60
+    readonly property real contentAmt: cardItem ? cardItem.contentAmt : 0
+    readonly property real morph: cardItem ? cardItem.morph : 0
+    readonly property bool morphingGlyph: cardItem ? cardItem.morphingGlyph : false
+    readonly property bool morphingLabel: cardItem ? cardItem.morphingLabel : false
+    // What the body loaded inside, for a panel that needs to reach into it.
+    readonly property Item bodyItem: cardItem && cardItem.bodyItem ? cardItem.bodyItem : null
+
+    Loader {
+        id: dropLoader
+        anchors.fill: parent
+        active: host.fromPill
+        sourceComponent: DropCard {
+            shown: host.shown
+            pillCX: host.pillCX
+            pillCY: host.pillCY
+            pillW: host.pillW
+            pillH: host.pillH
+            pillActive: host.pillActive
+            pillColor: host.pillColor
+            pillGlyph: host.pillGlyph
+            pillLabel: host.pillLabel
+            glyphTarget: (bodyHolder.item && bodyHolder.item.glyphTarget) || null
+            labelTarget: (bodyHolder.item && bodyHolder.item.labelTarget) || null
+            openW: host.openW
+            openH: host.openH
+            cardRadius: host.cardRadius
+            openXOverride: host.openXOverride
+            openYOverride: host.openYOverride
+            sourceEdge: host.sourceEdge
+            readonly property alias bodyItem: bodyHolder.item
+            Loader { id: bodyHolder; anchors.fill: parent; sourceComponent: host.body }
+        }
+    }
+
+    Loader {
+        id: arriveLoader
+        anchors.fill: parent
+        active: !host.fromPill
+        sourceComponent: ArriveCard {
+            shown: host.shown
+            openW: host.openW
+            openH: host.openH
+            cardRadius: host.cardRadius
+            openXOverride: host.openXOverride
+            openYOverride: host.openYOverride
+            restSide: host.restSide
+            rise: host.rise
+            readonly property alias bodyItem: bodyHolder2.item
+            Loader { id: bodyHolder2; anchors.fill: parent; sourceComponent: host.body }
+        }
+    }
+}
