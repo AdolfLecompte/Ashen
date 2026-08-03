@@ -102,7 +102,7 @@ Rectangle {
             Text {
                 anchors.centerIn: parent
                 text: card.action
-                color: Services.Colors.abyss
+                color: Services.Colors.accentText
                 font.pixelSize: 12
                 font.bold: true
                 font.family: "JetBrainsMono NF"

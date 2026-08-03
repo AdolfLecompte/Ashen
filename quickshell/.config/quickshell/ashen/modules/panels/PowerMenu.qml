@@ -181,9 +181,9 @@ PanelWindow {
                                     const top = h * (1 - tile.holdAmt)
                                     if (Services.Prefs.useGradients) {
                                         const g = ctx.createLinearGradient(0, 0, w, 0)
-                                        g.addColorStop(0, Services.Colors.lift(Services.Colors.ghost, Services.Colors.gradientDepth))
+                                        g.addColorStop(0, Services.Colors.lift(Services.Colors.ghost, Services.Colors.gradientUp))
                                         g.addColorStop(0.5, Services.Colors.ghost)
-                                        g.addColorStop(1, Services.Colors.lift(Services.Colors.ghost, -Services.Colors.gradientDepth))
+                                        g.addColorStop(1, Services.Colors.lift(Services.Colors.ghost, -Services.Colors.gradientDown))
                                         ctx.fillStyle = g
                                     } else {
                                         ctx.fillStyle = Services.Colors.ghost
@@ -206,7 +206,7 @@ PanelWindow {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text: tile.modelData.icon
                                     color: tile.onAccent
-                                        ? Services.Colors.onColor(Services.Colors.ghost)
+                                        ? Services.Colors.accentText
                                         : (hover.containsMouse ? Services.Colors.snow : Services.Colors.ghost)
                                     font.pixelSize: 40
                                     font.family: "Material Symbols Rounded"
@@ -216,7 +216,7 @@ PanelWindow {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text: tile.modelData.label
                                     color: tile.onAccent
-                                        ? Services.Colors.onColor(Services.Colors.ghost)
+                                        ? Services.Colors.accentText
                                         : (hover.containsMouse ? Services.Colors.snow : Services.Colors.mist)
                                     font.pixelSize: Services.Sizes.fsCardTitle
                                     font.bold: true

@@ -214,7 +214,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: parent.appIcon !== "" ? parent.appIcon : wsId
-                        color: parent.isActive ? Services.Colors.onColor(Services.Colors.ghost)
+                        color: parent.isActive ? Services.Colors.accentText
                              : parent.warm ? Services.Colors.snow : Services.Colors.ash
                         font.pixelSize: parent.appIcon !== "" ? 15 : 13
                         font.family: parent.appIcon !== "" ? "Material Symbols Rounded" : "JetBrainsMono NF"
@@ -276,7 +276,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: root.specialIcon(parent.shortName)
-                        color: parent.isShown ? Services.Colors.onColor(Services.Colors.ghost)
+                        color: parent.isShown ? Services.Colors.accentText
                              : parent.warm ? Services.Colors.snow : Services.Colors.ash
                         font.pixelSize: 18
                         font.family: "Material Symbols Rounded"

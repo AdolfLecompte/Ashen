@@ -334,7 +334,7 @@ Scope {
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                     text: modelData.icon
-                                    color: active ? Services.Colors.abyss : Services.Colors.mist
+                                    color: active ? Services.Colors.accentText : Services.Colors.mist
                                     font.pixelSize: 16
                                     font.family: "Material Symbols Rounded"
                                 }

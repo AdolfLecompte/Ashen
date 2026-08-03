@@ -47,7 +47,7 @@ Rectangle {
         text: chip.glyph
         // On the accent fill, whichever of black and white can be read on it;
         // otherwise the ordinary rest/hover pair.
-        color: chip.lit ? Services.Colors.onColor(Services.Colors.ghost)
+        color: chip.lit ? Services.Colors.accentText
              : (chip.warm ? Services.Colors.snow : Services.Colors.ash)
         font.family: "Material Symbols Rounded"
         font.pixelSize: chip.glyphSize

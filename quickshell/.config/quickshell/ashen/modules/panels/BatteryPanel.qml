@@ -239,7 +239,7 @@ PanelWindow {
                                     text: modelData.icon
                                     font.family: "Material Symbols Rounded"
                                     font.pixelSize: 28
-                                    color: active ? Services.Colors.abyss : Services.Colors.mist
+                                    color: active ? Services.Colors.accentText : Services.Colors.mist
                                 }
 
                                 MouseArea {

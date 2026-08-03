@@ -167,7 +167,7 @@ Item {
             Layout.preferredHeight: root.artSize
             Layout.alignment: Qt.AlignVCenter
             radius: 28
-            color: Services.Colors.abyss
+            color: Services.Colors.accentText
             opacity: root.sharedOpacity
 
             Image {

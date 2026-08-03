@@ -57,14 +57,14 @@ TabPage {
                             text: "\ue312"
                             font.family: "Material Symbols Rounded"
                             font.pixelSize: 20
-                            color: kbCard.active ? Services.Colors.abyss : Services.Colors.mist
+                            color: kbCard.active ? Services.Colors.accentText : Services.Colors.mist
                             Layout.alignment: Qt.AlignHCenter
                         }
                         Text {
                             text: kbCard.modelData.toUpperCase()
                             font.pixelSize: 10
                             font.family: "JetBrainsMono NF"
-                            color: kbCard.active ? Services.Colors.abyss : Services.Colors.mist
+                            color: kbCard.active ? Services.Colors.accentText : Services.Colors.mist
                             Layout.alignment: Qt.AlignHCenter
                         }
                     }
@@ -91,7 +91,7 @@ TabPage {
                             text: "\ue5cd"
                             font.family: "Material Symbols Rounded"
                             font.pixelSize: 11
-                            color: Services.Colors.abyss
+                            color: Services.Colors.accentText
                         }
                         MouseArea {
                             id: rmArea

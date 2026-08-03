@@ -49,7 +49,7 @@ Rectangle {
             id: dot
             text: "\uf679"
             // Dark only on the solid accent fill; over the hover tint it lifts.
-            color: root.active ? Services.Colors.onColor(Services.Colors.ghost)
+            color: root.active ? Services.Colors.accentText
                  : hover.containsMouse ? Services.Colors.snow : Services.Colors.mist
             font.pixelSize: (root.active && !root.vertical) ? 16 : 22
             font.family: "Material Symbols Rounded"
@@ -89,7 +89,7 @@ Rectangle {
             // Text recomputes implicitWidth from the width it was given.
             visible: root.active && !root.vertical
             text: root.elapsed
-            color: Services.Colors.onColor(Services.Colors.ghost)
+            color: Services.Colors.accentText
             font.pixelSize: 12
             font.bold: true
             font.family: "JetBrainsMono NF"

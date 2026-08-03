@@ -55,7 +55,7 @@ Rectangle {
         // accent -- matugen hands the shell whatever the wallpaper had in it,
         // so "the accent is light" is not something we get to assume.
         color: !btn.available ? Services.Colors.ash
-             : btn.active ? Services.Colors.onColor(Services.Colors.ghost)
+             : btn.active ? Services.Colors.accentText
              : (hover.containsMouse ? Services.Colors.snow : Services.Colors.ash)
         opacity: btn.available ? 1.0 : 0.4
         font.pixelSize: btn.glyphSize

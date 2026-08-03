@@ -203,7 +203,7 @@ Scope {
                 property int count: 0
                 readonly property bool active: win.activeTab === tab.name
                 readonly property color fg: active
-                    ? Services.Colors.onColor(Services.Colors.ghost)
+                    ? Services.Colors.accentText
                     : (tabHover.containsMouse ? Services.Colors.snow : Services.Colors.mist)
 
                 height: 38

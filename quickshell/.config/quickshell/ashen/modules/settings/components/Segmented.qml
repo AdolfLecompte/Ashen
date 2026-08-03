@@ -96,7 +96,7 @@ Item {
                         text: cell.hasIcon ? cell.modelData.icon : ""
                         font.family: "Material Symbols Rounded"
                         font.pixelSize: root.iconSize
-                        color: cell.active ? Services.Colors.abyss : Services.Colors.mist
+                        color: cell.active ? Services.Colors.accentText : Services.Colors.mist
                         Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                     }
                     Text {
@@ -104,7 +104,7 @@ Item {
                         text: cell.hasLabel ? cell.modelData.label : ""
                         font.pixelSize: root.labelSize
                         font.family: "JetBrainsMono NF"
-                        color: cell.active ? Services.Colors.abyss : Services.Colors.snow
+                        color: cell.active ? Services.Colors.accentText : Services.Colors.snow
                         Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                     }
                 }

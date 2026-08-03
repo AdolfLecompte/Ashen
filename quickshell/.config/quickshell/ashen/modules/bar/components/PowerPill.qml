@@ -31,7 +31,7 @@ Rectangle {
         text: ""
         // Dark only on the accent fill. The hover plate is a surface tone, so
         // the glyph lifts to snow on it the same way it does at rest.
-        color: root.active ? Services.Colors.onColor(Services.Colors.ghost)
+        color: root.active ? Services.Colors.accentText
              : hover.containsMouse ? Services.Colors.snow : Services.Colors.mist
         font.pixelSize: 22
         font.family: "Material Symbols Rounded"

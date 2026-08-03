@@ -34,7 +34,7 @@ Rectangle {
         text: root.dnd ? "\uE7F6" : "\uE7F4"
         // Dark only on the accent fill. The hover plate is a surface tone, so
         // the glyph lifts to snow on it the same way it does at rest.
-        color: root.open ? Services.Colors.onColor(Services.Colors.ghost)
+        color: root.open ? Services.Colors.accentText
              : hover.containsMouse ? Services.Colors.snow : Services.Colors.mist
         font.pixelSize: 24
         font.family: "Material Symbols Rounded"
@@ -77,7 +77,7 @@ Rectangle {
             text: badge.count > 9 ? "9+" : badge.count
             // Never a fixed dark: with a light accent from matugen the digits
             // have to flip. See Colors.onColor.
-            color: Services.Colors.onColor(Services.Colors.ghost)
+            color: Services.Colors.accentText
             font.pixelSize: 9
             font.bold: true
             font.family: "JetBrainsMono NF"

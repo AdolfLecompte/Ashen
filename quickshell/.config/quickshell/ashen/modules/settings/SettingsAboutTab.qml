@@ -146,11 +146,11 @@ TabPage {
                     text: tab.copied ? "" : ""
                     font.family: "Material Symbols Rounded"
                     font.pixelSize: 14
-                    color: tab.copied ? Services.Colors.abyss : Services.Colors.ghost
+                    color: tab.copied ? Services.Colors.accentText : Services.Colors.ghost
                 }
                 Text {
                     text: tab.copied ? "Copied" : "Copy Info"
-                    color: tab.copied ? Services.Colors.abyss : Services.Colors.snow
+                    color: tab.copied ? Services.Colors.accentText : Services.Colors.snow
                     font.pixelSize: 12
                     font.family: "JetBrainsMono NF"
                 }

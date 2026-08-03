@@ -243,7 +243,7 @@ PanelWindow {
                                     height: tabs.height
 
                                     readonly property color fg: tab.active
-                                        ? Services.Colors.onColor(Services.Colors.ghost)
+                                        ? Services.Colors.accentText
                                         : (tabHover.containsMouse ? Services.Colors.snow
                                                                   : Services.Colors.mist)
 
