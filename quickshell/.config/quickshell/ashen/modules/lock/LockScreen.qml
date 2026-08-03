@@ -51,6 +51,22 @@ Scope {
             property bool revealed: false
             property bool unlocking: false
 
+            // Two states, one driver. At rest the screen only tells you things:
+            // the time, the weather, the battery, what is playing. Touch it and
+            // it becomes something to answer -- the clock steps aside, and the
+            // face and the field take the middle.
+            property bool authing: false
+            property real auth: 0
+            Behavior on auth {
+                NumberAnimation { duration: Services.Sizes.msPanel; easing.type: Services.Sizes.easeOut }
+            }
+            onAuthingChanged: surface.auth = authing ? 1 : 0
+            // Typing is asking to log in, so the field never has to be found
+            // first. It already holds focus, which is what makes this work.
+            function beginAuth() {
+                if (!surface.authing) surface.authing = true
+            }
+
             // Intro: the padlock snaps shut before the lock screen itself fades in
             property bool introDone: false
             property bool lockShut: false
@@ -245,144 +261,185 @@ Scope {
                 Item {
                     anchors.fill: parent
 
-                    // ── Clock: editorial, anchored top-left ──
-                    Column {
-                        id: clockCol
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.margins: 48
-                        spacing: 0
-                        Row {
-                            spacing: 0
-                            Text {
-                                text: surface.currentTime.split(" ")[0].split(":").slice(0, 2).join(":")
-                                color: Services.Colors.snow
-                                font.pixelSize: 104
-                                font.family: "JetBrainsMono NF"
-                                font.weight: Font.Bold
-                                font.letterSpacing: -2
-                            }
-                            Column {
-                                anchors.bottom: parent.bottom
-                                anchors.bottomMargin: 18
-                                spacing: 2
-                                leftPadding: 8
-                                Text {
-                                    text: surface.currentSecs
-                                    color: Services.Colors.snowAlpha(0.4)
-                                    font.pixelSize: 28
-                                    font.family: "JetBrainsMono NF"
-                                    font.weight: Font.Bold
-                                }
-                                Text {
-                                    text: surface.currentTime.split(" ")[1]
-                                    color: Services.Colors.snowAlpha(0.4)
-                                    font.pixelSize: 14
-                                    font.family: "JetBrainsMono NF"
-                                    font.weight: Font.Bold
-                                }
-                            }
-                        }
-                        Row {
-                            spacing: 10
-                            topPadding: 4
-                            Text {
-                                text: surface.currentDay + "  ·  " + surface.currentDate
-                                color: Services.Colors.snowAlpha(0.5)
-                                font.pixelSize: 15
-                                font.family: "JetBrainsMono NF"
-                                font.weight: Font.Bold
-                                font.letterSpacing: 1
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Rectangle {
-                                width: 1; height: 12
-                                color: Services.Colors.snowAlpha(0.2)
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Text {
-                                text: Services.Weather.icon
-                                color: Services.Colors.snowAlpha(0.55)
-                                font.pixelSize: 16
-                                font.family: "Material Symbols Rounded"
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Text {
-                                text: Services.Weather.temp
-                                color: Services.Colors.snowAlpha(0.55)
-                                font.pixelSize: 14
-                                font.family: "JetBrainsMono NF"
-                                font.weight: Font.Bold
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                        }
+                    // Anything at all asks to log in: at rest this screen is a
+                    // readout, and the first touch turns it into a question.
+                    MouseArea {
+                        anchors.fill: parent
+                        z: -1
+                        onClicked: surface.beginAuth()
                     }
 
-                    // ── Recent notifications: last 5 app notifications, under the clock ──
-                    Column {
-                        anchors.top: clockCol.bottom
-                        anchors.left: clockCol.left
-                        anchors.topMargin: 30
-                        spacing: 12
-                        width: 360
+                    // ── At rest: the time, the weather, the battery, the music ──
+                    Item {
+                        id: idleGroup
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: parent.width
+                        // Measured by the clock alone. The music fades in place
+                        // and must not drag the login around as it goes.
+                        height: clockCol.height
+                        // Steps up out of the way rather than vanishing: it is
+                        // the same clock, just no longer the whole screen.
+                        y: (parent.height - height) / 2 - surface.auth * 200
 
-                        Repeater {
-                            model: Services.Notifications.history.filter(n => n.source !== "system").slice(0, 5)
-                            delegate: Row {
-                                required property var modelData
-                                spacing: 10
-
-                                // App icon (e.g. WhatsApp); falls back to the accent
-                                // dot when the notification carries no usable icon.
-                                Item {
-                                    width: 18; height: 18
-                                    y: 1
-                                    Image {
-                                        id: notifIcon
-                                        anchors.fill: parent
-                                        source: modelData.icon || ""
-                                        sourceSize.width: 36
-                                        sourceSize.height: 36
-                                        fillMode: Image.PreserveAspectFit
-                                        smooth: true
-                                        visible: status === Image.Ready
-                                    }
-                                    Rectangle {
-                                        anchors.centerIn: parent
-                                        width: 6; height: 6; radius: 3
-                                        color: Services.Colors.ghost
-                                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                                        visible: notifIcon.status !== Image.Ready
-                                    }
-                                }
                                 Column {
-                                    spacing: 1
-                                    Text {
-                                        text: modelData.summary && modelData.summary.length > 0 ? modelData.summary : (modelData.appName || "")
-                                        color: Services.Colors.snowAlpha(0.85)
-                                        font.pixelSize: 12
-                                        font.family: "JetBrainsMono NF"
-                                        font.weight: Font.Bold
-                                        elide: Text.ElideRight
-                                        width: 324
+                                    id: clockCol
+                                    anchors.top: parent.top
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    spacing: 0
+                                    // Smaller once it is no longer the only thing here.
+                                    scale: 1 - surface.auth * 0.32
+                                    transformOrigin: Item.Center
+                                    Row {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        spacing: 0
+                                        Text {
+                                            text: surface.currentTime.split(" ")[0].split(":").slice(0, 2).join(":")
+                                            color: Services.Colors.snow
+                                            font.pixelSize: 104
+                                            font.family: "JetBrainsMono NF"
+                                            font.weight: Font.Bold
+                                            font.letterSpacing: -2
+                                        }
+                                        Column {
+                                            anchors.bottom: parent.bottom
+                                            anchors.bottomMargin: 18
+                                            spacing: 2
+                                            leftPadding: 8
+                                            Text {
+                                                text: surface.currentSecs
+                                                color: Services.Colors.snowAlpha(0.4)
+                                                font.pixelSize: 28
+                                                font.family: "JetBrainsMono NF"
+                                                font.weight: Font.Bold
+                                            }
+                                            Text {
+                                                text: surface.currentTime.split(" ")[1]
+                                                color: Services.Colors.snowAlpha(0.4)
+                                                font.pixelSize: 14
+                                                font.family: "JetBrainsMono NF"
+                                                font.weight: Font.Bold
+                                            }
+                                        }
                                     }
-                                    Text {
-                                        text: modelData.body || ""
-                                        visible: text.length > 0
-                                        color: Services.Colors.snowAlpha(0.45)
-                                        font.pixelSize: 11
-                                        font.family: "JetBrainsMono NF"
-                                        elide: Text.ElideRight
-                                        width: 324
+                                    Row {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        spacing: 10
+                                        topPadding: 4
+                                        Text {
+                                            text: surface.currentDay + "  ·  " + surface.currentDate
+                                            color: Services.Colors.snowAlpha(0.5)
+                                            font.pixelSize: 15
+                                            font.family: "JetBrainsMono NF"
+                                            font.weight: Font.Bold
+                                            font.letterSpacing: 1
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Rectangle {
+                                            width: 1; height: 12
+                                            color: Services.Colors.snowAlpha(0.2)
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Text {
+                                            text: Services.Weather.icon
+                                            color: Services.Colors.snowAlpha(0.55)
+                                            font.pixelSize: 16
+                                            font.family: "Material Symbols Rounded"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Rectangle {
+                                            width: 1; height: 12
+                                            color: Services.Colors.snowAlpha(0.2)
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Text {
+                                            text: surface.charging ? "\uE1A3"
+                                                : surface.battery >= 90 ? "\uE1A5"
+                                                : surface.battery >= 50 ? "\uF0A1"
+                                                : surface.battery >= 20 ? "\uF09F" : "\uE19C"
+                                            color: surface.charging ? Services.Colors.ghost
+                                                : surface.battery < 20 ? Services.Colors.error_
+                                                : Services.Colors.snowAlpha(0.55)
+                                            font.pixelSize: 16
+                                            font.family: "Material Symbols Rounded"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Text {
+                                            text: surface.battery + "%"
+                                            color: surface.charging ? Services.Colors.ghost
+                                                : surface.battery < 20 ? Services.Colors.error_
+                                                : Services.Colors.snowAlpha(0.55)
+                                            font.pixelSize: 14
+                                            font.family: "JetBrainsMono NF"
+                                            font.weight: Font.Bold
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Text {
+                                            text: Services.Weather.temp
+                                            color: Services.Colors.snowAlpha(0.55)
+                                            font.pixelSize: 14
+                                            font.family: "JetBrainsMono NF"
+                                            font.weight: Font.Bold
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
                                     }
                                 }
-                            }
-                        }
+
+                                // ── What is playing, under the clock ──
+                                // The very same item the bar's media panel morphs into, so
+                                // the two never drift apart: this screen just puts a plate
+                                // behind it and lets it be.
+                                Rectangle {
+                                    id: musicCard
+                                    anchors.top: clockCol.bottom
+                                    anchors.topMargin: 28
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    width: lockMedia.contentW + lockMedia.pad * 2
+                                    height: lockMedia.artSize + lockMedia.pad * 2
+                                    radius: 20
+                                    clip: true
+                                    color: Services.Colors.surfacePill
+
+                                    // Arriving and leaving with the player is its
+                                    // own fade; going away because the screen is
+                                    // asking for a password rides the driver. One
+                                    // Behavior over both smoothed an already
+                                    // animated value twice.
+                                    property real playerFade: lockMedia.hasPlayer ? 1.0 : 0.0
+                                    Behavior on playerFade { NumberAnimation { duration: Services.Sizes.msPronounced } }
+                                    // Gone by halfway, because the login lands
+                                    // in the space it is leaving: the two must
+                                    // never be on screen together.
+                                    opacity: playerFade * (1 - Math.min(1, surface.auth * 2))
+                                    // Settings > System > Lock Screen can drop the card
+                                    visible: Services.Prefs.lockShowMedia && opacity > 0.01
+                                    transform: Translate {
+                                        y: lockMedia.hasPlayer ? 0 : -16
+                                        Behavior on y { NumberAnimation { duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
+                                    }
+
+                                    Widgets.MediaCard {
+                                        id: lockMedia
+                                        anchors.centerIn: parent
+                                    }
+                                }
                     }
 
-                    // ── Centre: avatar · password ──
+                    // ── Once asked: the face and the field ──
+                    Item {
+                        id: authGroup
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        y: idleGroup.y + idleGroup.height + 56
+                        width: authRow.width
+                        height: authRow.height
+                        // The second half of the move, once the music has gone.
+                        readonly property real enter: Math.max(0, surface.auth * 2 - 1)
+                        opacity: authGroup.enter
+                        visible: opacity > 0.01
+                        transform: Translate { y: (1 - authGroup.enter) * 26 }
+
+                    // The face and the field, once you have asked to log in.
                     Row {
-                        anchors.centerIn: parent
+                        id: authRow
                         spacing: 24
 
                         Rectangle {
@@ -553,11 +610,23 @@ Scope {
                                             color: "transparent"
                                             cursorVisible: true
                                             focus: true
-                                            onTextChanged: surface.password = text
+                                            onTextChanged: {
+                                                surface.password = text
+                                                if (text.length > 0) surface.beginAuth()
+                                            }
                                             Keys.onReturnPressed: surface.tryUnlock()
+                                            // Escape clears what you typed; a
+                                            // second one hands the screen back
+                                            // to the clock.
                                             Keys.onEscapePressed: {
-                                                text = ""
-                                                surface.errorMsg = ""
+                                                if (text.length === 0) {
+                                                    surface.authing = false
+                                                    surface.showPower = false
+                                                    surface.showProfiles = false
+                                                } else {
+                                                    text = ""
+                                                    surface.errorMsg = ""
+                                                }
                                             }
                                         }
                                     }
@@ -600,35 +669,6 @@ Scope {
                             }
                         }
                     }
-
-                    // ── Music card (top right) ──
-                    // The very same item the bar's media panel morphs into, so
-                    // the two never drift apart: this screen just puts a plate
-                    // behind it and lets it be.
-                    Rectangle {
-                        id: musicCard
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: 48
-                        width: lockMedia.contentW + lockMedia.pad * 2
-                        height: lockMedia.artSize + lockMedia.pad * 2
-                        radius: 20
-                        clip: true
-                        color: Services.Colors.surfacePill
-
-                        opacity: lockMedia.hasPlayer ? 1.0 : 0.0
-                        // Settings > System > Lock Screen can drop the card
-                        visible: Services.Prefs.lockShowMedia && opacity > 0
-                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msPronounced } }
-                        transform: Translate {
-                            y: lockMedia.hasPlayer ? 0 : -16
-                            Behavior on y { NumberAnimation { duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
-                        }
-
-                        Widgets.MediaCard {
-                            id: lockMedia
-                            anchors.centerIn: parent
-                        }
                     }
 
                     // ── Bottom right corner: fixed, independent anchors ──
@@ -639,6 +679,9 @@ Scope {
                         anchors.margins: 24
                         width: powerPill.width
                         height: powerPill.height
+                        // Controls are part of asking, not of being told.
+                        opacity: surface.auth
+                        visible: opacity > 0.01
 
                         // -- Power: pill fixed on the right, options expand UPWARDS --
                         Rectangle {
@@ -834,7 +877,7 @@ Scope {
                                         text: profItem.modelData.icon
                                         font.family: "Material Symbols Rounded"
                                         font.pixelSize: 16
-                                        color: profItem.isActive ? Services.Colors.abyss : Services.Colors.mist
+                                        color: profItem.isActive ? Services.Colors.accentText : Services.Colors.mist
                                         z: 1
                                         Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
                                     }
