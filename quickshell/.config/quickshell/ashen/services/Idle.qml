@@ -42,13 +42,12 @@ Singleton {
             + root.listener(root.suspendSecs, "systemctl suspend", "")
     }
 
-    // Written through base64 so newlines and quotes survive the shell round
-    // trip, the same way the theme templates are written.
+    // The config travels as an argv entry, never through the shell's parser,
+    // so its newlines and quotes survive untouched.
     function write(alsoRestart) {
-        let b64 = Qt.btoa(root.build())
-        let cmd = "mkdir -p '" + Paths.config + "' && echo '" + b64 + "' | base64 -d > '" + root.confPath + "'"
-        if (alsoRestart) cmd += " && pkill -x hypridle; sleep 0.2; hypridle -c '" + root.confPath + "' & disown"
-        Quickshell.execDetached(["sh", "-c", cmd])
+        let cmd = "mkdir -p \"$(dirname \"$2\")\" && printf %s \"$1\" > \"$2\""
+        if (alsoRestart) cmd += " && { pkill -x hypridle; sleep 0.2; hypridle -c \"$2\" & disown; }"
+        Quickshell.execDetached(["sh", "-c", cmd, "sh", root.build(), root.confPath])
     }
 
     // Keep Awake kills hypridle outright; this is how it comes back.

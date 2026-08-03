@@ -113,8 +113,7 @@ TabPage {
             "Disk: " + tab.diskInfo + "\\n" +
             "Packages: " + tab.pkgInfo + "\\n" +
             "Monitor: " + tab.monitorInfo
-        let b64 = Qt.btoa(info)
-        copyProc.command = ["sh", "-c", "echo '" + b64 + "' | base64 -d | wl-copy"]
+        copyProc.command = ["sh", "-c", "printf %s \"$1\" | wl-copy", "sh", info]
         copyProc.running = true
         tab.copied = true
         copiedTimer.restart()
@@ -138,7 +137,7 @@ TabPage {
             radius: 8
             color: tab.copied ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.15)
             gradient: Services.Prefs.useGradients && (tab.copied) ? Services.Colors.accentGradient : null
-            Behavior on color { ColorAnimation { duration: 150 } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
             RowLayout {
                 id: copyRow
                 anchors.centerIn: parent

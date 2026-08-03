@@ -46,13 +46,15 @@ Item {
             raised: c.raised, elevated: c.elevated, snow: c.snow, mist: c.mist,
             ash: c.ash, ghost: c.ghost, shade: c.shade, error_: c.error_, neutral: c.neutral
         })
-        let b64 = Qt.btoa(json)
         let borderHex = c.ghost.replace("#", "") + "ff"
+        // Payload as argv ($1), never inlined into the script: Qt.btoa is
+        // deprecated and base64 was only ever a way past the shell's parser.
         Quickshell.execDetached(["sh", "-c",
-            "echo '" + b64 + "' | base64 -d > \"$HOME/.cache/ashen_scheme.json\" && " +
+            "printf %s \"$1\" > \"$HOME/.cache/ashen_scheme.json\" && " +
             "echo '" + schemeId + "' > \"$HOME/.cache/ashen_scheme_mode.txt\" && " +
             "hyprctl eval \"hl.config({ general = { col = { active_border = { colors = {'rgba(" + borderHex + ")'} } } } })\" && " +
-            "sed -i 's/active_border = { colors = {\"rgba([^)]*)\"} }/active_border = { colors = {\"rgba(" + borderHex + ")\"} }/' \"$HOME/.config/hypr/conf/general.lua\""
+            "sed -i 's/active_border = { colors = {\"rgba([^)]*)\"} }/active_border = { colors = {\"rgba(" + borderHex + ")\"} }/' \"$HOME/.config/hypr/conf/general.lua\"",
+            "sh", json
         ])
         tab.applyGtkTheme(c)
         tab.applyKittyTheme(c)
@@ -85,15 +87,15 @@ Item {
             'color13 #c8b8e8\n' +
             'color14 #7aaabb\n' +
             'color15 ' + c.snow + '\n'
-        let b64 = Qt.btoa(conf)
         Quickshell.execDetached(["sh", "-c",
-            "echo '" + b64 + "' | base64 -d > \"$HOME/.config/kitty/ashen-colors.conf\" && " +
+            "printf %s \"$1\" > \"$HOME/.config/kitty/ashen-colors.conf\" && " +
             "for s in " + tab.kittySockets + "; do kitten @ --to \"unix:$s\" set-colors --all " +
             "foreground=" + c.snow + " background=" + c.abyss + " " +
             "selection_foreground=" + c.abyss + " selection_background=" + c.ghost + " " +
             "cursor=" + c.ghost + " color0=" + c.abyss + " color1=" + c.error_ + " " +
             "color7=" + c.mist + " color8=" + c.ash + " color9=" + c.error_ + " color15=" + c.snow + " " +
-            "2>/dev/null; done"
+            "2>/dev/null; done",
+            "sh", conf
         ])
     }
 
@@ -201,12 +203,12 @@ Item {
             '.floating-bar:backdrop {\n' +
             '    background-color: alpha(' + c.surface + ', 0.75);\n' +
             '}\n'
-        let b64 = Qt.btoa(css)
         let papirusCmd = c.papirusColor ? ("papirus-folders -C " + c.papirusColor + " 2>/dev/null; ") : ""
         Quickshell.execDetached(["sh", "-c",
             "mkdir -p \"$HOME/.config/gtk-3.0\" && " +
-            "echo '" + b64 + "' | base64 -d > \"$HOME/.config/gtk-3.0/gtk.css\" && " +
-            papirusCmd
+            "printf %s \"$1\" > \"$HOME/.config/gtk-3.0/gtk.css\" && " +
+            papirusCmd,
+            "sh", css
         ])
     }
     Text {
@@ -353,7 +355,7 @@ Item {
                  : Services.Colors.ghostAlpha(0.15)
             border.color: active ? Services.Colors.ghost : "transparent"
             border.width: active ? 2 : 0
-            Behavior on color { ColorAnimation { duration: 150 } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
             RowLayout {
                 anchors.fill: parent
@@ -464,7 +466,7 @@ Item {
                         : Services.Colors.ghostAlpha(0.15)
                     border.color: active ? Services.Colors.ghost : "transparent"
                     border.width: active ? 2 : 0
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                     RowLayout {
                         anchors.fill: parent
@@ -540,7 +542,7 @@ Item {
             color: Services.Colors.ghostAlpha(0.06)
             implicitHeight: dynCol.implicitHeight + 24
             opacity: schemeSection.dynamicActive ? 1.0 : 0.45
-            Behavior on opacity { NumberAnimation { duration: 200 } }
+            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
 
             ColumnLayout {
                 id: dynCol
@@ -582,7 +584,7 @@ Item {
                             radius: 8
                             color: active ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.12)
                             gradient: Services.Prefs.useGradients && (active) ? Services.Colors.accentGradient : null
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                             RowLayout {
                                 id: dynRow
                                 anchors.centerIn: parent
