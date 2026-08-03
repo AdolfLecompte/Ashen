@@ -21,7 +21,8 @@ Item {
 
     // Held across that gap so the pill does not collapse or flicker
     property var activePlayer: null
-    property bool hasPlayer: activePlayer !== null
+    // readonly: it is a fact about activePlayer, never something to set.
+    readonly property bool hasPlayer: activePlayer !== null
 
     onLivePlayerChanged: {
         if (livePlayer !== null) {
@@ -77,7 +78,7 @@ Item {
     width: root.vertical ? pillH : (hasPlayer ? expandedRow.implicitWidth + 20 : 0)
     // Hidden from Settings > Bar > Pills
     visible: Services.Prefs.pillVisible("media") && (opacity > 0)
-    Behavior on height { SmoothedAnimation { duration: 280 } }
+    Behavior on height { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
     // The panel is a morphed copy of this pill, so while it is open the pill
     // itself steps aside: the card standing on its rect *is* the pill now.
     // Coming back it waits for the card to finish shrinking before reappearing,
@@ -104,8 +105,8 @@ Item {
     // Only the body fades out on takeover, never this Item: it has to keep
     // holding its slot in the bar or the row would close the gap and shift.
     opacity: hasPlayer ? 1.0 : 0.0
-    Behavior on width { SmoothedAnimation { duration: 280 } }
-    Behavior on opacity { NumberAnimation { duration: 200 } }
+    Behavior on width { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
+    Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
 
     // Reports its real on-screen position so MediaPanel can center below it
     PillCenter { key: "media" }
@@ -133,7 +134,7 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
         // other one's timing. The card sits on the same rect anyway, so the
         // few frames where both are drawn are indistinguishable.
         opacity: root.takenOverByPanel ? 0.0 : 1.0
-        Behavior on opacity { NumberAnimation { duration: 140 } }
+        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
 
         Row {
@@ -225,20 +226,20 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
 
                 Widgets.CtlChip {
                     glyph: "\ue045"
-                    available: root.hasPlayer && root.activePlayer.canGoPrevious
-                    onTriggered: root.activePlayer.previous()
+                    available: root.activePlayer !== null && root.activePlayer.canGoPrevious
+                    onTriggered: if (root.activePlayer) root.activePlayer.previous()
                 }
                 Widgets.CtlChip {
-                    glyph: root.hasPlayer && root.activePlayer.isPlaying ? "\ue034" : "\ue037"
+                    glyph: root.activePlayer !== null && root.activePlayer.isPlaying ? "\ue034" : "\ue037"
                     glyphSize: 20
                     available: root.hasPlayer
-                    active: root.hasPlayer && root.activePlayer.isPlaying
-                    onTriggered: root.activePlayer.togglePlaying()
+                    active: root.activePlayer !== null && root.activePlayer.isPlaying
+                    onTriggered: if (root.activePlayer) root.activePlayer.togglePlaying()
                 }
                 Widgets.CtlChip {
                     glyph: "\ue044"
-                    available: root.hasPlayer && root.activePlayer.canGoNext
-                    onTriggered: root.activePlayer.next()
+                    available: root.activePlayer !== null && root.activePlayer.canGoNext
+                    onTriggered: if (root.activePlayer) root.activePlayer.next()
                 }
             }
             
@@ -262,7 +263,7 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
     Timer {
         interval: 1000
         repeat: true
-        running: root.hasPlayer && root.activePlayer.isPlaying
+        running: root.activePlayer !== null && root.activePlayer.isPlaying
         onTriggered: if (root.hasPlayer) root.activePlayer.positionChanged()
     }
 }

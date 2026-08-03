@@ -115,7 +115,7 @@ Item {
     Timer {
         interval: 1000
         repeat: true
-        running: root.hasPlayer && root.activePlayer.isPlaying
+        running: root.activePlayer !== null && root.activePlayer.isPlaying
         onTriggered: if (root.hasPlayer) root.activePlayer.positionChanged()
     }
 
@@ -128,9 +128,9 @@ Item {
 
     readonly property string titleText: root.hasPlayer
         ? (root.activePlayer.trackTitle || "Untitled") : "Nothing playing"
-    readonly property string posText: root.hasPlayer ? root.formatTime(root.activePlayer.position) : "0:00"
-    readonly property string lenText: root.hasPlayer ? root.formatTime(root.activePlayer.length) : "0:00"
-    readonly property string playGlyph: root.hasPlayer && root.activePlayer.isPlaying ? "\ue034" : "\ue037"
+    readonly property string posText: root.activePlayer !== null ? root.formatTime(root.activePlayer.position) : "0:00"
+    readonly property string lenText: root.activePlayer !== null ? root.formatTime(root.activePlayer.length) : "0:00"
+    readonly property string playGlyph: root.activePlayer !== null && root.activePlayer.isPlaying ? "\ue034" : "\ue037"
 
     // ── Where the shared pieces sit, in this item's coordinates ─────────
     // Chained by hand rather than with mapToItem, which is a plain function
@@ -254,16 +254,16 @@ Item {
                         height: 20
                         opacity: root.extrasOpacity
 
-                        property real progress: (root.hasPlayer && root.activePlayer.length > 0)
+                        property real progress: (root.activePlayer !== null && root.activePlayer.length > 0)
                             ? Math.max(0, Math.min(1, root.activePlayer.position / root.activePlayer.length)) : 0
-                        Behavior on progress { NumberAnimation { duration: 300 } }
+                        Behavior on progress { NumberAnimation { duration: Services.Sizes.msEmphasis } }
                         property real phase: 0
-                        readonly property bool playing: root.hasPlayer && root.activePlayer.isPlaying
+                        readonly property bool playing: root.activePlayer !== null && root.activePlayer.isPlaying
 
                         // 0 = flat line (paused), 1 = full wave (playing). Animated
                         // so the straight<->snake transition morphs smoothly.
                         property real ampFactor: playing ? 1 : 0
-                        Behavior on ampFactor { NumberAnimation { duration: 550; easing.type: Easing.InOutCubic } }
+                        Behavior on ampFactor { NumberAnimation { duration: 550; easing.type: Services.Sizes.easeInOut } }
 
                         onProgressChanged: waveCanvas.requestPaint()
                         onPhaseChanged: waveCanvas.requestPaint()
@@ -314,7 +314,7 @@ Item {
                             x: Math.max(0, parent.width * parent.progress - width / 2)
                             y: parent.height / 2 - height / 2
                                 + waveCanvas.amp * parent.ampFactor * Math.sin(parent.progress * waveCanvas.waves * 2 * Math.PI + parent.phase)
-                            Behavior on x { NumberAnimation { duration: 300 } }
+                            Behavior on x { NumberAnimation { duration: Services.Sizes.msEmphasis } }
                         }
                     }
 
@@ -371,8 +371,8 @@ Item {
                         size: root.chipLg
                         glyphSize: 20
                         glyph: "\ue045"
-                        available: root.hasPlayer && root.activePlayer.canGoPrevious
-                        onTriggered: root.activePlayer.previous()
+                        available: root.activePlayer !== null && root.activePlayer.canGoPrevious
+                        onTriggered: if (root.activePlayer) root.activePlayer.previous()
                     }
                     CtlChip {
                         id: playChip
@@ -383,8 +383,8 @@ Item {
                         glyphSize: 24
                         glyph: root.playGlyph
                         available: root.hasPlayer
-                        active: root.hasPlayer && root.activePlayer.isPlaying
-                        onTriggered: root.activePlayer.togglePlaying()
+                        active: root.activePlayer !== null && root.activePlayer.isPlaying
+                        onTriggered: if (root.activePlayer) root.activePlayer.togglePlaying()
                     }
                     CtlChip {
                         id: nextChip
@@ -394,8 +394,8 @@ Item {
                         size: root.chipLg
                         glyphSize: 20
                         glyph: "\ue044"
-                        available: root.hasPlayer && root.activePlayer.canGoNext
-                        onTriggered: root.activePlayer.next()
+                        available: root.activePlayer !== null && root.activePlayer.canGoNext
+                        onTriggered: if (root.activePlayer) root.activePlayer.next()
                     }
                     CtlChip {
                         anchors.verticalCenter: parent.verticalCenter
@@ -418,7 +418,7 @@ Item {
             Layout.preferredHeight: root.artSize
             Layout.alignment: Qt.AlignVCenter
             opacity: root.extrasOpacity * (Services.Cava.isActive ? 1.0 : 0.35)
-            Behavior on opacity { NumberAnimation { duration: 400 } }
+            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msPanel } }
 
             // Axis the bars grow out of. Silence collapses every bar to its cap,
             // and without something to sit on those caps read as a column of

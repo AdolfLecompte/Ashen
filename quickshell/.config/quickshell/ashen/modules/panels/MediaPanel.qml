@@ -67,10 +67,13 @@ PanelWindow {
     readonly property real pillCX: Services.AppState.mediaPillCenterX
     readonly property real pillCY: Services.AppState.mediaPillCenterY
 
-    // The player state lives in the shared card; everything here reads it back
-    // out rather than keeping a second copy in step.
-    readonly property bool hasPlayer: panelRef.hasPlayer
+    // The player state lives in the shared card. `hasPlayer` is derived from
+    // the copy we hold, not fetched separately: two bindings onto the same ref
+    // update in whatever order QML likes, so for a frame `hasPlayer` was true
+    // while `activePlayer` was already null and every `hasPlayer && player.x`
+    // guard in the file threw.
     readonly property var activePlayer: panelRef.activePlayer
+    readonly property bool hasPlayer: root.activePlayer !== null
 
     MouseArea {
         anchors.fill: parent
@@ -142,18 +145,18 @@ PanelWindow {
             id: openAnim
             NumberAnimation {
                 target: card; property: "fall"; to: 1
-                duration: 460; easing.type: Easing.OutCubic
+                duration: 460; easing.type: Services.Sizes.easeOut
             }
             // Height leads: the drop elongates as it detaches from the bar
             NumberAnimation {
                 target: card; property: "stretch"; to: 1
-                duration: 360; easing.type: Easing.OutCubic
+                duration: 360; easing.type: Services.Sizes.easeOut
             }
             // Width trails and lands wide: the flatten-on-impact part. The
             // overshoot is tiny (~5 px) — a real bounce reads as a pop.
             NumberAnimation {
                 target: card; property: "spread"; to: 1
-                duration: 560; easing.type: Easing.OutBack; easing.overshoot: 0.7
+                duration: 560; easing.type: Easing.OutBack; easing.overshoot: Services.Sizes.overshoot
             }
             // Box first, contents after: the shared items hold the pill's
             // arrangement while the blob grows around them, then travel.
@@ -161,7 +164,7 @@ PanelWindow {
                 PauseAnimation { duration: 200 }
                 NumberAnimation {
                     target: card; property: "morph"; to: 1
-                    duration: 340; easing.type: Easing.OutCubic
+                    duration: 340; easing.type: Services.Sizes.easeOut
                 }
             }
             // The card-only extras arrive last, filling the gaps the travelling
@@ -182,7 +185,7 @@ PanelWindow {
                 PauseAnimation { duration: 40 }
                 NumberAnimation {
                     target: card; property: "morph"; to: 0
-                    duration: 260; easing.type: Easing.InOutCubic
+                    duration: 260; easing.type: Services.Sizes.easeInOut
                 }
             }
             SequentialAnimation {
@@ -190,15 +193,15 @@ PanelWindow {
                 ParallelAnimation {
                     NumberAnimation {
                         target: card; property: "fall"; to: 0
-                        duration: 340; easing.type: Easing.InOutCubic
+                        duration: 340; easing.type: Services.Sizes.easeInOut
                     }
                     NumberAnimation {
                         target: card; property: "stretch"; to: 0
-                        duration: 300; easing.type: Easing.InOutCubic
+                        duration: 300; easing.type: Services.Sizes.easeInOut
                     }
                     NumberAnimation {
                         target: card; property: "spread"; to: 0
-                        duration: 300; easing.type: Easing.InOutCubic
+                        duration: 300; easing.type: Services.Sizes.easeInOut
                     }
                 }
             }
@@ -414,8 +417,8 @@ PanelWindow {
             glyph: ""
             size: card.lerp(card.chipSm, panelRef.chipLg, card.morph)
             glyphSize: card.lerp(18, 20, card.morph)
-            available: root.hasPlayer && root.activePlayer.canGoPrevious
-            onTriggered: root.activePlayer.previous()
+            available: root.activePlayer !== null && root.activePlayer.canGoPrevious
+            onTriggered: if (root.activePlayer) root.activePlayer.previous()
             x: card.lerp(pillRef.x + refCtl.x + refPrev.x + refPrev.width / 2,
                          panelRef.x + panelRef.prevCX, card.morph) - width / 2
             y: card.lerp(pillRef.y + refCtl.y + refPrev.y + refPrev.height / 2,
@@ -427,8 +430,8 @@ PanelWindow {
             size: card.lerp(card.playSm, panelRef.playLg, card.morph)
             glyphSize: card.lerp(20, 24, card.morph)
             available: root.hasPlayer
-            active: root.hasPlayer && root.activePlayer.isPlaying
-            onTriggered: root.activePlayer.togglePlaying()
+            active: root.activePlayer !== null && root.activePlayer.isPlaying
+            onTriggered: if (root.activePlayer) root.activePlayer.togglePlaying()
             x: card.lerp(pillRef.x + refCtl.x + refPlay.x + refPlay.width / 2,
                          panelRef.x + panelRef.playCX, card.morph) - width / 2
             y: card.lerp(pillRef.y + refCtl.y + refPlay.y + refPlay.height / 2,
@@ -439,8 +442,8 @@ PanelWindow {
             glyph: ""
             size: card.lerp(card.chipSm, panelRef.chipLg, card.morph)
             glyphSize: card.lerp(18, 20, card.morph)
-            available: root.hasPlayer && root.activePlayer.canGoNext
-            onTriggered: root.activePlayer.next()
+            available: root.activePlayer !== null && root.activePlayer.canGoNext
+            onTriggered: if (root.activePlayer) root.activePlayer.next()
             x: card.lerp(pillRef.x + refCtl.x + refNext.x + refNext.width / 2,
                          panelRef.x + panelRef.nextCX, card.morph) - width / 2
             y: card.lerp(pillRef.y + refCtl.y + refNext.y + refNext.height / 2,
