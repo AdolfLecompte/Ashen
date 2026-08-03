@@ -24,15 +24,25 @@ Item {
     // Ignored here; a panel wired for both arrivals sets them either way.
     property string pillGlyph: ""
     property string pillLabel: ""
+    // Where its capsule is. Nothing flies out of it here, but a panel that HAS
+    // one still opens where it would have dropped.
+    property real pillCX: 0
+    property real pillCY: 0
     property Item glyphTarget: null
     property Item labelTarget: null
     property bool pillActive: false
 
+    // A panel that HAS a capsule opens where it would have dropped: choosing
+    // "window" changes how it arrives, never where. Only a panel with no
+    // capsule at all falls back to its resting side.
+    property bool fromPill: false
     readonly property real openX: !isNaN(openXOverride) ? openXOverride
+        : root.fromPill ? Services.Sizes.panelX(width, root.openW, root.pillCX)
         : root.restSide === "left" ? Services.Sizes.marginLeft
         : root.restSide === "right" ? width - root.openW - Services.Sizes.marginRight
         : (width - root.openW) / 2
     readonly property real openY: !isNaN(openYOverride) ? openYOverride
+        : root.fromPill ? Services.Sizes.panelY(height, root.openH, root.pillCY)
         : root.restSide === "top" ? Services.Sizes.marginTop
         : root.restSide === "bottom" ? height - root.openH - Services.Sizes.marginBottom
         : (height - root.openH) / 2
@@ -46,8 +56,12 @@ Item {
     // Nothing travels here, so shared pieces are at their panel place already.
     readonly property real morph: 1
     readonly property alias arrive: arrive
+    // Pieces of the body can come in one after another instead of all at once.
+    function stage(i) { return arrive.stage(i) }
     readonly property int closeMs: arrive.closeMs
     readonly property int holdMs: arrive.holdMs
+
+    property color cardColor: Services.Colors.surfacePanel
 
     default property alias content: body.data
 
@@ -64,7 +78,9 @@ Item {
         width: arrive.boxW(root.openW)
         height: arrive.boxH(root.openH)
         radius: root.cardRadius
-        color: Services.Colors.surfacePanel
+        // "transparent" for a panel whose content is the surface -- the
+        // wallpaper carousel is its own cards and wants no plate behind them.
+        color: root.cardColor
         clip: true
         opacity: arrive.fade
         transform: Translate { y: arrive.offY }
@@ -78,7 +94,10 @@ Item {
             id: body
             width: root.openW
             height: root.openH
-            anchors.centerIn: parent
+            // Centred while the box unfolds around its middle; pinned to the
+            // top while it unrolls, or the contents would slide as it opens.
+            x: (parent.width - width) / 2
+            y: arrive.plain ? 0 : (parent.height - height) / 2
             opacity: arrive.contentAmt
             visible: opacity > 0.01
         }

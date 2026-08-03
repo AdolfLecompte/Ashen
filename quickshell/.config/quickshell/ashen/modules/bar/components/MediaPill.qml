@@ -133,7 +133,7 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
         // be read with the flag's old value, so each direction would get the
         // other one's timing. The card sits on the same rect anyway, so the
         // few frames where both are drawn are indistinguishable.
-        opacity: root.takenOverByPanel ? 0.0 : 1.0
+        opacity: (root.takenOverByPanel && Services.Prefs.panelStyle === "morph") ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
 
@@ -162,8 +162,6 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
         asynchronous: true
         visible: false
         layer.enabled: true
-        onSourceChanged: console.log("[MediaPill] trackArtUrl:", source)
-        onStatusChanged: console.log("[MediaPill] Image status:", status, "for source:", source)
     }
     Rectangle {
         id: pillArtMask

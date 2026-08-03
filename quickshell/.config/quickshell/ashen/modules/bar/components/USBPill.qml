@@ -53,7 +53,7 @@ Rectangle {
     gradient: Services.Prefs.useGradients && (root.anyMounted) ? Services.Colors.accentGradient : null
     border.width: 0
     width: root.vertical ? Services.Sizes.pillH : (root.present ? icon.implicitWidth + 24 : 0)
-    opacity: root.takenOver ? 0.0 : (root.present ? 1.0 : 0.0)
+    opacity: (root.takenOver && Services.Prefs.panelStyle === "morph") ? 0.0 : (root.present ? 1.0 : 0.0)
     // Hidden from Settings > Bar > Pills. `visible` keys on the device being
     // there, not on opacity: while the pill is handed over to its panel it is
     // transparent but must keep its slot, or the strip closes the gap and the
@@ -74,7 +74,7 @@ Rectangle {
         // wash you can see the wallpaper through, and a dark glyph on it came
         // out as a smudge -- the same fault Launcher, Power and Notification
         // were fixed for; this one was missed.
-        color: root.anyMounted ? Services.Colors.onColor(Services.Colors.ghost)
+        color: root.anyMounted ? Services.Colors.accentText
              : hover.containsMouse ? Services.Colors.snow
                                    : Services.Colors.mist
         font.pixelSize: 22

@@ -67,7 +67,7 @@ Rectangle {
     // The card is back on the pill's rect at ~500 ms; fade in just under that
     Timer { id: handBack; interval: 470; onTriggered: root.takenOverByPanel = false }
 
-    opacity: root.takenOverByPanel ? 0.0 : 1.0
+    opacity: (root.takenOverByPanel && Services.Prefs.panelStyle === "morph") ? 0.0 : 1.0
     Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
     Timer {

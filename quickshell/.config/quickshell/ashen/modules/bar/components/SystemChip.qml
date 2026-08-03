@@ -63,7 +63,7 @@ Rectangle {
         interval: Services.Sizes.panelCloseMs - 40
         onTriggered: chip.takenOver = false
     }
-    opacity: takenOver ? 0.0 : 1.0
+    opacity: (takenOver && Services.Prefs.panelStyle === "morph") ? 0.0 : 1.0
     Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
     // The panel wears this for the first frames of its fall.
@@ -88,7 +88,7 @@ Rectangle {
     // fill, and dark letters on it came out as a smudge — the same one the
     // launcher, power and notification pills already had taken out.
     readonly property color contentColor: active
-        ? Services.Colors.onColor(Services.Colors.ghost)
+        ? Services.Colors.accentText
         : (hovered ? Services.Colors.snow : idleColor)
 
     radius: Services.Sizes.innerR

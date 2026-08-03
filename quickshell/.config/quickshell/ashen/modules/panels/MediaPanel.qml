@@ -34,6 +34,8 @@ PanelWindow {
         onTriggered: {
             Services.AppState.mediaMorphing = true
             closeAnim.stop()
+            // The style may have changed since it last closed.
+            card.restDrivers()
             openAnim.start()
         }
     }
@@ -119,6 +121,26 @@ PanelWindow {
 
         // Three drivers rather than one, so the shape lags behind the motion
         // and the blob deforms on the way instead of scaling rigidly.
+        // "Window" style: the drivers land on 1 at once and only the opacity
+        // moves, so the card appears where it would have dropped without
+        // becoming the pill first. The morph timings below are untouched.
+        readonly property bool plain: Services.Prefs.panelStyle === "plain"
+        property real plainFade: 0
+
+
+        // Where the drivers rest while it is closed. In "window" they stay
+        // landed -- the card never becomes the pill -- but in "transform" they
+        // have to be back at zero or the drop has nowhere to fall from. The
+        // style can change between one opening and the next, so this is
+        // applied on the way in rather than assumed.
+        function restDrivers() {
+            const v = card.plain ? 1 : 0
+            card.fall = v; card.stretch = v; card.spread = v; card.morph = v
+            card.contentAmt = card.plain ? 1 : 0
+            card.plainFade = 0
+        }
+        onPlainChanged: if (!root.shown) card.restDrivers()
+
         property real fall: 0      // travel from the bar to the resting spot
         property real stretch: 0   // height
         property real spread: 0    // width
@@ -144,34 +166,38 @@ PanelWindow {
         ParallelAnimation {
             id: openAnim
             NumberAnimation {
+                target: card; property: "plainFade"; to: 1
+                duration: card.plain ? 260 : 0; easing.type: Services.Sizes.easeOut
+            }
+            NumberAnimation {
                 target: card; property: "fall"; to: 1
-                duration: 460; easing.type: Services.Sizes.easeOut
+                duration: card.plain ? 0 : 460; easing.type: Services.Sizes.easeOut
             }
             // Height leads: the drop elongates as it detaches from the bar
             NumberAnimation {
                 target: card; property: "stretch"; to: 1
-                duration: 360; easing.type: Services.Sizes.easeOut
+                duration: card.plain ? 0 : 360; easing.type: Services.Sizes.easeOut
             }
             // Width trails and lands wide: the flatten-on-impact part. The
             // overshoot is tiny (~5 px) — a real bounce reads as a pop.
             NumberAnimation {
                 target: card; property: "spread"; to: 1
-                duration: 560; easing.type: Easing.OutBack; easing.overshoot: Services.Sizes.overshoot
+                duration: card.plain ? 0 : 560; easing.type: Easing.OutBack; easing.overshoot: Services.Sizes.overshoot
             }
             // Box first, contents after: the shared items hold the pill's
             // arrangement while the blob grows around them, then travel.
             SequentialAnimation {
-                PauseAnimation { duration: 200 }
+                PauseAnimation { duration: card.plain ? 0 : 200 }
                 NumberAnimation {
                     target: card; property: "morph"; to: 1
-                    duration: 340; easing.type: Services.Sizes.easeOut
+                    duration: card.plain ? 0 : 340; easing.type: Services.Sizes.easeOut
                 }
             }
             // The card-only extras arrive last, filling the gaps the travelling
             // items have opened up by then.
             SequentialAnimation {
-                PauseAnimation { duration: 380 }
-                NumberAnimation { target: card; property: "contentAmt"; to: 1; duration: 200 }
+                PauseAnimation { duration: card.plain ? 0 : 380 }
+                NumberAnimation { target: card; property: "contentAmt"; to: 1; duration: card.plain ? 0 : 200 }
             }
         }
 
@@ -180,39 +206,46 @@ PanelWindow {
         // same order, mirrored, so the box is never smaller than its contents.
         ParallelAnimation {
             id: closeAnim
-            NumberAnimation { target: card; property: "contentAmt"; to: 0; duration: 90 }
+            NumberAnimation {
+                target: card; property: "plainFade"; to: 0
+                duration: card.plain ? 200 : 0; easing.type: Services.Sizes.easeIn
+            }
+            NumberAnimation { target: card; property: "contentAmt"; to: 0; duration: card.plain ? 0 : 90 }
             SequentialAnimation {
-                PauseAnimation { duration: 40 }
+                PauseAnimation { duration: card.plain ? 0 : 40 }
                 NumberAnimation {
-                    target: card; property: "morph"; to: 0
-                    duration: 260; easing.type: Services.Sizes.easeInOut
+                    target: card; property: "morph"; to: card.plain ? 1 : 0
+                    duration: card.plain ? 0 : 260; easing.type: Services.Sizes.easeInOut
                 }
             }
             SequentialAnimation {
-                PauseAnimation { duration: 160 }
+                PauseAnimation { duration: card.plain ? 0 : 160 }
                 ParallelAnimation {
                     NumberAnimation {
-                        target: card; property: "fall"; to: 0
-                        duration: 340; easing.type: Services.Sizes.easeInOut
+                        target: card; property: "fall"; to: card.plain ? 1 : 0
+                        duration: card.plain ? 0 : 340; easing.type: Services.Sizes.easeInOut
                     }
                     NumberAnimation {
-                        target: card; property: "stretch"; to: 0
-                        duration: 300; easing.type: Services.Sizes.easeInOut
+                        target: card; property: "stretch"; to: card.plain ? 1 : 0
+                        duration: card.plain ? 0 : 300; easing.type: Services.Sizes.easeInOut
                     }
                     NumberAnimation {
-                        target: card; property: "spread"; to: 0
-                        duration: 300; easing.type: Services.Sizes.easeInOut
+                        target: card; property: "spread"; to: card.plain ? 1 : 0
+                        duration: card.plain ? 0 : 300; easing.type: Services.Sizes.easeInOut
                     }
                 }
             }
         }
 
         width: root.pillW + (root.openW - root.pillW) * spread
-        height: root.pillH + (root.openH - root.pillH) * stretch
+        height: (root.pillH + (root.openH - root.pillH) * stretch)
+                * (card.plain ? 0.06 + 0.94 * card.plainFade : 1)
         x: root.pillCX + (openX + root.openW / 2 - root.pillCX) * fall - width / 2
-        y: root.pillCY + (openY + root.openH / 2 - root.pillCY) * fall - height / 2
+        y: card.plain ? openY
+           : root.pillCY + (openY + root.openH / 2 - root.pillCY) * fall - height / 2
 
         // Pill corner while small, card corner once open
+        opacity: card.plain ? card.plainFade : 1
         radius: Services.Sizes.pillR + (20 - Services.Sizes.pillR) * Math.min(1, spread)
         color: Services.Colors.surfacePanel
         clip: true
