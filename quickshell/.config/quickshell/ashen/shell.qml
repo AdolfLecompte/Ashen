@@ -25,6 +25,22 @@ ShellRoot {
     // Handlers live here rather than inside the panels: a lazily loaded panel
     // does not exist while it is closed, and its handler would vanish with it.
     // All a handler does is flip state; panels react in their onShownChanged.
+    // The three readouts that hang off a system chip. They had no target at
+    // all, so the only way to open them was to click the chip: no keybind, and
+    // nothing a script could reach.
+    IpcHandler {
+        target: "volume"
+        function toggle() { Services.AppState.toggleOverlay("volumeVisible") }
+    }
+    IpcHandler {
+        target: "brightness"
+        function toggle() { Services.AppState.toggleOverlay("brightnessVisible") }
+    }
+    IpcHandler {
+        target: "battery"
+        function toggle() { Services.AppState.toggleOverlay("batteryVisible") }
+    }
+
     IpcHandler {
         target: "launcher"
         function toggle() { Services.AppState.toggleOverlay("launcherVisible") }

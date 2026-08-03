@@ -19,6 +19,12 @@ Scope {
         }
     }
 
+    // The in-process route, for callers that are already inside this shell.
+    Connections {
+        target: Services.AppState
+        function onLockRequested() { sessionLock.locked = true }
+    }
+
     WlSessionLock {
         id: sessionLock
 
@@ -233,8 +239,8 @@ Scope {
                 anchors.fill: parent
                 opacity: surface.unlocking ? 0.0 : (surface.revealed ? 1.0 : 0.0)
                 scale: surface.unlocking ? 1.04 : (surface.revealed ? 1.0 : 1.05)
-                Behavior on opacity { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
-                Behavior on scale { NumberAnimation { duration: 420; easing.type: Easing.OutCubic } }
+                Behavior on opacity { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeOut } }
+                Behavior on scale { NumberAnimation { duration: Services.Sizes.msPanel; easing.type: Services.Sizes.easeOut } }
 
                 Item {
                     anchors.fill: parent
@@ -387,7 +393,7 @@ Scope {
                             color: Services.Colors.ghostAlpha(0.15)
                             border.color: surface.checking ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.35)
                             border.width: 2
-                            Behavior on border.color { ColorAnimation { duration: 200 } }
+                            Behavior on border.color { ColorAnimation { duration: Services.Sizes.msStandard } }
                             Image {
                                 id: faceImg
                                 anchors.fill: parent
@@ -461,7 +467,7 @@ Scope {
                                     : passInput.activeFocus ? Services.Colors.ghost
                                     : Services.Colors.ghostAlpha(0.25)
                                 border.width: 1
-                                Behavior on border.color { ColorAnimation { duration: 150 } }
+                                Behavior on border.color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                                 // Click to (re)grab keyboard focus. Helps when the
                                 // field loses activeFocus (e.g. after resume) so the
@@ -482,7 +488,7 @@ Scope {
                                         color: surface.errorMsg !== "" ? Services.Colors.error_ : Services.Colors.ghost
                                         font.pixelSize: 18
                                         font.family: "Material Symbols Rounded"
-                                        Behavior on color { ColorAnimation { duration: 150 } }
+                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                                     }
                                     Item {
                                         Layout.fillWidth: true
@@ -508,8 +514,8 @@ Scope {
                                                     anchors.verticalCenter: parent.verticalCenter
                                                     // Fade in (no bounce): OutBack scale felt springy
                                                     NumberAnimation on opacity {
-                                                        from: 0; to: 1; duration: 150
-                                                        easing.type: Easing.OutCubic
+                                                        from: 0; to: 1; duration: Services.Sizes.msMicro
+                                                        easing.type: Services.Sizes.easeOut
                                                         running: true
                                                     }
                                                 }
@@ -560,7 +566,7 @@ Scope {
                                         color: surface.checking ? Services.Colors.ghost : Services.Colors.ash
                                         font.pixelSize: 18
                                         font.family: "Material Symbols Rounded"
-                                        Behavior on color { ColorAnimation { duration: 150 } }
+                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                                         MouseArea {
                                             anchors.fill: parent
                                             anchors.margins: -6
@@ -589,7 +595,7 @@ Scope {
                                     font.pixelSize: 12
                                     font.family: "JetBrainsMono NF"
                                     opacity: surface.errorMsg !== "" ? 1.0 : 0.0
-                                    Behavior on opacity { NumberAnimation { duration: 200 } }
+                                    Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
                                 }
                             }
                         }
@@ -613,10 +619,10 @@ Scope {
                         opacity: lockMedia.hasPlayer ? 1.0 : 0.0
                         // Settings > System > Lock Screen can drop the card
                         visible: Services.Prefs.lockShowMedia && opacity > 0
-                        Behavior on opacity { NumberAnimation { duration: 250 } }
+                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msPronounced } }
                         transform: Translate {
                             y: lockMedia.hasPlayer ? 0 : -16
-                            Behavior on y { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                            Behavior on y { NumberAnimation { duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
                         }
 
                         Widgets.MediaCard {
@@ -642,14 +648,14 @@ Scope {
                             width: 44; height: 44
                             radius: 10
                             color: powerPillHover.containsMouse ? Services.Colors.elevated : Services.Colors.surfacePill
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                             Text {
                                 anchors.centerIn: parent
                                 text: "\uF8C7"
                                 color: surface.showPower ? Services.Colors.snow : Services.Colors.mist
                                 font.pixelSize: 20
                                 font.family: "Material Symbols Rounded"
-                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                             }
                             MouseArea {
                                 id: powerPillHover
@@ -669,10 +675,10 @@ Scope {
                             visible: opacity > 0
                             // Same deploy as the system (bar) panels: fade + slide in
                             // from the direction it opens — upwards, so it rises from below.
-                            Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
                             transform: Translate {
                                 y: surface.showPower ? 0 : 12
-                                Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                                Behavior on y { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
                             }
                             Repeater {
                                 model: [
@@ -691,7 +697,7 @@ Scope {
                                     // smoothly instead of jumping to transparent over the backdrop.
                                     color: powerHover.containsMouse ? Services.Colors.elevated
                                                                     : Services.Colors.surfacePill
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                                     Text {
                                         anchors.centerIn: parent
                                         text: powerItem.modelData.icon
@@ -719,7 +725,7 @@ Scope {
                             width: 78; height: 44
                             radius: 10
                             color: batteryPillHover.containsMouse ? Services.Colors.elevated : Services.Colors.surfacePill
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                             Row {
                                 anchors.centerIn: parent
                                 spacing: 4
@@ -732,7 +738,7 @@ Scope {
                                     font.pixelSize: 18
                                     font.family: "Material Symbols Rounded"
                                     anchors.verticalCenter: parent.verticalCenter
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                                 }
                                 Text {
                                     text: surface.battery + "%"
@@ -741,7 +747,7 @@ Scope {
                                     font.pixelSize: 12
                                     font.family: "JetBrainsMono NF"
                                     anchors.verticalCenter: parent.verticalCenter
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                                 }
                             }
                             MouseArea {
@@ -769,10 +775,10 @@ Scope {
                             visible: opacity > 0
                             // Same deploy as the system (bar) panels: fade + slide in
                             // from the direction it opens — leftwards, so it enters from the right.
-                            Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
                             transform: Translate {
                                 x: surface.showProfiles ? 0 : 12
-                                Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                                Behavior on x { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
                             }
 
                             readonly property var profModel: [
@@ -795,8 +801,8 @@ Scope {
                                 y: (parent.height - height) / 2
                                 x: 8 + profileCapsule.activeIdx * (34 + 4)
                                 opacity: profileCapsule.activeIdx >= 0 ? 1 : 0
-                                Behavior on opacity { NumberAnimation { duration: 200 } }
-                                Behavior on x { SmoothedAnimation { duration: 250 } }
+                                Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
+                                Behavior on x { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
                             }
 
                             Row {
@@ -820,7 +826,7 @@ Scope {
                                         color: Services.Colors.ghost
                                         gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                                         opacity: profHover.containsMouse && profItem.available && !profItem.isActive ? 0.2 : 0
-                                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
                                     }
 
                                     Text {
@@ -830,7 +836,7 @@ Scope {
                                         font.pixelSize: 16
                                         color: profItem.isActive ? Services.Colors.abyss : Services.Colors.mist
                                         z: 1
-                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
                                     }
 
                                     MouseArea {
@@ -895,7 +901,7 @@ Scope {
                             color: surface.lockShut ? Services.Colors.snow : Services.Colors.ghost
                             font.pixelSize: 64
                             font.family: "Material Symbols Rounded"
-                            Behavior on color { ColorAnimation { duration: 180 } }
+                            Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
                         }
                     }
                 }
@@ -905,8 +911,8 @@ Scope {
 
                     // 1. padlock drops in, still open
                     ParallelAnimation {
-                        NumberAnimation { target: introLock; property: "opacity"; to: 1.0; duration: 340; easing.type: Easing.OutCubic }
-                        NumberAnimation { target: introLock; property: "scale"; to: 1.0; duration: 540; easing.type: Easing.OutBack }
+                        NumberAnimation { target: introLock; property: "opacity"; to: 1.0; duration: 340; easing.type: Services.Sizes.easeOut }
+                        NumberAnimation { target: introLock; property: "scale"; to: 1.0; duration: 540; easing.type: Easing.OutBack; easing.overshoot: Services.Sizes.overshoot }
                     }
                     // beat: the padlock sits there, open, long enough to read
                     PauseAnimation { duration: 340 }
@@ -916,12 +922,12 @@ Scope {
                     ParallelAnimation {
                         SequentialAnimation {
                             NumberAnimation { target: introLock; property: "scale"; to: 1.18; duration: 130; easing.type: Easing.OutQuad }
-                            NumberAnimation { target: introLock; property: "scale"; to: 1.0; duration: 340; easing.type: Easing.OutBack }
+                            NumberAnimation { target: introLock; property: "scale"; to: 1.0; duration: 340; easing.type: Easing.OutBack; easing.overshoot: Services.Sizes.overshoot }
                         }
                         ParallelAnimation {
-                            NumberAnimation { target: introRing; property: "opacity"; from: 0.7; to: 0.0; duration: 700; easing.type: Easing.OutCubic }
-                            NumberAnimation { target: introRing; property: "width"; from: 128; to: 300; duration: 700; easing.type: Easing.OutCubic }
-                            NumberAnimation { target: introRing; property: "height"; from: 128; to: 300; duration: 700; easing.type: Easing.OutCubic }
+                            NumberAnimation { target: introRing; property: "opacity"; from: 0.7; to: 0.0; duration: 700; easing.type: Services.Sizes.easeOut }
+                            NumberAnimation { target: introRing; property: "width"; from: 128; to: 300; duration: 700; easing.type: Services.Sizes.easeOut }
+                            NumberAnimation { target: introRing; property: "height"; from: 128; to: 300; duration: 700; easing.type: Services.Sizes.easeOut }
                         }
                     }
                     PauseAnimation { duration: 380 }
@@ -931,7 +937,7 @@ Scope {
                     ParallelAnimation {
                         NumberAnimation { target: introOverlay; property: "opacity"; to: 0.0; duration: 520; easing.type: Easing.InOutQuad }
                         NumberAnimation { target: introLock; property: "opacity"; to: 0.0; duration: 380; easing.type: Easing.InQuad }
-                        NumberAnimation { target: introLock; property: "scale"; to: 1.6; duration: 520; easing.type: Easing.InCubic }
+                        NumberAnimation { target: introLock; property: "scale"; to: 1.6; duration: 520; easing.type: Services.Sizes.easeIn }
                     }
                     ScriptAction { script: surface.introDone = true }
                 }
