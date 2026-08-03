@@ -26,9 +26,9 @@ Rectangle {
     // Hidden from Settings > Bar > Pills
     visible: Services.Prefs.pillVisible("locks") && (opacity > 0)
     clip: true
-    Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-    Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-    Behavior on opacity { NumberAnimation { duration: 150 } }
+    Behavior on width { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
+    Behavior on height { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
+    Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
 
     // Material Symbols draw their ink inside a wider advance box, so a plain

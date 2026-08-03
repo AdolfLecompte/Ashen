@@ -122,8 +122,8 @@ Item {
         height: root.vertical ? shownRow.height + root.pad * 2 : root.pillH
         // The box travels to its new size while it is empty — same order as the
         // media island: box first, content after.
-        Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutQuint } }
-        Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutQuint } }
+        Behavior on width { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeBox } }
+        Behavior on height { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeBox } }
 
         Connections {
             target: root
@@ -155,8 +155,8 @@ Item {
             readonly property real centred: (root.pillH - root.innerH) / 2
             x: root.vertical ? centred : slot
             y: root.vertical ? slot : centred
-            Behavior on x { SmoothedAnimation { duration: 250 } }
-            Behavior on y { SmoothedAnimation { duration: 250 } }
+            Behavior on x { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
+            Behavior on y { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
         }
 
         BarStrip {
@@ -190,7 +190,7 @@ Item {
                     // `.containsMouse` throws.
                     readonly property bool warm: chipHover && chipHover.containsMouse
                     scale: Services.Sizes.hoverScale(warm, chipHover && chipHover.pressed)
-                    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+                    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
 
                     Rectangle {
                         anchors.fill: parent
@@ -202,7 +202,7 @@ Item {
                         // light up under them.
                         color: Services.Colors.fillRest
                         opacity: parent.isActive ? 0 : parent.hasWindows ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 200 } }
+                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
                     }
 
                     // A workspace with something on it shows what that is; an
@@ -225,8 +225,8 @@ Item {
                         // the trick away.
                         opacity: Services.AppState.wsPreviewMorphing
                             && Services.AppState.wsPreviewId === parent.wsId ? 0 : 1
-                        Behavior on opacity { NumberAnimation { duration: 140 } }
-                        Behavior on color { ColorAnimation { duration: 200 } }
+                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
                     }
 
                     PreviewHover {
@@ -263,14 +263,14 @@ Item {
                     width: root.innerH; height: root.innerH
                     readonly property bool warm: spHover && spHover.containsMouse
                     scale: Services.Sizes.hoverScale(warm, spHover && spHover.pressed)
-                    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+                    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
 
                     Rectangle {
                         anchors.fill: parent
                         radius: root.innerR
                         color: parent.isShown ? Services.Colors.ghost : Services.Colors.fillRest
                         gradient: Services.Prefs.useGradients && (parent.isShown) ? Services.Colors.accentGradient : null
-                        Behavior on color { ColorAnimation { duration: 200 } }
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
                     }
 
                     Text {
@@ -284,8 +284,8 @@ Item {
                         // Handed over to the preview's caption while it is open
                         opacity: Services.AppState.wsPreviewMorphing
                             && Services.AppState.wsPreviewId === parent.modelData.id ? 0 : 1
-                        Behavior on opacity { NumberAnimation { duration: 140 } }
-                        Behavior on color { ColorAnimation { duration: 200 } }
+                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
                     }
 
                     PreviewHover {

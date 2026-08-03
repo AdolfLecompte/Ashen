@@ -31,7 +31,7 @@ Column {
         height: picker.rowH
         radius: 8
         color: headArea.containsMouse ? Services.Colors.ghostAlpha(0.14) : Services.Colors.ghostAlpha(0.06)
-        Behavior on color { ColorAnimation { duration: 120 } }
+        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
         Row {
             anchors.left: parent.left
@@ -69,7 +69,7 @@ Column {
             font.pixelSize: 16
             color: Services.Colors.mist
             rotation: picker.expanded ? 180 : 0
-            Behavior on rotation { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+            Behavior on rotation { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
         }
 
         MouseArea {
@@ -86,9 +86,9 @@ Column {
         width: parent.width
         clip: true
         height: picker.expanded ? optsCol.implicitHeight : 0
-        Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+        Behavior on height { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
         opacity: picker.expanded ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 160 } }
+        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
         Column {
             id: optsCol
@@ -106,7 +106,7 @@ Column {
                     color: active ? Services.Colors.ghostAlpha(0.2)
                          : optArea.containsMouse ? Services.Colors.ghostAlpha(0.1)
                          : "transparent"
-                    Behavior on color { ColorAnimation { duration: 120 } }
+                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                     Text {
                         anchors.left: parent.left

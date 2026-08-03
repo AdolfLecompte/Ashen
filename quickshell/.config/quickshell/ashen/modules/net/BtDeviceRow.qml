@@ -21,7 +21,7 @@ Rectangle {
     color: device.connected ? Services.Colors.ghostAlpha(0.2)
          : rowMouse.containsMouse ? Services.Colors.ghostAlpha(0.1)
          : "transparent"
-    Behavior on color { ColorAnimation { duration: 150 } }
+    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
     // BlueZ reports a freedesktop icon name ("audio-headset", "input-mouse"…);
     // map it to a Material Symbol. Order matters: "audio-headset" also matches

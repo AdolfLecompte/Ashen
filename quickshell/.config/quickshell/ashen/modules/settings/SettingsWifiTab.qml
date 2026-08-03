@@ -329,7 +329,7 @@ Item {
                 color: Services.Colors.ghostAlpha(0.1)
                 border.color: passInput.activeFocus ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.3)
                 border.width: 1
-                Behavior on border.color { ColorAnimation { duration: 150 } }
+                Behavior on border.color { ColorAnimation { duration: Services.Sizes.msMicro } }
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: 12
@@ -419,7 +419,7 @@ Item {
                         radius: parent.radius
                         color: Services.Colors.snowAlpha(0.16)
                         opacity: connectMouse.containsMouse ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
                     }
                     Text { anchors.centerIn: parent; text: "Connect"; color: Services.Colors.abyss; font.pixelSize: 13; font.family: "JetBrainsMono NF"; font.bold: true }
                     MouseArea {

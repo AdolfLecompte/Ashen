@@ -43,7 +43,7 @@ Rectangle {
                     source: modelData.icon
                     width: 24; height: 24
                     scale: Services.Sizes.hoverScale(trayHover.containsMouse, trayHover.pressed)
-                    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+                    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
                     // render at 2x and downscale: tray icons ship small pixmaps
                     // and look mushy when Qt upscales them
                     sourceSize: Qt.size(48, 48)

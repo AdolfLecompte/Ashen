@@ -37,7 +37,7 @@ Rectangle {
     // dead centre, so swelling it under a passing pointer nudged the whole
     // strip. The press is kept — that half is feedback for something you did.
     scale: pillHover.pressed ? Services.Sizes.pillPressScale : 1.0
-    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
 
     // Reports where it sits so the calendar can drop out of it
     PillCenter { key: "clock" }
@@ -68,7 +68,7 @@ Rectangle {
     Timer { id: handBack; interval: 470; onTriggered: root.takenOverByPanel = false }
 
     opacity: root.takenOverByPanel ? 0.0 : 1.0
-    Behavior on opacity { NumberAnimation { duration: 140 } }
+    Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
     Timer {
         interval: 1000

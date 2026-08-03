@@ -32,14 +32,14 @@ ColumnLayout {
             radius: 8
             color: glyphArea.containsMouse && sliderRow.glyphInteractive
                 ? Services.Colors.ghostAlpha(0.2) : "transparent"
-            Behavior on color { ColorAnimation { duration: 120 } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
             Text {
                 anchors.centerIn: parent
                 text: sliderRow.glyph
                 font.family: "Material Symbols Rounded"
                 font.pixelSize: 18
                 color: sliderRow.muted ? Services.Colors.mist : Services.Colors.ghost
-                Behavior on color { ColorAnimation { duration: 120 } }
+                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
             }
             MouseArea {
                 id: glyphArea

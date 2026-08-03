@@ -137,22 +137,22 @@ PanelWindow {
             id: openAnim
             NumberAnimation {
                 target: card; property: "fall"; to: 1
-                duration: 380; easing.type: Easing.OutCubic
+                duration: 380; easing.type: Services.Sizes.easeOut
             }
             NumberAnimation {
                 target: card; property: "stretch"; to: 1
-                duration: 300; easing.type: Easing.OutCubic
+                duration: 300; easing.type: Services.Sizes.easeOut
             }
             NumberAnimation {
                 target: card; property: "spread"; to: 1
-                duration: 450; easing.type: Easing.OutBack; easing.overshoot: 0.7
+                duration: 450; easing.type: Easing.OutBack; easing.overshoot: Services.Sizes.overshoot
             }
             // Box first, contents after — same order as everywhere else
             SequentialAnimation {
                 PauseAnimation { duration: 160 }
                 NumberAnimation {
                     target: card; property: "morph"; to: 1
-                    duration: 280; easing.type: Easing.OutCubic
+                    duration: 280; easing.type: Services.Sizes.easeOut
                 }
             }
             SequentialAnimation {
@@ -168,7 +168,7 @@ PanelWindow {
                 PauseAnimation { duration: 30 }
                 NumberAnimation {
                     target: card; property: "morph"; to: 0
-                    duration: 220; easing.type: Easing.InOutCubic
+                    duration: 220; easing.type: Services.Sizes.easeInOut
                 }
             }
             SequentialAnimation {
@@ -176,15 +176,15 @@ PanelWindow {
                 ParallelAnimation {
                     NumberAnimation {
                         target: card; property: "fall"; to: 0
-                        duration: 280; easing.type: Easing.InOutCubic
+                        duration: 280; easing.type: Services.Sizes.easeInOut
                     }
                     NumberAnimation {
                         target: card; property: "stretch"; to: 0
-                        duration: 250; easing.type: Easing.InOutCubic
+                        duration: 250; easing.type: Services.Sizes.easeInOut
                     }
                     NumberAnimation {
                         target: card; property: "spread"; to: 0
-                        duration: 250; easing.type: Easing.InOutCubic
+                        duration: 250; easing.type: Services.Sizes.easeInOut
                     }
                 }
             }

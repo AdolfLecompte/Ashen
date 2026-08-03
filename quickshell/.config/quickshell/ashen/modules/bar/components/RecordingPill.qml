@@ -12,7 +12,7 @@ Rectangle {
     // The bar's one hover language, from Sizes: grow under the pointer,
     // give a little under the click.
     scale: Services.Sizes.hoverScale(hover.containsMouse, hover.pressed)
-    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
 
     readonly property bool active: Services.AppState.recording
 
@@ -35,8 +35,8 @@ Rectangle {
 
     // Opening out to fit the clock is the pill telling you it started, so it
     // gets the same settle as the panels rather than a flat 150 ms slide.
-    Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutQuint } }
-    Behavior on color { ColorAnimation { duration: 200 } }
+    Behavior on width { NumberAnimation { duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeBox } }
+    Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
 
     // Counted in AppState, so the floating indicator shows the same number.
     readonly property string elapsed: Services.AppState.recordingElapsed
@@ -54,8 +54,8 @@ Rectangle {
             font.pixelSize: (root.active && !root.vertical) ? 16 : 22
             font.family: "Material Symbols Rounded"
             anchors.verticalCenter: parent.verticalCenter
-            Behavior on color { ColorAnimation { duration: 200 } }
-            Behavior on font.pixelSize { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
+            Behavior on font.pixelSize { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
 
             // A recording is the one thing on the bar that is still happening
             // while you look away, so the dot breathes for as long as it runs.
@@ -72,21 +72,22 @@ Rectangle {
                 alwaysRunToEnd: true
                 onStopped: { beat.xScale = 1; beat.yScale = 1; dot.opacity = 1 }
                 ParallelAnimation {
-                    NumberAnimation { target: beat; property: "xScale"; to: 1.18; duration: 620; easing.type: Easing.InOutSine }
-                    NumberAnimation { target: beat; property: "yScale"; to: 1.18; duration: 620; easing.type: Easing.InOutSine }
-                    NumberAnimation { target: dot; property: "opacity"; to: 0.72; duration: 620; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: beat; property: "xScale"; to: 1.18; duration: 620; easing.type: Services.Sizes.easeLoop }
+                    NumberAnimation { target: beat; property: "yScale"; to: 1.18; duration: 620; easing.type: Services.Sizes.easeLoop }
+                    NumberAnimation { target: dot; property: "opacity"; to: 0.72; duration: 620; easing.type: Services.Sizes.easeLoop }
                 }
                 ParallelAnimation {
-                    NumberAnimation { target: beat; property: "xScale"; to: 1.0; duration: 620; easing.type: Easing.InOutSine }
-                    NumberAnimation { target: beat; property: "yScale"; to: 1.0; duration: 620; easing.type: Easing.InOutSine }
-                    NumberAnimation { target: dot; property: "opacity"; to: 1.0; duration: 620; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: beat; property: "xScale"; to: 1.0; duration: 620; easing.type: Services.Sizes.easeLoop }
+                    NumberAnimation { target: beat; property: "yScale"; to: 1.0; duration: 620; easing.type: Services.Sizes.easeLoop }
+                    NumberAnimation { target: dot; property: "opacity"; to: 1.0; duration: 620; easing.type: Services.Sizes.easeLoop }
                 }
             }
         }
         Text {
-            // no room for a timer on a side bar
+            // No room for a timer on a side bar. `visible` alone collapses it
+            // in the Row; binding width to implicitWidth is a loop, because a
+            // Text recomputes implicitWidth from the width it was given.
             visible: root.active && !root.vertical
-            width: visible ? implicitWidth : 0
             text: root.elapsed
             color: Services.Colors.onColor(Services.Colors.ghost)
             font.pixelSize: 12

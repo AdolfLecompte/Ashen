@@ -24,7 +24,7 @@ Rectangle {
     height: 110
     radius: 12
     color: cardHover.containsMouse ? Services.Colors.ghostAlpha(0.18) : Services.Colors.ghostAlpha(0.1)
-    Behavior on color { ColorAnimation { duration: 150 } }
+    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
     RowLayout {
         anchors.fill: parent

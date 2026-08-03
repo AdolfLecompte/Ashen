@@ -64,7 +64,7 @@ Rectangle {
         onTriggered: chip.takenOver = false
     }
     opacity: takenOver ? 0.0 : 1.0
-    Behavior on opacity { NumberAnimation { duration: 140 } }
+    Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
     // The panel wears this for the first frames of its fall.
     onGlyphChanged: chip.publishFace()
@@ -95,17 +95,17 @@ Rectangle {
     width: vertical ? Services.Sizes.innerH : inner.width + 16
     height: vertical ? (expanded ? Services.Sizes.innerH + 13 : Services.Sizes.innerH)
                      : Services.Sizes.innerH
-    Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+    Behavior on height { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
 
     // The plate does not react. Hover is the chip growing and its contents
     // lifting to snow -- nothing lights up underneath them.
     color: active ? Services.Colors.ghost : Services.Colors.fillRest
     gradient: Services.Prefs.useGradients && active ? Services.Colors.accentGradient : null
-    Behavior on color { ColorAnimation { duration: 300 } }
+    Behavior on color { ColorAnimation { duration: Services.Sizes.msEmphasis } }
 
     // The bar's one hover language, from Sizes.
     scale: Services.Sizes.hoverScale(hovered, hover.pressed)
-    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
 
     MouseArea {
         id: hover
@@ -131,7 +131,7 @@ Rectangle {
             color: chip.contentColor
             font.pixelSize: 18
             font.family: "Material Symbols Rounded"
-            Behavior on color { ColorAnimation { duration: 200 } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
 
             // A swapped glyph pops rather than cutting: the volume icon changes
             // between headphones and speaker often enough to notice.
@@ -143,9 +143,9 @@ Rectangle {
             onTextChanged: pop.restart()
             ParallelAnimation {
                 id: pop
-                NumberAnimation { target: glyphText; property: "opacity"; from: 0.0; to: 1.0; duration: 180; easing.type: Easing.OutCubic }
-                NumberAnimation { target: popScale; property: "xScale"; from: 0.7; to: 1.0; duration: 200; easing.type: Easing.OutCubic }
-                NumberAnimation { target: popScale; property: "yScale"; from: 0.7; to: 1.0; duration: 200; easing.type: Easing.OutCubic }
+                NumberAnimation { target: glyphText; property: "opacity"; from: 0.0; to: 1.0; duration: 180; easing.type: Services.Sizes.easeOut }
+                NumberAnimation { target: popScale; property: "xScale"; from: 0.7; to: 1.0; duration: 200; easing.type: Services.Sizes.easeOut }
+                NumberAnimation { target: popScale; property: "yScale"; from: 0.7; to: 1.0; duration: 200; easing.type: Services.Sizes.easeOut }
             }
         }
 
@@ -170,7 +170,7 @@ Rectangle {
             font.pixelSize: chip.vertical ? 9 : 12
             font.family: "JetBrainsMono NF"
             font.bold: true
-            Behavior on color { ColorAnimation { duration: 200 } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
         }
     }
 }

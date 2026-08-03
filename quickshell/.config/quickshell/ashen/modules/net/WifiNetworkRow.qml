@@ -16,7 +16,7 @@ Rectangle {
     height: 54
     radius: 8
     color: rowMouse.containsMouse ? Services.Colors.ghostAlpha(0.1) : "transparent"
-    Behavior on color { ColorAnimation { duration: 150 } }
+    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
     RowLayout {
         anchors.fill: parent

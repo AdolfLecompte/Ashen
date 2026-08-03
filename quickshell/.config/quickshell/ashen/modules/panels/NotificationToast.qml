@@ -36,7 +36,7 @@ PanelWindow {
         width: 360
 
         move: Transition {
-            NumberAnimation { properties: "x,y"; duration: 260; easing.type: Easing.OutQuint }
+            NumberAnimation { properties: "x,y"; duration: 260; easing.type: Services.Sizes.easeBox }
         }
 
         Repeater {
@@ -66,7 +66,7 @@ PanelWindow {
                 property real collapse: 1
                 width: 360
                 height: fullH * collapse
-                Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                Behavior on height { NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut } }
 
                 // How much of its time is left, 1 to 0. Hangs off the service's
                 // tick because `expiresAt` is mutated in place and notifies
@@ -79,7 +79,7 @@ PanelWindow {
                     if (!e || h <= 0) return 1
                     return Math.max(0, Math.min(1, (e - Date.now()) / h))
                 }
-                Behavior on life { NumberAnimation { duration: 110 } }
+                Behavior on life { NumberAnimation { duration: Services.Sizes.msInstant } }
 
                 function dismiss() { Services.Notifications.dismissPopup(modelData.id) }
 
@@ -111,7 +111,7 @@ PanelWindow {
                         anchors.fill: parent
                         radius: parent.radius
                         color: Services.Colors.ghostAlpha(cardHover.containsMouse ? 0.07 : 0.0)
-                        Behavior on color { ColorAnimation { duration: 160 } }
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                     }
 
                     // ── Entry and exit, spelled out ───────────────────────
@@ -120,19 +120,19 @@ PanelWindow {
                     // flag that picks it.
                     ParallelAnimation {
                         id: enterAnim
-                        NumberAnimation { target: shell; property: "opacity"; from: 0; to: 1; duration: 240; easing.type: Easing.OutCubic }
-                        NumberAnimation { target: slideT; property: "x"; from: win.offEdge; to: 0; duration: 460; easing.type: Easing.OutQuint }
-                        NumberAnimation { target: shell; property: "scale"; from: 0.94; to: 1; duration: 460; easing.type: Easing.OutQuint }
+                        NumberAnimation { target: shell; property: "opacity"; from: 0; to: 1; duration: 240; easing.type: Services.Sizes.easeOut }
+                        NumberAnimation { target: slideT; property: "x"; from: win.offEdge; to: 0; duration: 460; easing.type: Services.Sizes.easeBox }
+                        NumberAnimation { target: shell; property: "scale"; from: 0.94; to: 1; duration: 460; easing.type: Services.Sizes.easeBox }
                     }
 
                     SequentialAnimation {
                         id: exitAnim
                         ParallelAnimation {
-                            NumberAnimation { target: shell; property: "opacity"; to: 0; duration: 190; easing.type: Easing.InCubic }
-                            NumberAnimation { target: slideT; property: "x"; to: win.offEdge; duration: 220; easing.type: Easing.InCubic }
-                            NumberAnimation { target: shell; property: "scale"; to: 0.92; duration: 220; easing.type: Easing.InCubic }
+                            NumberAnimation { target: shell; property: "opacity"; to: 0; duration: 190; easing.type: Services.Sizes.easeIn }
+                            NumberAnimation { target: slideT; property: "x"; to: win.offEdge; duration: 220; easing.type: Services.Sizes.easeIn }
+                            NumberAnimation { target: shell; property: "scale"; to: 0.92; duration: 220; easing.type: Services.Sizes.easeIn }
                         }
-                        NumberAnimation { target: card; property: "collapse"; to: 0; duration: 170; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: card; property: "collapse"; to: 0; duration: 170; easing.type: Services.Sizes.easeOut }
                     }
 
                     // A rebuilt delegate must not replay its entrance. The
@@ -351,9 +351,9 @@ PanelWindow {
                                 radius: 9
                                 color: actHover.containsMouse ? Services.Colors.ghostAlpha(0.4)
                                                               : Services.Colors.ghostAlpha(0.16)
-                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                                 scale: Services.Sizes.hoverScale(actHover.containsMouse, actHover.pressed)
-                                Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+                                Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
 
                                 Text {
                                     id: actLabel
@@ -363,7 +363,7 @@ PanelWindow {
                                     font.pixelSize: 11
                                     font.family: "JetBrainsMono NF"
                                     elide: Text.ElideRight
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                                 }
 
                                 MouseArea {
@@ -390,7 +390,7 @@ PanelWindow {
                         width: Math.max(0, (shell.width - 32) * card.life)
                         radius: 1
                         color: Services.Colors.ghostAlpha(Services.Notifications.hoverHolds > 0 ? 0.75 : 0.32)
-                        Behavior on color { ColorAnimation { duration: 200 } }
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
                     }
                 }
             }
@@ -409,10 +409,10 @@ PanelWindow {
                 radius: 9
                 color: countHover.containsMouse ? Services.Colors.ghostAlpha(0.35)
                                                 : Services.Colors.surfacePanel
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                 border.width: 0
                 scale: Services.Sizes.hoverScale(countHover.containsMouse, countHover.pressed)
-                Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+                Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
 
                 Text {
                     anchors.centerIn: parent
@@ -421,7 +421,7 @@ PanelWindow {
                     font.pixelSize: 11
                     font.bold: true
                     font.family: "JetBrainsMono NF"
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                 }
 
                 MouseArea {
@@ -439,10 +439,10 @@ PanelWindow {
                 radius: 9
                 color: sweepHover.containsMouse ? Services.Colors.ghostAlpha(0.35)
                                                 : Services.Colors.surfacePanel
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                 border.width: 0
                 scale: Services.Sizes.hoverScale(sweepHover.containsMouse, sweepHover.pressed)
-                Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+                Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
 
                 Text {
                     anchors.centerIn: parent
@@ -452,7 +452,7 @@ PanelWindow {
                     color: sweepHover.containsMouse ? Services.Colors.snow : Services.Colors.mist
                     font.pixelSize: 15
                     font.family: "Material Symbols Rounded"
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                 }
 
                 MouseArea {

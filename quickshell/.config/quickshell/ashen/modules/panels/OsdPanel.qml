@@ -89,8 +89,8 @@ Scope {
 
             opacity: hideTimer.running ? 1.0 : 0.0
             scale: hideTimer.running ? 1.0 : 0.85
-            Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-            Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
+            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
+            Behavior on scale { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Easing.OutBack; easing.overshoot: Services.Sizes.overshoot } }
 
             Column {
                 anchors.fill: parent
@@ -119,7 +119,7 @@ Scope {
                         color: Services.Colors.ghost
                         gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                         height: parent.height * Math.max(0, Math.min(1, win.level))
-                        Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+                        Behavior on height { NumberAnimation { duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
                     }
                 }
                 Text {

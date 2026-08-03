@@ -50,10 +50,10 @@ PanelWindow {
 
         // Origin-anchored open: grows out of its tray pill + fades, smooth settle.
         property real openAmt: root.shown ? 1.0 : 0.0
-        Behavior on openAmt { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
+        Behavior on openAmt { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeBox } }
 
         opacity: root.shown ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
         transform: Scale {
             origin.x: Services.Sizes.originX(card.x, card.width, Services.AppState.trayMenuCenterX)
             origin.y: Services.Sizes.originY(card.y, card.height, Services.AppState.trayMenuCenterY)

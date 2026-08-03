@@ -46,7 +46,7 @@ Rectangle {
 
     // The bar's one hover language. Never a local scale number.
     scale: available ? Services.Sizes.hoverScale(hover.containsMouse, hover.pressed) : 1.0
-    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
 
     Text {
         anchors.centerIn: parent

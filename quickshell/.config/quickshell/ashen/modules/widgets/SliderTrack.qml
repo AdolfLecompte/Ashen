@@ -77,13 +77,13 @@ Item {
             height: parent.height
             radius: parent.radius
             color: root.fillColor
-            Behavior on color { ColorAnimation { duration: 150 } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
             width: track.width * root.shown
             // Easing is for changes coming from elsewhere (keys, OSD); while
             // dragging it is just lag between cursor and knob.
             Behavior on width {
                 enabled: !root.dragging
-                NumberAnimation { duration: 120 }
+                NumberAnimation { duration: Services.Sizes.msMicro }
             }
         }
 
@@ -97,7 +97,7 @@ Item {
             x: Math.max(0, Math.min(track.width - width, fill.width - width / 2))
             Behavior on x {
                 enabled: !root.dragging
-                NumberAnimation { duration: 120 }
+                NumberAnimation { duration: Services.Sizes.msMicro }
             }
         }
     }

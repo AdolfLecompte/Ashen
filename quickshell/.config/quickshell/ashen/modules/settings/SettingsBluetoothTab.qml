@@ -66,7 +66,7 @@ Item {
                     color: tab.adapter && tab.adapter.discovering ? Services.Colors.ghost : Services.Colors.mist
                     font.pixelSize: 16
                     font.family: "Material Symbols Rounded"
-                    Behavior on color { ColorAnimation { duration: 200 } }
+                    Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
                 }
                 MouseArea {
                     anchors.fill: parent

@@ -9,7 +9,7 @@ Rectangle {
     // The bar's one hover language, from Sizes: grow under the pointer, give
     // a little under the click.
     scale: Services.Sizes.hoverScale(hover.containsMouse, hover.pressed)
-    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
     readonly property int pillH: Services.Sizes.pillH
     readonly property bool active: Services.AppState.launcherVisible
 
@@ -22,7 +22,7 @@ Rectangle {
                   : Services.Colors.surfacePill
     gradient: Services.Prefs.useGradients && (active) ? Services.Colors.accentGradient : null
     border.width: 0
-    Behavior on color { ColorAnimation { duration: 200 } }
+    Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
 
     Text {
         anchors.centerIn: parent
@@ -33,7 +33,7 @@ Rectangle {
              : hover.containsMouse ? Services.Colors.snow : Services.Colors.ghost
         font.pixelSize: 22
         font.family: "Material Symbols Rounded"
-        Behavior on color { ColorAnimation { duration: 200 } }
+        Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
     }
 
     MouseArea {

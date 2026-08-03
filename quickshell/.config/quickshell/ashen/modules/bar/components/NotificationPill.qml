@@ -9,7 +9,7 @@ Rectangle {
     // The bar's one hover language, from Sizes: grow under the pointer, give
     // a little under the click.
     scale: Services.Sizes.hoverScale(hover.containsMouse, hover.pressed)
-    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
+    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
     readonly property int pillH: Services.Sizes.pillH
     readonly property bool open: Services.AppState.notificationsVisible
     readonly property bool dnd: Services.AppState.doNotDisturb
@@ -23,7 +23,7 @@ Rectangle {
                 : Services.Colors.surfacePill
     gradient: Services.Prefs.useGradients && (open) ? Services.Colors.accentGradient : null
     border.width: 0
-    Behavior on color { ColorAnimation { duration: 300 } }
+    Behavior on color { ColorAnimation { duration: Services.Sizes.msEmphasis } }
 
     PillCenter { key: "notification" }
 
@@ -38,7 +38,7 @@ Rectangle {
              : hover.containsMouse ? Services.Colors.snow : Services.Colors.mist
         font.pixelSize: 24
         font.family: "Material Symbols Rounded"
-        Behavior on color { ColorAnimation { duration: 200 } }
+        Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
 
         // Subtle fade + scale pop whenever the glyph swaps (bell <-> DND).
         transform: Scale {
@@ -49,9 +49,9 @@ Rectangle {
         onTextChanged: bellSwap.restart()
         ParallelAnimation {
             id: bellSwap
-            NumberAnimation { target: bell; property: "opacity"; from: 0.0; to: 1.0; duration: 180; easing.type: Easing.OutCubic }
-            NumberAnimation { target: bellScale; property: "xScale"; from: 0.7; to: 1.0; duration: 200; easing.type: Easing.OutCubic }
-            NumberAnimation { target: bellScale; property: "yScale"; from: 0.7; to: 1.0; duration: 200; easing.type: Easing.OutCubic }
+            NumberAnimation { target: bell; property: "opacity"; from: 0.0; to: 1.0; duration: 180; easing.type: Services.Sizes.easeOut }
+            NumberAnimation { target: bellScale; property: "xScale"; from: 0.7; to: 1.0; duration: 200; easing.type: Services.Sizes.easeOut }
+            NumberAnimation { target: bellScale; property: "yScale"; from: 0.7; to: 1.0; duration: 200; easing.type: Services.Sizes.easeOut }
         }
     }
 
@@ -89,7 +89,7 @@ Rectangle {
         NumberAnimation {
             id: badgePop
             target: badge; property: "scale"
-            from: 0.6; to: 1.0; duration: 220; easing.type: Easing.OutQuint
+            from: 0.6; to: 1.0; duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeBox
         }
     }
 

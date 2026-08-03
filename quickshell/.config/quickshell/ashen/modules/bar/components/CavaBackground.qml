@@ -10,7 +10,7 @@ Item {
     readonly property var barValues: Services.Cava.barValues
     readonly property bool isActive: Services.Cava.isActive
     opacity: isActive ? 1.0 : 0.0
-    Behavior on opacity { NumberAnimation { duration: 400 } }
+    Behavior on opacity { NumberAnimation { duration: Services.Sizes.msPanel } }
 
     // Bars grow inwards from the screen edge the bar is docked to, so on a side
     // bar they lie down and run horizontally instead of standing up.

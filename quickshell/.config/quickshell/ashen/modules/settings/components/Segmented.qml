@@ -54,8 +54,8 @@ Item {
         y: root.pad
         color: Services.Colors.ghost
         gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-        Behavior on x { SmoothedAnimation { duration: 250 } }
-        Behavior on width { SmoothedAnimation { duration: 250 } }
+        Behavior on x { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
+        Behavior on width { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
     }
 
     Row {
@@ -97,7 +97,7 @@ Item {
                         font.family: "Material Symbols Rounded"
                         font.pixelSize: root.iconSize
                         color: cell.active ? Services.Colors.abyss : Services.Colors.mist
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                     }
                     Text {
                         visible: cell.hasLabel
@@ -105,7 +105,7 @@ Item {
                         font.pixelSize: root.labelSize
                         font.family: "JetBrainsMono NF"
                         color: cell.active ? Services.Colors.abyss : Services.Colors.snow
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                     }
                 }
 

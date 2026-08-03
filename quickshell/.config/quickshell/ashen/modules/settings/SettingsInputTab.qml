@@ -49,7 +49,7 @@ TabPage {
                     radius: 12
                     color: kbCard.active ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.12)
                     gradient: Services.Prefs.useGradients && (kbCard.active) ? Services.Colors.accentGradient : null
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                     ColumnLayout {
                         anchors.centerIn: parent
                         spacing: 4
@@ -85,7 +85,7 @@ TabPage {
                         radius: 9
                         color: rmArea.containsMouse ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.4)
                         gradient: Services.Prefs.useGradients && (rmArea.containsMouse) ? Services.Colors.accentGradient : null
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                         Text {
                             anchors.centerIn: parent
                             text: "\ue5cd"
@@ -115,7 +115,7 @@ TabPage {
                 border.color: Services.Colors.ghostAlpha(0.3)
                 border.width: 1
                 opacity: Services.Keyboard.canAdd ? 1.0 : 0.4
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                 ColumnLayout {
                     anchors.centerIn: parent
                     spacing: 4
@@ -168,9 +168,9 @@ TabPage {
             implicitHeight: pickerCol.implicitHeight + 20
             // Slide open/closed instead of snapping.
             Layout.preferredHeight: tab.pickerOpen ? implicitHeight : 0
-            Behavior on Layout.preferredHeight { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            Behavior on Layout.preferredHeight { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
             opacity: tab.pickerOpen ? 1.0 : 0.0
-            Behavior on opacity { NumberAnimation { duration: 160 } }
+            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
             ColumnLayout {
                 id: pickerCol

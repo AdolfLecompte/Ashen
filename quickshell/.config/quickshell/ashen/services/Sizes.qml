@@ -73,10 +73,27 @@ Singleton {
     readonly property int panelR: 22          // the panel itself
 
     // ── Motion ───────────────────────────────────────────────────────────
-    // Four durations plus the arrival pair below. Forty-two were in use.
-    readonly property int msMicro: 120        // colour and opacity swaps
+    // Every duration in the shell comes from here. Choreographies -- a drop,
+    // an arrival, a staged swap -- keep their own numbers: those are a score,
+    // not a style.
+    readonly property int msInstant: 90       // acknowledging a click
+    readonly property int msMicro: 140        // colour, opacity, hover
     readonly property int msStandard: 200     // a property moving on your input
-    readonly property int msEmphasis: 300     // resizing, or travelling a way
+    readonly property int msPronounced: 260   // an accent travelling, a tab turning
+    readonly property int msEmphasis: 320     // resizing, or covering a distance
+    readonly property int msPanel: 420        // a panel's own box
+
+    // The curves, named by what they are for.
+    readonly property int easeOut: Easing.OutCubic      // arriving, settling
+    readonly property int easeIn: Easing.InCubic        // leaving
+    readonly property int easeInOut: Easing.InOutCubic  // there and back
+    readonly property int easeBox: Easing.OutQuint      // a panel's box, no bounce
+    readonly property int easeLoop: Easing.InOutSine    // heartbeats, glows
+    readonly property int easeTrace: Easing.Linear      // progress strokes: a
+                                                        // front-loaded curve
+                                                        // hides the duration
+    // Overshoot lives only in a landing, and only across the short axis.
+    readonly property real overshoot: 0.7
 
     // ── Panel opening language ──────────────────────────────────────────
     // A layer surface is not on screen in the frame it is asked for, so a

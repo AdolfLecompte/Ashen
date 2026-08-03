@@ -51,9 +51,9 @@ Rectangle {
     clip: true
     opacity: root.present ? 1.0 : 0.0
 
-    Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-    Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-    Behavior on opacity { NumberAnimation { duration: 150 } }
+    Behavior on width { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
+    Behavior on height { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
+    Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
     Row {
         id: inner

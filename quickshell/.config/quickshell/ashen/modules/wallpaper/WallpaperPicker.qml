@@ -178,10 +178,10 @@ Scope {
             property Item activeTab: null
 
             opacity: win.shown ? 1.0 : 0.0
-            Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
             transform: Translate {
                 y: win.shown ? 0 : 16
-                Behavior on y { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+                Behavior on y { NumberAnimation { duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
             }
 
             // One container pill holding both tabs, so the labels always sit on
@@ -204,8 +204,8 @@ Scope {
                     radius: 9
                     color: Services.Colors.ghost
                     gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                    Behavior on x { SmoothedAnimation { duration: 250 } }
-                    Behavior on width { SmoothedAnimation { duration: 220 } }
+                    Behavior on x { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
+                    Behavior on width { SmoothedAnimation { duration: Services.Sizes.msStandard } }
                 }
 
                 Row {
@@ -237,7 +237,7 @@ Scope {
                     color: active ? "transparent"
                         : tabHover.containsMouse ? Services.Colors.ghostAlpha(0.12) : "transparent"
 
-                    Behavior on color { ColorAnimation { duration: 140 } }
+                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                     Row {
                         id: tabRow
@@ -301,10 +301,10 @@ Scope {
 
             // Rises from the bottom edge on open, sinks back into it on close
             opacity: win.shown ? 1.0 : 0.0
-            Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
             transform: Translate {
                 y: win.shown ? 0 : 28
-                Behavior on y { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+                Behavior on y { NumberAnimation { duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
             }
 
             ListView {
@@ -347,9 +347,9 @@ Scope {
                         scale: parent.isCurrent ? 1.0 : 0.9
                         opacity: parent.isCurrent ? 1.0 : Math.max(0.3, 1.0 - Math.abs(parent.dist) * 0.22)
 
-                        Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        Behavior on opacity { NumberAnimation { duration: 120 } }
+                        Behavior on height { NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut } }
+                        Behavior on scale { NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut } }
+                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
                         transform: Matrix4x4 {
                             matrix: Qt.matrix4x4(
@@ -386,7 +386,7 @@ Scope {
                             maskSource: maskRect
                             visible: img.status === Image.Ready
                             opacity: img.status === Image.Ready ? 1.0 : 0.0
-                            Behavior on opacity { NumberAnimation { duration: 140 } }
+                            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
                         }
 
                         // Placeholder while decoding, avoids the black gap
@@ -476,8 +476,8 @@ Scope {
                     height: 7; radius: 4
                     color: win.currentIndex === index ? Services.Colors.ghost : Qt.rgba(1,1,1,0.2)
                     gradient: Services.Prefs.useGradients && (win.currentIndex === index) ? Services.Colors.accentGradient : null
-                    Behavior on width { NumberAnimation { duration: 200 } }
-                    Behavior on color { ColorAnimation { duration: 200 } }
+                    Behavior on width { NumberAnimation { duration: Services.Sizes.msStandard } }
+                    Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor

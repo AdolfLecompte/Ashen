@@ -98,7 +98,7 @@ RowLayout {
         Item {
             Layout.fillWidth: true
             implicitHeight: root.editing ? 28 : shownPath.implicitHeight
-            Behavior on implicitHeight { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+            Behavior on implicitHeight { NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut } }
 
             Text {
                 id: shownPath
@@ -125,7 +125,7 @@ RowLayout {
                 border.color: root.badPath ? Services.Colors.error_
                             : field.activeFocus ? Services.Colors.ghost
                                                 : Services.Colors.ghostAlpha(0.2)
-                Behavior on border.color { ColorAnimation { duration: 140 } }
+                Behavior on border.color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                 TextField {
                     id: field
@@ -163,7 +163,7 @@ RowLayout {
         radius: 8
         color: btnHover.containsMouse ? Services.Colors.ghostAlpha(0.3)
                                       : Services.Colors.ghostAlpha(0.15)
-        Behavior on color { ColorAnimation { duration: 120 } }
+        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
         Text {
             anchors.centerIn: parent
             text: root.editing ? "Save" : "Change"
