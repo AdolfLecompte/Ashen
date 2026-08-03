@@ -30,18 +30,25 @@ Canvas {
     // canvas alive.
     property bool running: true
 
-    property real phase: 0
+    // One phase per wave, each wrapped at its own turn. A single phase shared
+    // by two waves running at different speeds cannot wrap without one of them
+    // jumping, which is the tear that made the loop restart.
+    property real phaseA: 0
+    property real phaseB: 0
     onLevelChanged: requestPaint()
     onGradient_Changed: requestPaint()
     onColor_Changed: requestPaint()
     Component.onCompleted: requestPaint()
 
+    readonly property real tau: Math.PI * 2
+
     Timer {
         running: root.running && root.visible
-        interval: 40
+        interval: 33
         repeat: true
         onTriggered: {
-            root.phase = (root.phase + 2 * Math.PI * interval / root.periodMs) % (2 * Math.PI)
+            root.phaseA = (root.phaseA + root.tau * interval / root.periodMs) % root.tau
+            root.phaseB = (root.phaseB + root.tau * interval / (root.periodMs * 0.62)) % root.tau
             root.requestPaint()
         }
     }
@@ -75,20 +82,23 @@ Canvas {
         ctx.beginPath()
         ctx.moveTo(0, h)
         ctx.lineTo(0, base)
-        for (let x = 0; x <= w; x += 4) {
+        // Whole numbers of cycles across the width, so the surface meets both
+        // walls at the same height and the swell reads as one rolling motion
+        // rather than a wave shape that happens to be sliding past.
+        for (let x = 0; x <= w; x += 3) {
+            const u = x / w * root.tau
             const y = base
-                + Math.sin(x / w * Math.PI * 2 + root.phase) * amp
-                + Math.sin(x / w * Math.PI * 3.7 - root.phase * 1.6) * amp * 0.45
+                + Math.sin(u + root.phaseA) * amp
+                + Math.sin(u * 2 - root.phaseB) * amp * 0.45
             ctx.lineTo(x, y)
         }
         ctx.lineTo(w, h)
         ctx.closePath()
         if (root.gradient_) {
             const g = ctx.createLinearGradient(0, 0, w, 0)
-            const d = Services.Colors.gradientDepth
             const a = root.color_.a
-            const lit = Services.Colors.lift(root.color_, d)
-            const dark = Services.Colors.lift(root.color_, -d)
+            const lit = Services.Colors.lift(root.color_, Services.Colors.gradientUp)
+            const dark = Services.Colors.lift(root.color_, -Services.Colors.gradientDown)
             g.addColorStop(0, Qt.rgba(lit.r, lit.g, lit.b, a))
             g.addColorStop(0.5, root.color_)
             g.addColorStop(1, Qt.rgba(dark.r, dark.g, dark.b, a))
