@@ -41,6 +41,9 @@ Singleton {
     // it grows, and its contents lift to snow. A plate that changed colour as
     // well was a third answer to the same question, and the bar flickered
     // under a pointer merely crossing it.
+    // The veil a modal drops over the screen. Was hardcoded black, the one
+    // colour in the shell that did not come from the scheme.
+    readonly property color scrim: Qt.rgba(abyss.r, abyss.g, abyss.b, 0.55)
     function surfaceAlpha(a) { return Qt.rgba(surface.r, surface.g, surface.b, a) }
     function snowAlpha(a) { return Qt.rgba(snow.r, snow.g, snow.b, a) }
 
@@ -86,11 +89,15 @@ Singleton {
     // than as depth, and on matugen palettes where they are close it barely
     // read at all. Backgrounds never use this. Reactive: ghost updates on
     // recolour, so does the gradient.
+    // How far the two ends travel from the accent. One number, because the
+    // Canvas-drawn copies (PowerMenu's hold fill) have to build the same
+    // gradient by hand and cannot read the Gradient object itself.
+    readonly property real gradientDepth: 0.28
     readonly property Gradient accentGradient: Gradient {
         orientation: Gradient.Horizontal
-        GradientStop { position: 0.0; color: root.lift(root.ghost, 0.14) }
+        GradientStop { position: 0.0; color: root.lift(root.ghost, root.gradientDepth) }
         GradientStop { position: 0.5; color: root.ghost }
-        GradientStop { position: 1.0; color: root.lift(root.ghost, -0.14) }
+        GradientStop { position: 1.0; color: root.lift(root.ghost, -root.gradientDepth) }
     }
 
     // ── Live reload: the JSON is written by applyScheme() (Theme tab) or matugen

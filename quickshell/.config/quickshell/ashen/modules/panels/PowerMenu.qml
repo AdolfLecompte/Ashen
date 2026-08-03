@@ -5,49 +5,43 @@ import QtQuick
 import "root:/modules/widgets" as Widgets
 import "root:/services" as Services
 
+// The four ways out, as a panel like any other: a card of named tiles instead
+// of a strip of bare icons stuck to the screen edge. Restart and shut down
+// have to be held; the fill rising through the tile is what says so.
 PanelWindow {
     id: root
 
-    anchors {
-        top: true
-        left: true
-        right: true
-        bottom: true
-    }
+    anchors { top: true; left: true; right: true; bottom: true }
     screen: Services.Screens.active
-
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     // stays mapped through the close animation, so the exit plays in reverse
     readonly property bool shown: Services.AppState.powerMenuVisible
     visible: shown || closeDelay.running
     onShownChanged: if (!shown) closeDelay.restart()
-    Timer { id: closeDelay; interval: arrive.holdMs }
+    Timer { id: closeDelay; interval: host.holdMs }
 
-    // Escape gets you out of the most consequential thing in the shell. It was
-    // the only panel that took no keys at all: the way out was to find a patch
-    // of screen the buttons were not on and click it.
     WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     function close() { Services.AppState.powerMenuVisible = false }
 
-    Widgets.EdgeEntry {
-        id: arrive
-        shown: root.shown
-        edge: Services.Sizes.barPosition === "left" ? "left" : "right"
-        // No card to grow into, so this one really does come from outside.
-        travel: 130
-    }
+    // Every one of these has to be held down, not clicked. Nothing here is
+    // red: error_ is for something that went wrong, and shutting a machine
+    // down on purpose is not that -- what sets these apart is that they make
+    // you keep pressing.
+    readonly property var actions: [
+        { icon: "", label: "Lock",      cmd: "",                   lock: true },
+        { icon: "", label: "Suspend",   cmd: "systemctl suspend"  },
+        { icon: "", label: "Restart",   cmd: "systemctl reboot"   },
+        { icon: "", label: "Shut down", cmd: "systemctl poweroff" },
+    ]
 
     Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(0, 0, 0, 0.55)
-        opacity: Services.AppState.powerMenuVisible ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 250 } }
-        MouseArea {
-            anchors.fill: parent
-            onClicked: root.close()
-        }
+        color: Services.Colors.scrim
+        opacity: root.shown ? 1.0 : 0.0
+        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msPronounced } }
+        MouseArea { anchors.fill: parent; onClicked: root.close() }
     }
 
     FocusScope {
@@ -56,156 +50,196 @@ PanelWindow {
         Keys.onEscapePressed: root.close()
     }
 
-    Column {
-        // Follows the power pill: end of the bar, whichever edge that is
-        anchors.verticalCenter: parent.verticalCenter
-        x: Services.Sizes.barPosition === "left"
-           ? Math.max(16, Services.Sizes.marginLeft)
-           : parent.width - width - Math.max(16, Services.Sizes.marginRight)
-        spacing: 12
-        id: powerCol
-        // Comes in from the edge it hugs, then the buttons stack up one after
-        // another — which is what a column of four wants to do anyway.
-        opacity: arrive.fade
-        visible: root.shown || opacity > 0
-        transform: Translate { x: arrive.offX; y: arrive.offY }
+    Widgets.PanelHost {
+        id: host
+        shown: root.shown
+        pillKey: "power"
+        restSide: "center"
+        pillCX: Services.AppState.powerPillCenterX
+        pillCY: Services.AppState.powerPillCenterY
+        pillW: Services.AppState.powerPillW
+        pillH: Services.AppState.powerPillH
+        pillActive: root.shown
+        pillColor: Services.Colors.surfacePill
+        pillGlyph: Services.AppState.pillGlyph("power")
 
-        Repeater {
-            model: [
-                // `hold` is for the two you cannot take back. Nothing here is
-                // painted red: error_ is for something that went wrong, and
-                // shutting a machine down on purpose is not that. What sets
-                // those two apart is that they make you keep pressing.
-                { icon: "\ue899", cmd: "qs ipc -c ashen call lockscreen lock", hold: false },
-                { icon: "\uf159", cmd: "systemctl suspend",                    hold: false },
-                { icon: "\uf053", cmd: "systemctl reboot",                     hold: true  },
-                { icon: "\uf8c7", cmd: "systemctl poweroff",                   hold: true  },
-            ]
-            delegate: Item {
-                id: tile
-                required property var modelData
-                required property int index
-                readonly property bool needsHold: modelData.hold === true
+        readonly property int tileW: 160
+        readonly property int tileH: 172
+        readonly property int gap: 14
+        readonly property int pad: 24
+        openW: 4 * tileW + 3 * gap + pad * 2
+        openH: tileH + pad * 2
+        // Centred whichever way it arrives: it is the most consequential thing
+        // in the shell and should not be read out of the corner of your eye.
+        openXOverride: (root.width - host.openW) / 2
+        openYOverride: (root.height - host.openH) / 2
+        cardRadius: Services.Sizes.panelR
 
-                width: 90; height: 90
-                readonly property int radius_: Services.Sizes.cardR
+        body: Component {
+            Item {
+                id: card
 
-                opacity: arrive.stage(index)
-                // The bar's one hover language: it grows, and its glyph lifts.
-                // The plate does not light up -- this was the last hover tint
-                // left anywhere after the bar was cleaned out.
-                scale: (0.9 + 0.1 * arrive.stage(index))
-                       * Services.Sizes.hoverScale(hover.containsMouse, hover.pressed)
-                Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
-
-                // ── Hold to mean it ────────────────────────────────────────
-                // Fills from the bottom up while you keep pressing, and drains
-                // if you let go. A short press on one of these does nothing
-                // except show you a little of the fill, which is how you find
-                // out that it wants holding without a word of text on screen.
-                property real holdAmt: 0
-                onHoldAmtChanged: plate.requestPaint()
-                Connections {
-                    target: Services.Colors
-                    function onGhostChanged() { plate.requestPaint() }
-                    function onSurfaceChanged() { plate.requestPaint() }
-                }
-                function fire() {
-                    root.close()
-                    Quickshell.execDetached(["sh", "-c", tile.modelData.cmd])
-                }
-                NumberAnimation {
-                    id: holdFill
-                    target: tile; property: "holdAmt"
-                    to: 1; duration: 700
-                    easing.type: Easing.Linear
-                    onFinished: tile.fire()
-                }
-                NumberAnimation {
-                    id: holdDrain
-                    target: tile; property: "holdAmt"
-                    to: 0; duration: 180
-                    easing.type: Easing.OutCubic
+                // The four tiles land one after another out of the card's
+                // single content driver.
+                function stage(i) {
+                    const start = Math.min(0.5, i * 0.12)
+                    return Math.max(0, Math.min(1, (host.contentAmt - start) / (1 - start)))
                 }
 
-                // Plate and fill are one Canvas, not a Rectangle with a
-                // Rectangle clipped inside it. `clip` clips to the bounding
-                // BOX, never to the radius, so the rising fill came up square
-                // and cut the corners off the tile it was filling. A path is
-                // the only thing that knows where the corner is.
-                Canvas {
-                    id: plate
-                    anchors.fill: parent
-                    onPaint: {
-                        const ctx = getContext("2d")
-                        ctx.reset()
-                        const w = width, h = height, r = tile.radius_
-
-                        function shape() {
-                            ctx.beginPath()
-                            ctx.moveTo(r, 0)
-                            ctx.arcTo(w, 0, w, h, r)
-                            ctx.arcTo(w, h, 0, h, r)
-                            ctx.arcTo(0, h, 0, 0, r)
-                            ctx.arcTo(0, 0, w, 0, r)
-                            ctx.closePath()
-                        }
-
-                        shape()
-                        ctx.fillStyle = Services.Colors.surfacePanel
-                        ctx.fill()
-
-                        if (tile.holdAmt <= 0.001) return
-                        ctx.save()
-                        shape()
-                        ctx.clip()
-                        const top = h * (1 - tile.holdAmt)
-                        if (Services.Prefs.useGradients) {
-                            // Same accent gradient the rest of the shell wears:
-                            // one tone lit from the left, read off Colors so a
-                            // recolour carries here too.
-                            const g = ctx.createLinearGradient(0, 0, w, 0)
-                            g.addColorStop(0, Services.Colors.lift(Services.Colors.ghost, 0.14))
-                            g.addColorStop(0.5, Services.Colors.ghost)
-                            g.addColorStop(1, Services.Colors.lift(Services.Colors.ghost, -0.14))
-                            ctx.fillStyle = g
-                        } else {
-                            ctx.fillStyle = Services.Colors.ghost
-                        }
-                        ctx.fillRect(0, top, w, h - top)
-                        ctx.restore()
-                    }
-                }
-
-                Text {
+                Row {
                     anchors.centerIn: parent
-                    text: tile.modelData.icon
-                    // Once the fill is past the middle the glyph is sitting on
-                    // the accent, so it takes whichever of black and white can
-                    // be read on it. Below that it is on the panel surface and
-                    // behaves like every other glyph on hover.
-                    color: tile.holdAmt > 0.5
-                        ? Services.Colors.onColor(Services.Colors.ghost)
-                        : (hover.containsMouse ? Services.Colors.snow : Services.Colors.ghost)
-                    font.pixelSize: Services.Sizes.fsHero
-                    font.family: "Material Symbols Rounded"
-                    z: 1
-                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                }
+                    spacing: host.gap
 
-                MouseArea {
-                    id: hover
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    hoverEnabled: true
-                    onPressed: if (tile.needsHold) { holdDrain.stop(); holdFill.restart() }
-                    // Released, cancelled, or the pointer slid off mid-hold are
-                    // all "changed your mind", and only the first of the three
-                    // fires `released`.
-                    onReleased: if (tile.needsHold) { holdFill.stop(); holdDrain.restart() }
-                    onCanceled: if (tile.needsHold) { holdFill.stop(); holdDrain.restart() }
-                    onExited: if (tile.needsHold) { holdFill.stop(); holdDrain.restart() }
-                    onClicked: if (!tile.needsHold) tile.fire()
+                    Repeater {
+                        model: root.actions
+
+                        delegate: Item {
+                            id: tile
+                            required property var modelData
+                            required property int index
+
+                            width: host.tileW
+                            height: host.tileH
+
+                            opacity: card.stage(index)
+                            // The shell's one hover language: it grows and its
+                            // contents lift. The plate never lights up.
+                            scale: (0.92 + 0.08 * card.stage(index))
+                                   * Services.Sizes.hoverScale(hover.containsMouse, hover.pressed)
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: Services.Sizes.pillHoverMs
+                                    easing.type: Services.Sizes.easeOut
+                                }
+                            }
+
+                            // Held down the fill rises through the tile, and
+                            // drains if you let go. A short press shows a
+                            // little of it, which is how you find out it wants
+                            // holding without a word on screen.
+                            property real holdAmt: 0
+                            onHoldAmtChanged: plate.requestPaint()
+                            Connections {
+                                target: Services.Colors
+                                function onGhostChanged() { plate.requestPaint() }
+                                function onSurfaceChanged() { plate.requestPaint() }
+                            }
+                            function fire() {
+                                root.close()
+                                // Locking happens in this process: spawning a
+                                // shell to call our own IPC was the shell
+                                // asking itself to do what it can already do.
+                                if (tile.modelData.lock === true) {
+                                    Services.AppState.lockRequested()
+                                    return
+                                }
+                                Quickshell.execDetached(["sh", "-c", tile.modelData.cmd])
+                            }
+                            NumberAnimation {
+                                id: holdFill
+                                target: tile; property: "holdAmt"
+                                to: 1; duration: 700
+                                easing.type: Services.Sizes.easeTrace
+                                onFinished: tile.fire()
+                            }
+                            NumberAnimation {
+                                id: holdDrain
+                                target: tile; property: "holdAmt"
+                                to: 0; duration: Services.Sizes.msStandard
+                                easing.type: Services.Sizes.easeOut
+                            }
+
+                            // Plate and fill are one Canvas: `clip` clips to
+                            // the bounding box and never to the radius, so a
+                            // clipped fill rose square and ate the corners.
+                            Canvas {
+                                id: plate
+                                anchors.fill: parent
+                                onPaint: {
+                                    const ctx = getContext("2d")
+                                    ctx.reset()
+                                    const w = width, h = height, r = Services.Sizes.cardR
+
+                                    function shape() {
+                                        ctx.beginPath()
+                                        ctx.moveTo(r, 0)
+                                        ctx.arcTo(w, 0, w, h, r)
+                                        ctx.arcTo(w, h, 0, h, r)
+                                        ctx.arcTo(0, h, 0, 0, r)
+                                        ctx.arcTo(0, 0, w, 0, r)
+                                        ctx.closePath()
+                                    }
+
+                                    shape()
+                                    ctx.fillStyle = Services.Colors.fillInset
+                                    ctx.fill()
+
+                                    if (tile.holdAmt <= 0.001) return
+                                    ctx.save()
+                                    shape()
+                                    ctx.clip()
+                                    const top = h * (1 - tile.holdAmt)
+                                    if (Services.Prefs.useGradients) {
+                                        const g = ctx.createLinearGradient(0, 0, w, 0)
+                                        g.addColorStop(0, Services.Colors.lift(Services.Colors.ghost, Services.Colors.gradientDepth))
+                                        g.addColorStop(0.5, Services.Colors.ghost)
+                                        g.addColorStop(1, Services.Colors.lift(Services.Colors.ghost, -Services.Colors.gradientDepth))
+                                        ctx.fillStyle = g
+                                    } else {
+                                        ctx.fillStyle = Services.Colors.ghost
+                                    }
+                                    ctx.fillRect(0, top, w, h - top)
+                                    ctx.restore()
+                                }
+                            }
+
+                            // Past halfway the contents sit on the accent and
+                            // take whichever of black and white reads on it.
+                            readonly property bool onAccent: tile.holdAmt > 0.5
+
+                            Column {
+                                anchors.centerIn: parent
+                                spacing: 12
+                                z: 1
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: tile.modelData.icon
+                                    color: tile.onAccent
+                                        ? Services.Colors.onColor(Services.Colors.ghost)
+                                        : (hover.containsMouse ? Services.Colors.snow : Services.Colors.ghost)
+                                    font.pixelSize: 40
+                                    font.family: "Material Symbols Rounded"
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                }
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: tile.modelData.label
+                                    color: tile.onAccent
+                                        ? Services.Colors.onColor(Services.Colors.ghost)
+                                        : (hover.containsMouse ? Services.Colors.snow : Services.Colors.mist)
+                                    font.pixelSize: Services.Sizes.fsCardTitle
+                                    font.bold: true
+                                    font.family: "JetBrainsMono NF"
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                }
+                            }
+
+                            MouseArea {
+                                id: hover
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                hoverEnabled: true
+                                onPressed: { holdDrain.stop(); holdFill.restart() }
+                                // Released, cancelled, or the pointer sliding
+                                // off are all "changed your mind", and only the
+                                // first of the three fires `released`.
+                                onReleased: { holdFill.stop(); holdDrain.restart() }
+                                onCanceled: { holdFill.stop(); holdDrain.restart() }
+                                onExited: { holdFill.stop(); holdDrain.restart() }
+                            }
+                        }
+                    }
                 }
             }
         }
