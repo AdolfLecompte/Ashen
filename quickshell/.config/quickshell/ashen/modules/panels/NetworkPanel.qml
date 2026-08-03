@@ -184,11 +184,21 @@ PanelWindow {
 
         body: Component {
             Item {
+                id: bodyRoot
+
                 readonly property real contentH: panelCol.implicitHeight
-                readonly property Item glyphTarget: Services.AppState.networkTab === "wifi"
+                readonly property Item glyphTarget: bodyRoot.shownTab === "wifi"
                     ? graph.hubGlyphItem : ethGraph.hubGlyphItem
-                readonly property Item labelTarget: Services.AppState.networkTab === "wifi"
+                readonly property Item labelTarget: bodyRoot.shownTab === "wifi"
                     ? graph.hubLabelItem : ethGraph.hubLabelItem
+
+                // Which side the body is showing. Follows the tab a beat later,
+                // on the slide's commit: the tab you pressed lights up at once,
+                // what it reveals arrives when there is nothing left to read.
+                // Assigned, never bound -- a binding would track the tab live
+                // and the body would jump on the press like it used to.
+                property string shownTab: "wifi"
+                Component.onCompleted: bodyRoot.shownTab = Services.AppState.networkTab
 
                 Column {
                     id: panelCol
@@ -246,7 +256,7 @@ PanelWindow {
                                         spacing: 6
                                         Text {
                                             text: modelData.icon
-                                            color: parent.parent.on ? Services.Colors.abyss : Services.Colors.snow
+                                            color: parent.parent.on ? Services.Colors.accentText : Services.Colors.snow
                                             font.pixelSize: 16
                                             font.family: "Material Symbols Rounded"
                                             anchors.verticalCenter: parent.verticalCenter
@@ -254,7 +264,7 @@ PanelWindow {
                                         }
                                         Text {
                                             text: modelData.label
-                                            color: parent.parent.on ? Services.Colors.abyss : Services.Colors.snow
+                                            color: parent.parent.on ? Services.Colors.accentText : Services.Colors.snow
                                             font.pixelSize: 13
                                             font.family: "JetBrainsMono NF"
                                             anchors.verticalCenter: parent.verticalCenter
@@ -271,14 +281,12 @@ PanelWindow {
                         }
                     }
 
-                    // Both tabs live in one box that resizes between them, and they
-                    // cross-fade rather than swapping on the spot. Flipping `visible`
-                    // put the whole of one side on screen in the frame the other left,
-                    // and the card's height went with it in the same frame.
+                    // Both tabs live in one box that resizes between them.
                     Widgets.SlideSwap {
                         id: tabSlide
                         axis: "horizontal"
                         index: Services.AppState.networkTab === "ethernet" ? 1 : 0
+                        onCommit: bodyRoot.shownTab = Services.AppState.networkTab
                     }
 
                     Item {
@@ -287,7 +295,7 @@ PanelWindow {
                         clip: true
                         opacity: tabSlide.fade
                         transform: Translate { x: tabSlide.offX }
-                        readonly property Item live: Services.AppState.networkTab === "wifi"
+                        readonly property Item live: bodyRoot.shownTab === "wifi"
                             ? wifiCol : ethCol
                         height: tabBody.live.implicitHeight
                         Behavior on height { NumberAnimation { duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
@@ -299,7 +307,7 @@ PanelWindow {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             spacing: 8
-                            visible: Services.AppState.networkTab === "wifi"
+                            visible: bodyRoot.shownTab === "wifi"
 
                             RowLayout {
                                 width: parent.width
@@ -592,7 +600,7 @@ PanelWindow {
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: "Join"
-                                                color: Services.Colors.abyss
+                                                color: Services.Colors.accentText
                                                 font.pixelSize: 12
                                                 font.bold: true
                                                 font.family: "JetBrainsMono NF"
@@ -619,7 +627,7 @@ PanelWindow {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             spacing: 8
-                            visible: Services.AppState.networkTab === "ethernet"
+                            visible: bodyRoot.shownTab === "ethernet"
 
                             // Wi-Fi has a radio to switch and this has none, so this side was a
                             // whole row shorter and the card jumped by that much on every tab.

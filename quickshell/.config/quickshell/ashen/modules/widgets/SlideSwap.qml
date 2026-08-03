@@ -34,10 +34,17 @@ Item {
     // Nothing slides on the way in: a body built with its index already set
     // would otherwise play a change that never happened.
     property bool armed: false
+    // Off while something places the index itself -- opening a panel on the
+    // section that matches the current state is not a change you made.
+    property bool animate: true
     Component.onCompleted: { root.lastIndex = root.index; root.armed = true }
 
     onIndexChanged: {
-        if (!root.armed) { root.lastIndex = root.index; return }
+        if (!root.armed || !root.animate) {
+            root.lastIndex = root.index
+            root.commit()
+            return
+        }
         // Which way it moved decides which way it slides.
         const dir = root.index >= root.lastIndex ? 1 : -1
         root.lastIndex = root.index

@@ -411,14 +411,14 @@ Item {
 
                                     Text {
                                         text: parent.parent.modelData.icon
-                                        color: parent.parent.active ? Services.Colors.abyss : Services.Colors.snow
+                                        color: parent.parent.active ? Services.Colors.accentText : Services.Colors.snow
                                         font.pixelSize: 13
                                         font.family: "Material Symbols Rounded"
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
                                     Text {
                                         text: parent.parent.modelData.label
-                                        color: parent.parent.active ? Services.Colors.abyss : Services.Colors.snow
+                                        color: parent.parent.active ? Services.Colors.accentText : Services.Colors.snow
                                         font.pixelSize: 11
                                         font.bold: parent.parent.active
                                         font.family: "JetBrainsMono NF"
@@ -613,7 +613,7 @@ Item {
                                     Text {
                                         anchors.centerIn: parent
                                         text: modelData + "m"
-                                        color: parent.picked ? Services.Colors.abyss : Services.Colors.snow
+                                        color: parent.picked ? Services.Colors.accentText : Services.Colors.snow
                                         font.pixelSize: 10
                                         font.bold: true
                                         font.family: "JetBrainsMono NF"
@@ -705,8 +705,10 @@ Item {
                             glyph: "\ue8df"
                             size: 28
                             glyphSize: 15
-                            // Lit while you are already looking at this month
-                            active: grid.curMonth === grid.todayMonth && grid.curYear === grid.todayYear
+                            // Lit while you are already looking at this month.
+                            // Off `monthIndex`, not the month on show: a button
+                            // answers when you press it, not a slide later.
+                            active: grid.monthIndex === grid.todayYear * 12 + grid.todayMonth
                             onTriggered: grid.monthIndex = grid.todayYear * 12 + grid.todayMonth
                         }
                         CtlChip {
@@ -723,6 +725,7 @@ Item {
                     axis: "horizontal"
                     travel: 34
                     index: grid.monthIndex
+                    onCommit: grid.shownIndex = grid.monthIndex
                 }
 
                 Row {
@@ -755,12 +758,20 @@ Item {
                     // year, and stepping past December changed both -- two
                     // changes, so the slide ran twice for one press.
                     property int monthIndex: new Date().getFullYear() * 12 + new Date().getMonth()
+                    // The month on show, which is the one the days are drawn
+                    // from. It follows `monthIndex` on the slide's commit, so
+                    // the grid changes while it is off screen instead of
+                    // swapping under you and then sliding. Assigned, never
+                    // bound: a binding would track the month live and the days
+                    // would change on the press.
+                    property int shownIndex: 0
+                    Component.onCompleted: grid.shownIndex = grid.monthIndex
                     // The days slide the way the arrow points.
                     opacity: monthSlide.fade
                     transform: Translate { x: monthSlide.offX }
 
-                    readonly property int curMonth: monthIndex % 12
-                    readonly property int curYear: Math.floor(monthIndex / 12)
+                    readonly property int curMonth: shownIndex % 12
+                    readonly property int curYear: Math.floor(shownIndex / 12)
                     readonly property int today: root.now.getDate()
                     readonly property int todayMonth: root.now.getMonth()
                     readonly property int todayYear: root.now.getFullYear()
@@ -788,7 +799,7 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 text: parent.isValid ? parent.day : ""
-                                color: parent.isToday ? Services.Colors.abyss : Services.Colors.snow
+                                color: parent.isToday ? Services.Colors.accentText : Services.Colors.snow
                                 font.pixelSize: 12
                                 font.family: "JetBrainsMono NF"
                                 font.bold: parent.isToday
