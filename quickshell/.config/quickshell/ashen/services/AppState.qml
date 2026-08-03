@@ -58,8 +58,9 @@ Singleton {
     }
 
     property bool clipboardVisible: false
+    property bool notesVisible: false
 
-    property var bigOverlays: ["launcherVisible", "settingsVisible", "wallpaperVisible", "clipboardVisible", "processVisible", "utilitiesVisible"]
+    property var bigOverlays: ["launcherVisible", "settingsVisible", "wallpaperVisible", "clipboardVisible", "processVisible", "utilitiesVisible", "notesVisible"]
     // Reactive read of a panel's own flag by name, for anything driven from
     // the pill catalogue rather than wired to one panel.
     function overlayOpen(name) { return name !== "" && root[name] === true }
@@ -265,6 +266,7 @@ Singleton {
         else if (key === "process")    { root.processPillW = w;    root.processPillH = h }
         else if (key === "settings")   { root.settingsPillW = w;   root.settingsPillH = h }
         else if (key === "clipboard")  { root.clipboardPillW = w;  root.clipboardPillH = h }
+        else if (key === "notes")      { root.notesPillW = w;      root.notesPillH = h }
     }
 
     // A chip on the utility pill publishes itself the same way a bar pill
@@ -280,6 +282,9 @@ Singleton {
         else if (key === "clipboard") { root.clipboardPillCX = cx; root.clipboardPillCY = cy
                                         root.clipboardPillW = w;   root.clipboardPillH = h
                                         root.clipboardSourceEdge = edge }
+        else if (key === "notes")     { root.notesPillCX = cx;     root.notesPillCY = cy
+                                        root.notesPillW = w;       root.notesPillH = h
+                                        root.notesSourceEdge = edge }
         else { root.setPillCenter(key, cx, cy); root.setPillSize(key, w, h) }
     }
 
@@ -289,11 +294,13 @@ Singleton {
         if (key === "process") root.processSourceEdge = edge
         else if (key === "settings") root.settingsSourceEdge = edge
         else if (key === "clipboard") root.clipboardSourceEdge = edge
+        else if (key === "notes") root.notesSourceEdge = edge
     }
     function chipEdgeOf(key) {
         if (key === "process") return root.processSourceEdge
         if (key === "settings") return root.settingsSourceEdge
         if (key === "clipboard") return root.clipboardSourceEdge
+        if (key === "notes") return root.notesSourceEdge
         return ""
     }
 
@@ -311,6 +318,7 @@ Singleton {
         else if (key === "process")      { root.processPillCX = x;            root.processPillCY = y }
         else if (key === "settings")     { root.settingsPillCX = x;           root.settingsPillCY = y }
         else if (key === "clipboard")    { root.clipboardPillCX = x;          root.clipboardPillCY = y }
+        else if (key === "notes")        { root.notesPillCX = x;              root.notesPillCY = y }
     }
 
     property real trayMenuCenterX: 900
@@ -352,6 +360,12 @@ Singleton {
     property real clipboardPillW: 44
     property real clipboardPillH: 44
     property string clipboardSourceEdge: "bottom"
+
+    property real notesPillCX: 0
+    property real notesPillCY: 0
+    property real notesPillW: 44
+    property real notesPillH: 44
+    property string notesSourceEdge: "bottom"
 
     // Settings joins the other two on the utility pill.
     property real settingsPillCX: 0
@@ -395,6 +409,8 @@ Singleton {
                                           w: root.settingsPillW,    h: root.settingsPillH }
         if (key === "clipboard") return { cx: root.clipboardPillCX, cy: root.clipboardPillCY,
                                           w: root.clipboardPillW,   h: root.clipboardPillH }
+        if (key === "notes")     return { cx: root.notesPillCX,     cy: root.notesPillCY,
+                                          w: root.notesPillW,       h: root.notesPillH }
         return { cx: 0, cy: 0, w: 44, h: 44 }
     }
 

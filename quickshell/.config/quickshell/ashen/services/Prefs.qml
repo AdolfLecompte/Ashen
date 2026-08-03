@@ -18,11 +18,9 @@ Singleton {
     // Legacy single weather location ("lat|lon|City"). Kept only so old prefs.json
     // still parses and Weather can migrate it into weatherLocs once. Do not write.
     property string weatherLoc: ""
-    // Saved weather locations, MANY now (like keyboard layouts). Packed into ONE
-    // field because JsonAdapter drops intermediate values when several props are
-    // written in the same tick -- so the whole list AND the active index ride in
-    // one string. Format: line 0 = active index, each following line = "lat|lon|City".
-    // Empty -> Weather geolocates by IP. See Weather.qml for the codec.
+    // Saved weather locations, packed into ONE field because JsonAdapter drops
+    // sibling writes made in the same tick. Line 0 = active index, then one
+    // "lat|lon|City" per line. Empty -> Weather geolocates by IP.
     property string weatherLocs: ""
 
     // FileView loads async: without gating on this, singletons that read a pref in
@@ -43,6 +41,14 @@ Singleton {
     // Left/right make the bar vertical and every pill switches to its compact
     // stacked layout (see Sizes.barVertical).
     property string barPosition: "top"
+
+    // Light or dark. Applies to the seven fixed schemes and to what matugen is
+    // asked for when the palette comes from the wallpaper.
+    property string themeMode: "dark"
+
+    // How panels open. "morph": they come out of the capsule you pressed and
+    // transform into the panel. "plain": they simply appear, like a window.
+    property string panelStyle: "morph"
 
     // Subtle gradient on active/interactive accents (buttons, pills) when on.
     // Backgrounds never use it. See Colors.accentGradient.
@@ -86,20 +92,22 @@ Singleton {
     // ── Bar layout ──────────────────────────────────────────────────────
     // Which pills live in which of the bar's three sections, and in what order.
     // ONE packed string, never several fields: the adapter drops sibling writes
-    // made in the same tick. Format: "left;centre;right;utility", ids comma
-    // separated. Anything absent from all four is "available" and is not built.
+    // made in the same tick. Format: "left;centre;right", ids comma separated.
+    // Anything absent from all three is "available" and is not built.
+    //
+    // The utility pill is not a section: its tools are fixed (Pills.tools) and
+    // nothing moves between the two.
     property string barLayout: ""
 
     // Runtime truth. Same reason as hiddenPillList: reading the string back in
     // the tick it was written returns the old value.
-    property var barSections: ({ left: [], centre: [], right: [], utility: [] })
+    property var barSections: ({ left: [], centre: [], right: [] })
 
     // The arrangement the bar shipped with, used until the user moves anything.
     readonly property var defaultSections: ({
         left: ["launcher", "notifications", "workspaces", "media"],
         centre: ["locks", "usb", "clock", "recording"],
-        right: ["tray", "system", "power"],
-        utility: ["process", "settings", "clipboard"]
+        right: ["tray", "system", "power"]
     })
 
     function syncBarLayout() {
@@ -111,21 +119,18 @@ Singleton {
             root.barSections = {
                 left: keep(root.defaultSections.left),
                 centre: keep(root.defaultSections.centre),
-                right: keep(root.defaultSections.right),
-                utility: root.defaultSections.utility.slice()
+                right: keep(root.defaultSections.right)
             }
             return
         }
         const parts = raw.split(";")
         const cut = i => (parts[i] || "").split(",").filter(x => x !== "")
-        // A layout saved before the utility pill was arrangeable has three
-        // parts; its tools live where they always did.
-        root.barSections = { left: cut(0), centre: cut(1), right: cut(2),
-                             utility: parts.length > 3 ? cut(3)
-                                    : root.defaultSections.utility.slice() }
+        // A fourth part is a layout saved while the utility pill was
+        // arrangeable; those ids belong to the pill now and are dropped.
+        root.barSections = { left: cut(0), centre: cut(1), right: cut(2) }
     }
 
-    readonly property var sectionIds: ["left", "centre", "right", "utility"]
+    readonly property var sectionIds: ["left", "centre", "right"]
     function barPills(section) { return root.barSections[section] || [] }
 
     function barSectionOf(id) {
@@ -146,11 +151,7 @@ Singleton {
             next[section].splice(at, 0, id)
         }
         root.barSections = next
-        // Every pill still checks pillVisible() itself, so the two have to agree:
-        // a pill placed in a section but still on the hidden list would be built,
-        // reserve nothing, and simply not draw.
-        // Placed anywhere you can see it -- bar or utility pill -- counts as
-        // visible; a panel asks this to know whether it has a chip to grow from.
+        // Every pill checks pillVisible() itself, so the two have to agree.
         root.setPillVisible(id, placed)
         barWriteTimer.restart()
     }
@@ -177,6 +178,9 @@ Singleton {
     // Where the picker looks for wallpapers. Empty means Paths.wallpapers.
     property string wallpaperDir: ""
 
+    // Where quick notes are kept. Empty means Paths.notes (~/Notes).
+    property string notesDir: ""
+
     // Workspace chips show a glyph for whatever is open on them instead of the
     // number. Empty workspaces always keep their number.
     property bool workspaceIcons: true
@@ -193,6 +197,12 @@ Singleton {
     // Toasts: how long a normal one stays on screen (seconds) and how many may
     // stack before the rest collapse into the "+N" row. System toasts keep their
     // own short dwell — they are an acknowledgement, not a message.
+    // A sound when something arrives. Empty file = the shipped default.
+    property bool notifySound: false
+    property string notifySoundFile: ""
+    // Urgency 2 only, for people who want the room quiet otherwise.
+    property bool notifySoundCriticalOnly: false
+
     property int toastSeconds: 6
     property int maxToasts: 5
 
@@ -235,8 +245,13 @@ Singleton {
             property alias weatherLocs: root.weatherLocs
             property alias keyboardLayout: root.keyboardLayout
             property alias useGradients: root.useGradients
+            property alias panelStyle: root.panelStyle
+            property alias themeMode: root.themeMode
             property alias doNotDisturb: root.doNotDisturb
             property alias keepAwake: root.keepAwake
+            property alias notifySound: root.notifySound
+            property alias notifySoundFile: root.notifySoundFile
+            property alias notifySoundCriticalOnly: root.notifySoundCriticalOnly
             property alias toastSeconds: root.toastSeconds
             property alias maxToasts: root.maxToasts
             property alias hiddenPills: root.hiddenPills
@@ -244,6 +259,7 @@ Singleton {
             property alias recordAudio: root.recordAudio
             property alias recordDir: root.recordDir
             property alias wallpaperDir: root.wallpaperDir
+            property alias notesDir: root.notesDir
             property alias lockShowMedia: root.lockShowMedia
             property alias workspaceIcons: root.workspaceIcons
             property alias idleLockSecs: root.idleLockSecs

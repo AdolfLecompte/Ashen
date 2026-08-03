@@ -231,5 +231,27 @@ TabPage {
         }
     }
 
+    Card {
+        title: "Notes"
+
+        DirField {
+            glyph: ""
+            title: "Notes folder"
+            value: Services.Prefs.notesDir !== ""
+                ? Services.Prefs.notesDir : Services.Paths.notes
+            placeholder: Services.Paths.notes
+            onCommitted: path => Services.Prefs.notesDir = path
+        }
+
+        Text {
+            text: "One .md per note. Point this anywhere you already keep them."
+            color: Services.Colors.ash
+            font.pixelSize: 10
+            font.family: "JetBrainsMono NF"
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+    }
+
     Item { Layout.preferredHeight: 8 }
 }
