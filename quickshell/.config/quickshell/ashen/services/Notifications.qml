@@ -208,6 +208,17 @@ Singleton {
 
     function isActionable(id) { return root.liveIds.indexOf(id) !== -1 }
 
+    // Housekeeping the sender offers about ITSELF rather than about the thing
+    // it is telling you. Brave puts "Site settings" on every web notification;
+    // it is a button that leaves what you were doing to open a settings page.
+    readonly property var chromeActions: ["settings", "site-settings", "close"]
+    function isChrome(action) {
+        const id = (action.identifier || "").toLowerCase()
+        if (root.chromeActions.indexOf(id) !== -1) return true
+        const t = (action.text || "").toLowerCase()
+        return t === "settings" || t === "site settings" || t === "configuración del sitio"
+    }
+
     function invokeAction(id, actionId) {
         let n = root.liveNotifs[id]
         if (!n) return
@@ -223,9 +234,8 @@ Singleton {
         root.beginLeave(id, true)
     }
 
-    // Clicking a toast's body: senders put the interesting thing (open the
-    // chat, focus the window) behind an action called "default". Without one
-    // the click just means "seen".
+    // Clicking the body takes you to what it is about. Senders put that behind
+    // an action called "default"; when there is none, go to the app itself.
     function activateDefault(id) {
         let n = root.liveNotifs[id]
         if (n) {
@@ -237,9 +247,34 @@ Singleton {
                 }
             }
         }
+        root.openSender(id)
         root.markRead(id)
         root.beginLeave(id, true)
     }
+
+    // Raise the app that sent it: its window if it has one, otherwise its
+    // launcher entry. Hyprland's config here is Lua, so the dispatcher is
+    // `hl.dsp.focus({ window = ... })` -- the plain `dispatch focuswindow`
+    // form does not even parse, and still exits 0.
+    function openSender(id) {
+        const ent = root.history.find(e => e.id === id)
+        if (!ent) return
+        const live = root.liveNotifs[id]
+        const de = live && live.desktopEntry ? String(live.desktopEntry) : ""
+        // A Brave PWA's class is its own app id, so the desktop entry is the
+        // better key whenever the sender gave us one.
+        const key = de !== "" ? de.replace(/\.desktop$/, "")
+                              : String(ent.appName || "").toLowerCase()
+        if (key === "") return
+        root.senderProc.command = ["sh", "-c",
+            'out=$(hyprctl dispatch \'hl.dsp.focus({ window = "class:(?i)\'"$1"\'" })\' 2>&1); ' +
+            'case "$out" in ok*) exit 0 ;; esac; ' +
+            'gtk-launch "$1" >/dev/null 2>&1 || gtk-launch "$1.desktop" >/dev/null 2>&1',
+            "sh", key]
+        root.senderProc.running = true
+    }
+    property alias senderProc: senderProcess
+    Process { id: senderProcess; running: false }
 
     // The sender took its notification back: the toast goes with it.
     function onLiveClosed(id) {
@@ -295,7 +330,10 @@ Singleton {
             // through the live object, the only thing that can invoke it.
             let acts = []
             const raw = notif.actions || []
-            for (let i = 0; i < raw.length; i++) acts.push({ id: raw[i].identifier, text: raw[i].text })
+            for (let i = 0; i < raw.length; i++) {
+                if (root.isChrome(raw[i])) continue
+                acts.push({ id: raw[i].identifier, text: raw[i].text })
+            }
             entry.actions = acts
             root.trackLive(entry.id, notif)
             notif.closed.connect(function(reason) { root.onLiveClosed(entry.id) })
@@ -311,9 +349,39 @@ Singleton {
         // through -- low-battery and the like must not be swallowed.
         if (!Services.AppState.doNotDisturb || entry.urgency === 2) {
             root.pushPopup(entry)
+            root.playSound(entry)
         }
         saveHistory()
     }
+
+    // ── Sound ──────────────────────────────────────────────────────────────
+    // Off by default. A system that makes noise without being asked to is a
+    // system you end up muting altogether.
+    readonly property string defaultSound: "/usr/share/sounds/freedesktop/stereo/message.oga"
+    readonly property string soundFile: Services.Prefs.notifySoundFile !== ""
+        ? Services.Prefs.notifySoundFile : root.defaultSound
+
+    function playSound(entry) {
+        if (!Services.Prefs.notifySound) return
+        if (Services.Prefs.notifySoundCriticalOnly && entry.urgency !== 2) return
+        // A system toast is the shell talking to itself (screenshot taken,
+        // night light on); it already showed you the thing it is about.
+        if (entry.source === "system") return
+        root.play(root.soundFile)
+    }
+
+    // Also used by the Settings preview button.
+    function play(file) {
+        if (!file || file === "") return
+        soundProc.running = false
+        // pw-play is part of pipewire, which Ashen already requires; paplay is
+        // there for a machine still running the pulse daemon.
+        soundProc.command = ["sh", "-c",
+                             'pw-play "$1" 2>/dev/null || paplay "$1" 2>/dev/null', "sh", file]
+        soundProc.running = true
+    }
+
+    Process { id: soundProc; running: false }
 
     // ── Unread ─────────────────────────────────────────────────────────────
     readonly property int unreadCount: {

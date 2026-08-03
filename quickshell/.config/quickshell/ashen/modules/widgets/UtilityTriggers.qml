@@ -4,21 +4,14 @@ import QtQuick
 
 import "root:/services" as Services
 
-// One hidden peek per screen edge the bar is NOT on: rest the pointer there
-// and a row of icon-only chips glues to that edge, same peek/hide language the
-// old standalone ProcessTrigger used (retired, folded in here). This is the
-// pill every orphan panel (launcher, Settings, notifications, clipboard,
-// processes) grows out of. Process is wired up; Settings and Clipboard are
-// still placeholders.
+// One hidden peek per screen edge the bar is NOT on: rest the pointer there and
+// a row of icon-only chips glues to that edge. The tools' panels grow out of it.
 Scope {
     id: root
 
 
-    // A utility chip: a transport plate that also knows how to hand itself
-    // over to the panel it opens. While that panel is up the chip IS the
-    // panel, so it steps aside and the card growing out of its rect reads as
-    // the chip unfolding rather than as a window appearing -- the same
-    // hand-over the bar's system chips do.
+    // A chip that hands itself over to the panel it opens: while that panel is
+    // up the chip steps aside, so the card reads as the chip unfolded.
     component UtilChip: CtlChip {
         id: uc
         // Its own panel is open. Each chip watches its own, never the pill's:
@@ -34,16 +27,13 @@ Scope {
         // Reported continuously under this name, so a panel opened by keybind
         // knows where to grow from without anyone having clicked first.
         property string chipId: ""
-        // The drawer chip is a circle: it is not one more tool on the pill, it
-        // is the way in to all of them, and the shape says so before the icon
-        // does. Everything else here is a capsule -- fully round on the ends,
-        // not the bar's boxier innerR. Next to two actual circles a square-ish
-        // chip read as a different family of thing.
+        // Capsules, fully round on the ends: the two circles at either end are
+        // the drawer and the pin, and the shape is what tells them apart.
         radius: Math.min(width, height) / 2
         active: uc.open
         // Opacity, not visible: hidden would drop it from the Grid and shove
         // its neighbours sideways mid-animation.
-        opacity: takenOver ? 0.0 : 1.0
+        opacity: (takenOver && Services.Prefs.panelStyle === "morph") ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
         onOpenChanged: {
@@ -120,10 +110,7 @@ Scope {
             onRevealedChanged: if (!revealed) hideTimer.stop()
 
             // A panel opened from THIS edge's pill. While one is up the pill
-            // has to stay out: it is the thing the panel grew from, and
-            // letting the retract timer pull it back under the edge left the
-            // panel hanging off a pill that was no longer there -- and gave it
-            // nowhere to climb back into on the way out.
+            // stays out: it is what the panel grew from and climbs back into.
             readonly property bool panelOpen:
                 (Services.AppState.processVisible
                  && Services.AppState.processSourceEdge === trig.edge)
@@ -133,25 +120,17 @@ Scope {
                     && Services.AppState.utilitiesSourceEdge === trig.edge)
                 || (Services.AppState.settingsVisible
                     && Services.AppState.settingsSourceEdge === trig.edge)
+                || (Services.AppState.notesVisible
+                    && Services.AppState.notesSourceEdge === trig.edge)
             onPanelOpenChanged: {
                 if (panelOpen) { hideTimer.stop(); trig.revealed = true }
                 else hideTimer.restart()
             }
 
-            // Where a chip on this pill actually sits on screen.
-            //
-            // mapToGlobal does NOT return screen coordinates on a layer
-            // surface -- it hands back window-local ones, so a chip on the
-            // bottom-anchored window reported y≈31 instead of y≈1049 and the
-            // panel grew out of the TOP of the screen; the right-hand pill had
-            // the same fault sideways and grew from the left. Left and top only
-            // ever looked right because their window origin happens to be 0.
-            // The anchoring says exactly where the window starts, so add that.
-            // Both also report the pill's SETTLED position, never wherever it
-            // happens to be sitting: the reveal is a 220 ms slide, and a click
-            // that lands while it is still travelling would otherwise hand the
-            // panel an origin part-way under the screen edge. How far the pill
-            // still has to go is the gap between its own edge and the window's.
+            // Where a chip sits ON SCREEN. mapToGlobal returns window-local
+            // coordinates on a layer surface, so the window's own origin has to
+            // be added; and the pill's SETTLED position is reported, never where
+            // it happens to be mid-reveal.
             readonly property real slideFix: {
                 if (!pill) return 0
                 if (trig.edge === "bottom") return trig.height - (pill.y + pill.height)
@@ -246,13 +225,8 @@ Scope {
                 readonly property int thick: Services.Sizes.utilPillThick
                 width: trig.vertical ? thick : reserveLen
                 height: trig.vertical ? reserveLen : thick
-                // Rounding the corner that touches the screen edge carves a
-                // notch out of it instead of a bulge -- the window goes past
-                // that edge, so there is nothing behind the curve to blend
-                // into, just a gap. Those stay square and flush; the curve
-                // that reads as "growing out of the edge" belongs entirely to
-                // the corners facing into the screen, so those get more of it
-                // than the rest of the bar's pills do.
+                // Corners touching the screen edge stay square: there is
+                // nothing behind a curve there, only a gap.
                 radius: Services.Sizes.pillR
                 readonly property real outR: radius * 1.6
                 topLeftRadius: trig.edge === "top" || trig.edge === "left" ? 0 : outR
@@ -268,11 +242,8 @@ Scope {
                 Behavior on anchors.leftMargin { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
                 Behavior on anchors.rightMargin { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
 
-                // Declared before the chips, so it sits UNDER them: on top it
-                // was catching every hover move itself and the chips below
-                // never saw containsMouse become true -- only a click got
-                // through, since acceptedButtons: NoButton only waives button
-                // events, not hover tracking.
+                // Declared before the chips so it sits UNDER them: NoButton
+                // waives clicks, not hover tracking.
                 MouseArea {
                     anchors.fill: parent
                     hoverEnabled: true
@@ -284,14 +255,9 @@ Scope {
                 Grid {
                     id: chips
                     anchors.centerIn: parent
-                    // However many chips live here, they grow to fill the
-                    // pill's whole reserved length themselves -- a small fixed
-                    // gap between them, not empty air. Add or remove one and
-                    // the rest resize to still cover it.
-                    // The drawer circle keeps its own diameter; the tools
-                    // share whatever is left, so adding or removing one
-                    // re-spaces the rest instead of leaving dead air.
-                    readonly property int tools: Services.Prefs.barPills("utility").length
+                    // The two circles keep their diameter; the tools share
+                    // what is left, so the pill is always filled.
+                    readonly property int tools: Services.Pills.tools.length
                     readonly property int count: tools + 2
                     readonly property int toolCount: Math.max(1, tools)
                     // Derived from the pill's own thickness, not Sizes.innerH:
@@ -320,11 +286,10 @@ Scope {
                             trig.pinned ? "" : trig.edge
                     }
 
-                    // Whatever you have dropped in here, in your order. The
-                    // three tools are only the shipped default: any pill may
-                    // live on this pill instead of on the bar.
+                    // The tools, fixed and in this order. They are not bar
+                    // pills and nothing moves in or out of here.
                     Repeater {
-                        model: Services.Prefs.barPills("utility")
+                        model: Services.Pills.tools
 
                         delegate: UtilChip {
                             id: toolChip

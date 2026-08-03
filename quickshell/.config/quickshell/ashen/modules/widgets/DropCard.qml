@@ -3,14 +3,8 @@ import QtQuick
 import "root:/services" as Services
 
 // A panel that falls out of its bar pill like a drop of water: it starts the
-// size of the pill, stretches away from the bar, and the goo bridge between the
-// two thins out and pinches off. The clock and the media pill have been opening
-// this way; this is that opening as one piece, so the small chips on the system
-// pill can use it without each panel carrying its own copy of the maths.
-//
-// The caller gives it the pill (centre and size, from AppState) and the size the
-// card wants when it is open, then puts the panel's content inside. Content is
-// held back until the box has arrived: box first, contents after.
+// size of the pill, stretches away, and the goo bridge pinches off. The caller
+// gives it the pill's rect and the open size. Box first, contents after.
 Item {
     id: root
     anchors.fill: parent
@@ -23,11 +17,8 @@ Item {
     property real openW: 400
     property real openH: 300
     property real cardRadius: 20
-    // What the chip was showing. The drop carries it — and, if the caller says
-    // where they belong, the two texts FLY from the chip's rect to their place
-    // in the panel instead of one fading out while another fades in. That
-    // hand-off is the whole trick: the same glyph and the same name travel, so
-    // the panel reads as the chip unfolded rather than as a new window.
+    // What the chip was showing. Given a destination, the glyph and the name
+    // FLY there instead of cross-fading -- that hand-off is the whole trick.
     property string pillGlyph: ""
     property string pillLabel: ""
     // Where they land. Text items, so their size and colour are read off them.
@@ -56,11 +47,8 @@ Item {
     readonly property bool morphingGlyph: morphing && glyphFlies
     readonly property bool morphingLabel: morphing && labelFlies
 
-    // How fast this particular drop runs. 1.0 is the shell's pace and almost
-    // everything leaves it alone; a panel you open and dismiss dozens of times
-    // a session (the launcher) can ask for more. It scales every duration and
-    // every pause together, so the order of the beats is preserved -- the box
-    // still lands before the contents start, whatever the speed.
+    // Scales every duration and pause together, so the order of the beats
+    // survives whatever the speed. 1.0 is the shell's pace.
     property real speed: 1.0
     function ms(v) { return Math.max(1, Math.round(v / root.speed)) }
 
@@ -114,11 +102,8 @@ Item {
     readonly property real openY: isNaN(openYOverride)
         ? Services.Sizes.panelY(height, root.openH, root.pillCY) : openYOverride
 
-    // The window is not on screen in the frame it is told to open, so the fall
-    // has to wait for it. Without this the first hundred milliseconds played
-    // unseen and the drop turned up already halfway down — the same trap the
-    // battery canvas hit, and the reason the clock and the media panel feel
-    // like they leave from their pill and these did not.
+    // A layer surface is not on screen in the frame it is asked for, so the
+    // fall waits for it or its first frames play unseen.
     Timer { id: arm; interval: Services.Sizes.panelArmMs; onTriggered: openAnim.restart() }
     onShownChanged: {
         if (shown) { closeAnim.stop(); arm.restart() }
@@ -201,14 +186,9 @@ Item {
                 target: card; property: "relay"; to: 1
                 duration: root.ms(180); easing.type: Services.Sizes.easeInOut
             }
-            // The flight starts while the box is still spreading — that overlap
-            // is what makes the two read as one movement rather than two moves
-            // in a queue. What must NOT overlap is the flight and the contents:
-            // the piece carried over from the chip has to reach its place and
-            // stop, and only then does everything that was never in the chip
-            // fade in around it. Coming in at 340, while the name was still
-            // travelling, put the panel's furniture on screen underneath a
-            // moving word and the whole thing read backwards.
+            // Box and flight overlap on purpose -- that is what makes them one
+            // movement. Flight and contents must NOT: the carried piece lands
+            // first, then everything that was never in the chip fades in.
             SequentialAnimation {
                 PauseAnimation { duration: root.ms(190) }
                 NumberAnimation {
@@ -284,10 +264,8 @@ Item {
         MouseArea { anchors.fill: parent; onClicked: {} }
 
         // ── The shared pieces ───────────────────────────────────────
-        // Drawn once at their final size and scaled down to the chip's, the
-        // same way the clock does it: stepping font.pixelSize instead makes the
-        // glyphs reflow in integer jumps and reads as a stutter. Positioned by
-        // centre, so scaling never drags them sideways.
+        // Drawn at their final size and scaled down: stepping font.pixelSize
+        // reflows in integer jumps. Positioned by centre, so scale never drags.
         Text {
             id: flyGlyph
             visible: root.morphingGlyph

@@ -68,18 +68,6 @@ PanelWindow {
                 height: fullH * collapse
                 Behavior on height { NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut } }
 
-                // How much of its time is left, 1 to 0. Hangs off the service's
-                // tick because `expiresAt` is mutated in place and notifies
-                // nobody; the Behavior smooths the 10 Hz steps.
-                // Not readonly: a Behavior needs a writable property to animate.
-                property real life: {
-                    Services.Notifications.popupTick
-                    const e = modelData.expiresAt || 0
-                    const h = modelData.holdMs || 0
-                    if (!e || h <= 0) return 1
-                    return Math.max(0, Math.min(1, (e - Date.now()) / h))
-                }
-                Behavior on life { NumberAnimation { duration: Services.Sizes.msInstant } }
 
                 function dismiss() { Services.Notifications.dismissPopup(modelData.id) }
 
@@ -377,21 +365,6 @@ PanelWindow {
                         }
                     }
 
-                    // How long it has left, as a hairline along the bottom
-                    // edge. No line means a card that waits for you (critical),
-                    // and the line stalls under the pointer, which is what
-                    // makes the hold visible instead of merely true.
-                    Rectangle {
-                        visible: (card.modelData.holdMs || 0) > 0 && !card.leaving
-                        anchors.left: parent.left
-                        anchors.bottom: parent.bottom
-                        anchors.leftMargin: 16
-                        height: 2
-                        width: Math.max(0, (shell.width - 32) * card.life)
-                        radius: 1
-                        color: Services.Colors.ghostAlpha(Services.Notifications.hoverHolds > 0 ? 0.75 : 0.32)
-                        Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
-                    }
                 }
             }
         }

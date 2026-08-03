@@ -2,17 +2,9 @@ import QtQuick
 import QtQuick.Shapes
 import "root:/services" as Services
 
-// A hub with a ring of fixed slots around it: what you are connected to in the
-// middle, what you already know orbiting it.
-//
-// The slots are FIXED. Nothing is laid out by force or packed in as it
-// arrives, because a graph whose nodes move every time the radio sees
-// something is unreadable — you would lose your place mid-click. A device
-// keeps the slot it was given for as long as it is on the ring.
-//
-// Strangers never come here. Scanning fills a small list that drops out of the
-// scan node instead, because browsing twenty unknown names is a list's job,
-// not a graph's. A device only earns a slot once it means something to you.
+// A hub with a ring of fixed slots: what you are connected to in the middle,
+// what you already know orbiting it. Slots never reshuffle. Strangers live in
+// the scan list, not on the ring.
 Item {
     id: root
 
@@ -49,12 +41,8 @@ Item {
     Behavior on liveAmt { NumberAnimation { duration: Services.Sizes.msPanel; easing.type: Services.Sizes.easeBox } }
 
     // ── Scan ────────────────────────────────────────────────────────────
-    // One slot is spoken for: the scan chip, always in the same place so it is
-    // somewhere you reach for rather than something you look for. Pressing it
-    // takes the middle, and the ring fills with what the radio can see —
-    // strangers, drawn with no wire at all, because a wire would claim a
-    // relationship that does not exist yet. Asking to join one strings the
-    // wire and hands over to the password panel.
+    // The last slot is always the scan chip. Pressing it takes the middle and
+    // fills the ring with strangers, drawn without wires.
     property bool scanEnabled: false
     property string scanGlyph: ""
     property string scanLabel: "Scan"
@@ -77,11 +65,7 @@ Item {
         beginSwap(scanId)
         scanCommit.restart()
     }
-    // Leaving is the entrance played backwards: the chip rides out of the
-    // middle to the slot it came from while the connection climbs back in
-    // behind it. Clearing the flag on its own swapped the whole card in a
-    // single frame, which is what read as a popup rather than as the chip
-    // going home.
+    // Leaves the way it arrived, in reverse.
     function exitScan() {
         armedId = ""
         scanMode = false
@@ -133,22 +117,14 @@ Item {
     readonly property real cx: width / 2
     readonly property real cy: height / 2
     readonly property real hubR: 62
-    // How far out the slot centres sit. Wider than tall: the panel is a
-    // landscape card and a circle would waste both ends of it.
-    // Pushed out as far as the card actually allows: the old 214 cap left the
-    // four diagonal nodes only about 40 px clear of the middle, which is not
-    // enough room to put an elbow in.
+    // How far out the slot centres sit. Wider than tall: the card is landscape,
+    // and the diagonals need horizontal room for their elbow.
     readonly property real ringX: Math.min(width / 2 - 92, 234)
     // The top and bottom slots need room for the node itself AND the run of
     // wire below it; at the old distance both were pinched against the edge.
     readonly property real ringY: Math.min(height / 2 - 44, 140)
-    // The four diagonal slots drop less far than the two sitting straight above
-    // and below. One vertical radius cannot serve both: those two need all of it
-    // to clear the middle and still leave a run of wire, while a diagonal has
-    // only the horizontal gap between middle and node to fit an elbow into — and
-    // a 68 px step across 42 px of gap came out as a hook hanging off the middle
-    // instead of a run between two things. Raise it towards 1 for a rounder
-    // ring, lower it for flatter connectors.
+    // Diagonal slots drop less than the vertical ones, which need the full
+    // radius to clear the hub. Towards 1 = rounder ring, lower = flatter.
     readonly property real diagonalDrop: 0.62
 
     readonly property real nodeH: 48
@@ -169,12 +145,8 @@ Item {
     }
 
     // ── Connecting: the swap ────────────────────────────────────────────
-    // Clicking a node does not repaint the graph a second later with the two
-    // devices already exchanged. The node climbs into the middle and the one
-    // that was there rides out to the slot it just left, so you can see what
-    // replaced what. It holds there, saying "Connecting…", until the radio
-    // agrees — which is also the only honest report of a connection that has
-    // not happened yet.
+    // The node climbs into the middle while the old one rides out to its slot,
+    // and holds at "Connecting…" until the radio agrees.
     property string pendingId: ""
     property real swapAmt: 0
     property bool animateSwap: true
@@ -183,12 +155,8 @@ Item {
         NumberAnimation { duration: 480; easing.type: Services.Sizes.easeBox }
     }
 
-    // The whole graph FREEZES while a swap is in flight. Switching networks
-    // takes the radio down before it brings the new one up, so mid-animation
-    // the live data said "not connected" and handed the ring an extra node:
-    // slots renumbered under the pieces that were already moving and the card
-    // rearranged itself around them. What you clicked has to keep looking like
-    // what you clicked until it is done.
+    // Frozen while a swap is in flight: the radio drops before it reconnects,
+    // and the live data would renumber the slots mid-move.
     property string pendingLabel: ""
     property string frozenGlyph: ""
     property string frozenLabel: ""
@@ -209,24 +177,13 @@ Item {
                        sub: scanSub, active: false, kind: "scan" })
         return out
     }
-    // The ring is PUBLISHED, not derived. Handing the Repeater a different array
-    // rebuilds every delegate, and freezing used to do exactly that — swap this
-    // between two arrays — at the one moment the ring had to hold still. Every
-    // node was destroyed and recreated as the swap began, which is where the
-    // doubled label at the middle (a dead delegate still on screen beside its
-    // replacement), the line flung off to a corner (a wire pointing at a
-    // delegate still sitting at 0,0) and the nodes popping in mid-move came
-    // from. Now it simply stops being republished until the move is over.
+    // PUBLISHED, never derived: handing the Repeater a different array rebuilds
+    // every delegate, so it simply stops being republished during a swap.
     property var ringNodes: []
     function publishRing() { if (pendingId === "") ringNodes = liveRing }
 
-    // Which slot the pointer is on, published by the node itself. The connectors
-    // used to read `hovered` off the delegate they found with `itemAt`, and
-    // `itemAt` is not reactive: the connectors are built before the nodes are, so
-    // it handed back null and stayed null for the life of the wire. It limped
-    // along only because the ring model used to churn constantly and rebuild the
-    // wires until one of them caught a live node — the moment the model stopped
-    // changing, hover stopped lighting anything. An index cannot go stale.
+    // Which slot the pointer is on, published by the node itself: `itemAt` is
+    // not reactive, but an index cannot go stale.
     property int hoveredSlot: -1
     // Bumped whenever the ring gains or loses a node, so the few things that DO
     // still have to ask a delegate for its size go and ask again.
@@ -319,15 +276,8 @@ Item {
     readonly property real hubRadius: hubR + (14 - hubR) * hubAmt
 
     // ── The line ────────────────────────────────────────────────────────
-    // One shape for every line on the card: leave the middle along the bearing
-    // of the thing you are going to, turn a rounded corner, run vertically,
-    // turn again and arrive at its near side. The /-\_ run, never a diagonal.
-    //
-    // It used to be the ring connectors alone. The thread that plays while two
-    // devices trade places, and the one drawn to a stranger you asked to join,
-    // were both a single straight PathLine — so the moment anything actually
-    // happened on the card the lines changed shape, and a straight line reads
-    // as a different kind of object than an elbow does.
+    // One shape for every line on the card: out of the middle, rounded corner,
+    // vertical run, corner, arrive at the near side. Never a diagonal.
     component Wire: Shape {
         id: w
 
@@ -378,12 +328,8 @@ Item {
         readonly property real sx: turnX >= x0 ? 1 : -1
         readonly property real sy: y1 >= y0 ? 1 : -1
 
-        // How much bare card there is between the two ends. Two boxes close
-        // enough to overlap leave nothing for a line to span — at the crossing
-        // point of a swap the pieces are sitting on top of each other — and any
-        // run drawn between them is inside one of them. Callers whose ends move
-        // fade the line out on this instead of drawing through a node, which is
-        // what the old straight thread was doing.
+        // Bare card between the two ends. Callers whose ends move fade the
+        // line out on this rather than draw it inside a node.
         readonly property real clearance: len - fromTrim - Math.max(toHW, toHH)
 
         ShapePath {
@@ -430,12 +376,8 @@ Item {
             id: wire
             required property int index
 
-            // The delegate is asked for its SIZE and whether it is pointed at,
-            // never for where it is: `itemAt` is not reactive, so this can be a
-            // node that has just been rebuilt and not yet placed. Position comes
-            // off the slot, which is arithmetic and cannot go stale.
-            // Re-resolved whenever the ring changes, and used for the node's SIZE
-            // only — never for where it is or whether it is pointed at.
+            // Asked for its SIZE only. Position comes off the slot, which is
+            // arithmetic; a delegate from `itemAt` may not be placed yet.
             readonly property Item target: { root.ringRevision; return nodeRepeater.itemAt(index) }
             readonly property bool alive: target !== null && target.width > 1
             readonly property var entry: root.ringNodes[index]
@@ -449,11 +391,8 @@ Item {
             // solidWhenLit — because nothing has been agreed with it.
             solidWhenLit: !isScan && !root.scanMode
 
-            // A known network keeps its line. A stranger and the scan button
-            // have none until you point at one: a line lying there would claim
-            // a relationship that does not exist. They used to have none at
-            // all, hover included, which left the ring in scan mode with no
-            // way to say which one you were about to pick.
+            // A known network keeps its line; a stranger only gets one under
+            // the pointer, because a line claims a relationship.
             readonly property bool resting: present && !isScan && !root.scanMode
             readonly property bool onHover: present && (isScan || root.scanMode) && lit
             // The elbow only makes sense between a parked middle and a parked
@@ -478,10 +417,8 @@ Item {
     }
 
     // ── The thread ──────────────────────────────────────────────────────
-    // The same elbow, but with both ends live: one end rides the middle out to
-    // a slot while the other climbs in, and the line follows them the whole
-    // way. It was a straight run before, which is what made a swap look like a
-    // different card from the one you had been looking at.
+    // The same elbow with both ends live, following the two pieces as they
+    // trade places.
     Wire {
         id: thread
         // Two jobs: the pair trading places, and the stranger you just asked to
@@ -493,14 +430,8 @@ Item {
                 if (root.ringNodes[i] && root.ringNodes[i].id === root.armedId) return i
             return -1
         }
-        // ONE job now. It used to draw during a swap as well, and that never
-        // worked: while the two pieces cross they are on top of each other and
-        // no line fits between them at all (measured — at 14 % of the move they
-        // are already touching), and once the move settles it holds at
-        // "Connecting…" for however long the radio takes, leaving a line lying
-        // across a card that otherwise looks finished. That is the stray thread.
-        // The pieces trading places already say what is happening; they do not
-        // need a line to say it twice.
+        // Only the armed stranger. During a swap the two pieces touch by 14 %
+        // of the move, so no line fits between them anyway.
         readonly property int index: armedIndex
         // Size only, and only if it is a live one. Where the far end IS gets
         // worked out below from the same arithmetic the node itself uses.
@@ -534,11 +465,8 @@ Item {
             const ty = uy > 0.001 ? hh / uy : 1e9
             return Math.min(tx, ty) + 5
         }
-        // Straight off the slot. An armed stranger is parked — arming happens in
-        // scan view, where nothing is swapping — so there is no travel to fold
-        // in. Reading the position off the delegate instead is what threw a line
-        // into a corner: a rebuilt node still sitting at 0,0 put the far end at
-        // the top-left of the card.
+        // Straight off the slot: an armed stranger is parked, and a delegate's
+        // position may not be settled yet.
         toX: index < 0 ? 0 : root.slotX(index)
         toY: index < 0 ? 0 : root.slotY(index)
         toHW: (alive ? node.width : 130) / 2
@@ -590,7 +518,7 @@ Item {
                 id: hubGlyphText
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: root.shownGlyph
-                color: root.hubFilled ? Services.Colors.onColor(Services.Colors.ghost) : Services.Colors.ghost
+                color: root.hubFilled ? Services.Colors.accentText : Services.Colors.ghost
                 font.family: "Material Symbols Rounded"
                 font.pixelSize: 30
                 // Handed over while a panel is flying its bar chip into this
@@ -605,7 +533,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 id: hubLabelText
                 text: root.shownLabel
-                color: root.hubFilled ? Services.Colors.onColor(Services.Colors.ghost) : Services.Colors.snow
+                color: root.hubFilled ? Services.Colors.accentText : Services.Colors.snow
                 opacity: root.handOverLabel ? 0 : 1
                 font.pixelSize: 12
                 font.bold: true
@@ -616,7 +544,7 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 visible: root.shownSub !== ""
                 text: root.shownSub
-                color: root.hubFilled ? Services.Colors.onColor(Services.Colors.ghost) : Services.Colors.mist
+                color: root.hubFilled ? Services.Colors.accentText : Services.Colors.mist
                 font.pixelSize: 10
                 font.family: "JetBrainsMono NF"
                 opacity: 0.8
@@ -637,7 +565,7 @@ Item {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.shownGlyph
-                color: root.hubFilled ? Services.Colors.onColor(Services.Colors.ghost) : Services.Colors.ghost
+                color: root.hubFilled ? Services.Colors.accentText : Services.Colors.ghost
                 font.family: "Material Symbols Rounded"
                 font.pixelSize: 18
             }
@@ -646,7 +574,7 @@ Item {
                 spacing: 1
                 Text {
                     text: root.shownLabel
-                    color: root.hubFilled ? Services.Colors.onColor(Services.Colors.ghost) : Services.Colors.snow
+                    color: root.hubFilled ? Services.Colors.accentText : Services.Colors.snow
                     font.pixelSize: 12
                     font.bold: true
                     font.family: "JetBrainsMono NF"
@@ -656,7 +584,7 @@ Item {
                 Text {
                     visible: root.shownSub !== ""
                     text: root.shownSub
-                    color: root.hubFilled ? Services.Colors.onColor(Services.Colors.ghost) : Services.Colors.ash
+                    color: root.hubFilled ? Services.Colors.accentText : Services.Colors.ash
                     font.pixelSize: 10
                     font.family: "JetBrainsMono NF"
                 }
@@ -770,7 +698,7 @@ Item {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: node.empty ? "" : node.modelData.glyph
-                    color: node.dark ? Services.Colors.onColor(Services.Colors.ghost) : Services.Colors.ghost
+                    color: node.dark ? Services.Colors.accentText : Services.Colors.ghost
                     font.family: "Material Symbols Rounded"
                     font.pixelSize: 18
                 }
@@ -780,7 +708,7 @@ Item {
                     Text {
                         id: labelT
                         text: node.empty ? "" : node.modelData.label
-                        color: node.dark ? Services.Colors.onColor(Services.Colors.ghost) : Services.Colors.snow
+                        color: node.dark ? Services.Colors.accentText : Services.Colors.snow
                         font.pixelSize: 12
                         font.bold: true
                         font.family: "JetBrainsMono NF"
@@ -791,7 +719,7 @@ Item {
                         id: subT
                         visible: text !== ""
                         text: node.empty ? "" : (node.modelData.sub || "")
-                        color: node.dark ? Services.Colors.onColor(Services.Colors.ghost) : Services.Colors.ash
+                        color: node.dark ? Services.Colors.accentText : Services.Colors.ash
                         font.pixelSize: 10
                         font.family: "JetBrainsMono NF"
                     }
@@ -807,7 +735,7 @@ Item {
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: node.empty ? "" : node.modelData.glyph
-                    color: Services.Colors.onColor(Services.Colors.ghost)
+                    color: Services.Colors.accentText
                     font.family: "Material Symbols Rounded"
                     font.pixelSize: 30
                 }
@@ -816,7 +744,7 @@ Item {
                     width: root.hubR * 1.72
                     horizontalAlignment: Text.AlignHCenter
                     text: node.empty ? "" : node.modelData.label
-                    color: Services.Colors.onColor(Services.Colors.ghost)
+                    color: Services.Colors.accentText
                     font.pixelSize: 12
                     font.bold: true
                     font.family: "JetBrainsMono NF"
@@ -826,7 +754,7 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: node.isScan ? (root.scanSub !== "" ? root.scanSub : "Scanning\u2026")
                                       : "Connecting\u2026"
-                    color: Services.Colors.onColor(Services.Colors.ghost)
+                    color: Services.Colors.accentText
                     font.pixelSize: 10
                     font.family: "JetBrainsMono NF"
                     opacity: 0.8

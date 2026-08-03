@@ -53,7 +53,7 @@ Singleton {
                     }
                     root.devices = list
                 } catch (e) {
-                    console.log("[USB] parse error:", e)
+                    console.warn("[USB] parse error:", e)
                 }
             }
         }

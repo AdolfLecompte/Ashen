@@ -246,7 +246,7 @@ Singleton {
                     let d = JSON.parse(text)
                     if (d.status === "success")
                         root.addLoc(d.lat, d.lon, d.city || "")
-                } catch (e) { console.log("[Weather] geo error:", e) }
+                } catch (e) { console.warn("[Weather] geo error:", e) }
             }
         }
         command: ["sh", "-c", "curl -s --max-time 10 'http://ip-api.com/json?fields=status,lat,lon,city'"]
@@ -277,7 +277,7 @@ Singleton {
                         root.searchResults = []
                         root.cityError = true
                     }
-                } catch (e) { console.log("[Weather] search error:", e); root.searchResults = [] }
+                } catch (e) { console.warn("[Weather] search error:", e); root.searchResults = [] }
             }
         }
     }
@@ -337,7 +337,7 @@ Singleton {
                         })
                     }
                     root.hourly = hours
-                } catch (e) { console.log("[Weather] forecast error:", e) }
+                } catch (e) { console.warn("[Weather] forecast error:", e) }
             }
         }
     }

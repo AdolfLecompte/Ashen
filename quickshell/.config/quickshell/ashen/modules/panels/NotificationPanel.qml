@@ -57,6 +57,41 @@ Scope {
         id: clearTimer
         onTriggered: { Services.Notifications.clearAll(); win.clearing = false }
     }
+    // Rows on their way out. Removing one used to take it out of the model in
+    // the same frame the button was pressed, so the sweep that clearing all of
+    // them plays never happened for a single row or a single app.
+    property var leavingIds: []
+    readonly property int rowLeaveMs: 260
+
+    function removeRow(id) {
+        if (win.leavingIds.indexOf(id) !== -1) return
+        win.leavingIds = win.leavingIds.concat([id])
+        rowGone.restart()
+    }
+
+    // One timer for the lot: rows marked together leave together, each on its
+    // own clearDelay, and the model is only touched once they have all gone.
+    Timer {
+        id: rowGone
+        interval: win.rowLeaveMs + 120
+        onTriggered: {
+            const ids = win.leavingIds
+            win.leavingIds = []
+            for (let i = 0; i < ids.length; i++) Services.Notifications.removeById(ids[i])
+        }
+    }
+
+    function clearGroup(app) {
+        const ids = Services.Notifications.history
+            .filter(e => Services.Notifications.groupKey(e) === app)
+            .map(e => e.id)
+        if (ids.length === 0) return
+        win.leavingIds = win.leavingIds.concat(ids)
+        // Long enough for the last row's turn to have played.
+        rowGone.interval = win.rowLeaveMs + 120 + ids.length * win.clearStepMs
+        rowGone.restart()
+    }
+
     function fadeClear() {
         if (Services.Notifications.history.length === 0 || win.clearing) return
         win.clearing = true
@@ -152,7 +187,7 @@ Scope {
                         id: unreadTxt
                         anchors.centerIn: parent
                         text: Services.Notifications.unreadCount
-                        color: Services.Colors.onColor(Services.Colors.ghost)
+                        color: Services.Colors.accentText
                         font.pixelSize: 10
                         font.bold: true
                         font.family: "JetBrainsMono NF"
@@ -331,7 +366,7 @@ Scope {
                             Widgets.IconButton {
                                 size: 24
                                 glyph: "\ue0b8"
-                                onActivated: Services.Notifications.clearApp(group.modelData.app)
+                                onActivated: win.clearGroup(group.modelData.app)
                             }
                         }
 
@@ -352,8 +387,10 @@ Scope {
                             width: group.width
                             // The sweep runs down the list rather than taking
                             // every row in the same frame.
-                            clearDelay: (group.index * 70) + (index * win.clearStepMs)
+                            clearDelay: win.clearing ? (group.index * 70) + (index * win.clearStepMs)
+                                                     : (index * win.clearStepMs)
                             clearing: win.clearing
+                                || win.leavingIds.indexOf(modelData.id) !== -1
                         }
                     }
                 }
@@ -568,7 +605,7 @@ Scope {
                 glyph: ""
                 opacity: rowHover.containsMouse ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
-                onActivated: Services.Notifications.removeById(row.entry.id)
+                onActivated: win.removeRow(row.entry.id)
             }
 
             // Sender-supplied buttons, reachable at last: the server has always

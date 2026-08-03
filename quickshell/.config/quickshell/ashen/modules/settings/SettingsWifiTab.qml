@@ -138,7 +138,7 @@ Item {
             }
             Rectangle {
                 width: 28; height: 28; radius: 8
-                color: "transparent"
+                color: refreshHover.containsMouse ? Services.Colors.ghostAlpha(0.15) : "transparent"
                 Text {
                     anchors.centerIn: parent
                     text: ""
@@ -147,11 +147,10 @@ Item {
                     font.family: "Material Symbols Rounded"
                 }
                 MouseArea {
+                    id: refreshHover
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     hoverEnabled: true
-                    onEntered: parent.color = Services.Colors.ghostAlpha(0.15)
-                    onExited: parent.color = "transparent"
                     onClicked: tab.refreshNetworks()
                 }
             }
@@ -198,7 +197,7 @@ Item {
                     Layout.preferredWidth: 34
                     Layout.preferredHeight: 34
                     radius: 8
-                    color: "transparent"
+                    color: forgetHover.containsMouse ? Services.Colors.ghostAlpha(0.18) : "transparent"
                     Text {
                         anchors.centerIn: parent
                         text: "\ue5cd"
@@ -207,11 +206,10 @@ Item {
                         font.family: "Material Symbols Rounded"
                     }
                     MouseArea {
+                        id: forgetHover
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         hoverEnabled: true
-                        onEntered: parent.color = Services.Colors.ghostAlpha(0.18)
-                        onExited: parent.color = "transparent"
                         onClicked: tab.forgetSsid(Services.Network.wifiSsid)
                     }
                 }
@@ -309,14 +307,14 @@ Item {
                     Text { text: tab.connectingTo; color: Services.Colors.snow; font.pixelSize: 15; font.family: "JetBrainsMono NF"; font.bold: true }
                 }
                 Rectangle {
-                    width: 28; height: 28; radius: 8; color: "transparent"
+                    width: 28; height: 28; radius: 8
+                    color: dismissHover.containsMouse ? Services.Colors.ghostAlpha(0.15) : "transparent"
                     Text { anchors.centerIn: parent; text: "\u2715"; color: Services.Colors.mist; font.pixelSize: 14 }
                     MouseArea {
+                        id: dismissHover
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         hoverEnabled: true
-                        onEntered: parent.color = Services.Colors.ghostAlpha(0.15)
-                        onExited: parent.color = "transparent"
                         onClicked: tab.showConnectDialog = false
                     }
                 }
@@ -361,7 +359,8 @@ Item {
                         }
                     }
                     Rectangle {
-                        width: 32; height: 32; radius: 6; color: "transparent"
+                        width: 32; height: 32; radius: 6
+                        color: eyeHover.containsMouse ? Services.Colors.ghostAlpha(0.15) : "transparent"
                         Text {
                             anchors.centerIn: parent
                             text: tab.showPassword ? "" : ""
@@ -370,11 +369,10 @@ Item {
                             font.family: "Material Symbols Rounded"
                         }
                         MouseArea {
+                            id: eyeHover
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
                             hoverEnabled: true
-                            onEntered: parent.color = Services.Colors.ghostAlpha(0.15)
-                            onExited: parent.color = "transparent"
                             onClicked: tab.showPassword = !tab.showPassword
                         }
                     }
@@ -387,14 +385,14 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     height: 40; radius: 8
-                    color: Services.Colors.ghostAlpha(0.15)
+                    color: cancelHover.containsMouse ? Services.Colors.ghostAlpha(0.25)
+                                                     : Services.Colors.ghostAlpha(0.15)
                     Text { anchors.centerIn: parent; text: "Cancel"; color: Services.Colors.snow; font.pixelSize: 13; font.family: "JetBrainsMono NF" }
                     MouseArea {
+                        id: cancelHover
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         hoverEnabled: true
-                        onEntered: parent.color = Services.Colors.ghostAlpha(0.25)
-                        onExited: parent.color = Services.Colors.ghostAlpha(0.15)
                         onClicked: tab.showConnectDialog = false
                     }
                 }
@@ -421,7 +419,7 @@ Item {
                         opacity: connectMouse.containsMouse ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
                     }
-                    Text { anchors.centerIn: parent; text: "Connect"; color: Services.Colors.abyss; font.pixelSize: 13; font.family: "JetBrainsMono NF"; font.bold: true }
+                    Text { anchors.centerIn: parent; text: "Connect"; color: Services.Colors.accentText; font.pixelSize: 13; font.family: "JetBrainsMono NF"; font.bold: true }
                     MouseArea {
                         id: connectMouse
                         anchors.fill: parent

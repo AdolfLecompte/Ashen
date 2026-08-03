@@ -178,7 +178,7 @@ PanelWindow {
                                     height: 36
 
                                     readonly property color fg: railItem.active
-                                        ? Services.Colors.onColor(Services.Colors.ghost)
+                                        ? Services.Colors.accentText
                                         : (railHover.containsMouse ? Services.Colors.snow
                                                                    : Services.Colors.mist)
 
@@ -236,7 +236,7 @@ PanelWindow {
                         transform: Translate { y: sectionSlide.offY }
                         Component.onCompleted: source = win.tabSource(Services.AppState.settingsTab)
                         onStatusChanged: if (status === Loader.Error)
-                            console.log("[SettingsPanel] ERROR loading", source)
+                            console.warn("[SettingsPanel] ERROR loading", source)
                     }
                 }
             }
