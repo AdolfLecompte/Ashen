@@ -5,7 +5,11 @@
 # ─────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
+# Sibling scripts are resolved next to this one, so the set works from the
+# checkout and from /usr/bin alike.
+HERE="$(dirname "$(readlink -f "$0")")"
+
 WALL="$(cat "$HOME/.cache/ashen_wallpaper.txt" 2>/dev/null)"
 [ -n "${WALL:-}" ] && [ -f "$WALL" ] || exit 0
 
-exec "$HOME/ashen/scripts/ashen-wallpaper.sh" "$WALL"
+exec "$HERE/ashen-wallpaper.sh" "$WALL"

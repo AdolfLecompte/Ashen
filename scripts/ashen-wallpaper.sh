@@ -11,6 +11,10 @@
 # ─────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
+# Sibling scripts are resolved next to this one, so the set works from the
+# checkout and from /usr/bin alike.
+HERE="$(dirname "$(readlink -f "$0")")"
+
 WALL="${1:?usage: ashen-wallpaper.sh <path>}"
 [ -f "$WALL" ] || { echo "ashen-wallpaper: no such file: $WALL" >&2; exit 1; }
 
@@ -149,8 +153,11 @@ apply_colors() {
 
     local type
     type="$(cat "$CACHE/ashen_dynamic_type.txt" 2>/dev/null || echo scheme-tonal-spot)"
-    matugen image "$src" --mode dark --source-color-index 0 --type "$type"
-    "$HOME/ashen/scripts/ashen-apply-border.sh"
+    # Light or dark, chosen in Settings > Appearance. Dark unless told otherwise.
+    mode="$(cat "$HOME/.cache/ashen_theme_mode.txt" 2>/dev/null)"
+    [ "$mode" = "light" ] || mode="dark"
+    matugen image "$src" --mode "$mode" --source-color-index 0 --type "$type"
+    "$HERE/ashen-apply-border.sh"
 }
 
 # Pull the target still up-front: the video branch paints it as a bridge, and

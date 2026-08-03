@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# ── Ashen — put the user-side dotfiles in place ──  by Adolf — github.com/AdolfLecompte ──
+#    The shell itself runs from /etc/xdg/quickshell/ashen once the package is
+#    installed, but Hyprland, kitty, zsh and friends only read their own config
+#    out of $HOME. This copies the shipped ones there.
+#
+#    Nothing is ever overwritten without saying so: an existing file is moved
+#    aside to <name>.bak unless you pass --force.
+# ─────────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+SRC="${ASHEN_CONFIG_SRC:-/usr/share/ashen/config}"
+FORCE=0
+DRY=0
+
+for a in "$@"; do
+    case "$a" in
+        --force) FORCE=1 ;;
+        --dry-run) DRY=1 ;;
+        -h|--help)
+            echo "usage: ashen-setup [--force] [--dry-run]"
+            echo "  --force    overwrite existing files instead of backing them up"
+            echo "  --dry-run  only say what would happen"
+            exit 0 ;;
+        *) echo "ashen-setup: unknown option: $a" >&2; exit 2 ;;
+    esac
+done
+
+[ -d "$SRC" ] || { echo "ashen-setup: no shipped config at $SRC" >&2; exit 1; }
+
+say()  { printf '\033[1;35m::\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m!!\033[0m %s\n' "$*"; }
+
+installed=0
+kept=0
+
+# Each package dir mirrors $HOME, the same layout stow used.
+for pkg in "$SRC"/*; do
+    [ -d "$pkg" ] || continue
+    while IFS= read -r -d '' src; do
+        rel="${src#$pkg/}"
+        dst="$HOME/$rel"
+
+        if [ "$DRY" -eq 1 ]; then
+            printf '   %s -> %s\n' "$rel" "$dst"
+            continue
+        fi
+
+        mkdir -p "$(dirname "$dst")"
+        if [ -e "$dst" ] || [ -L "$dst" ]; then
+            if [ "$FORCE" -eq 1 ]; then
+                rm -f "$dst"
+            elif cmp -s "$src" "$dst"; then
+                kept=$((kept + 1)); continue
+            else
+                mv -f "$dst" "$dst.bak" || { warn "could not back up $dst"; continue; }
+                warn "kept your $rel as $rel.bak"
+            fi
+        fi
+        install -Dm644 "$src" "$dst" && installed=$((installed + 1))
+    done < <(find "$pkg" -type f -print0)
+done
+
+[ "$DRY" -eq 1 ] && exit 0
+
+# Anything under hypr/ that is meant to be run has to stay executable.
+find "$HOME/.config/hypr" -name '*.sh' -exec chmod +x {} + 2>/dev/null
+
+say "$installed file(s) installed, $kept already up to date"
+say "log out and back into Hyprland to pick it all up"

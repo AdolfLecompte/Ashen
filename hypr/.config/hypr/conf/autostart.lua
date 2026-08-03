@@ -10,7 +10,8 @@ end
 
 start("awww-daemon")
 -- Brings back the last wallpaper: awww for images/gif, mpvpaper for video
-start("$HOME/ashen/scripts/ashen-wallpaper-restore.sh")
+-- From the checkout when there is one, otherwise from PATH (packaged install)
+start("sh -c 'S=\"$HOME/ashen/scripts/ashen-wallpaper-restore.sh\"; [ -x \"$S\" ] || S=ashen-wallpaper-restore.sh; exec \"$S\"'")
 start("quickshell -c ashen")
 -- Ashen generates ~/.config/ashen/hypridle.conf from Settings; the shipped
 -- one is only the fallback for the very first boot.

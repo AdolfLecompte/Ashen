@@ -17,7 +17,9 @@ CACHE="$HOME/.cache"
 hex="$(cat "$CACHE/matugen_border_color.txt" 2>/dev/null)" || exit 0
 [ -n "$hex" ] || exit 0
 
-GEN="$HOME/ashen/hypr/.config/hypr/conf/general.lua"
+# The live config, not the checkout: with stow they are the same file, and
+# without a checkout there is no other one.
+GEN="$HOME/.config/hypr/conf/general.lua"
 sed -i "s/active_border = { colors = {\"rgba([^)]*)\"} }/active_border = { colors = {\"rgba(${hex}ff)\"} }/" "$GEN"
 
 # hyprctl needs the instance signature; Quickshell-spawned callers do not carry

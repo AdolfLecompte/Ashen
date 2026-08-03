@@ -9,6 +9,10 @@
 # ─────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
+# Sibling scripts are resolved next to this one, so the set works from the
+# checkout and from /usr/bin alike.
+HERE="$(dirname "$(readlink -f "$0")")"
+
 CACHE="$HOME/.cache"
 [ "$(cat "$CACHE/ashen_scheme_mode.txt" 2>/dev/null)" = "dynamic" ] || exit 0
 
@@ -23,5 +27,8 @@ esac
 [ -f "$src" ] || exit 0
 
 type="$(cat "$CACHE/ashen_dynamic_type.txt" 2>/dev/null || echo scheme-tonal-spot)"
-matugen image "$src" --mode dark --source-color-index 0 --type "$type"
-exec "$HOME/ashen/scripts/ashen-apply-border.sh"
+# Light or dark, chosen in Settings > Appearance. Dark unless told otherwise.
+mode="$(cat "$HOME/.cache/ashen_theme_mode.txt" 2>/dev/null)"
+[ "$mode" = "light" ] || mode="dark"
+matugen image "$src" --mode "$mode" --source-color-index 0 --type "$type"
+exec "$HERE/ashen-apply-border.sh"
