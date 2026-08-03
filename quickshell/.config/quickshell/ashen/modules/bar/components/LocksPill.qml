@@ -22,9 +22,12 @@ Rectangle {
     width: root.vertical ? Services.Sizes.pillH
                          : (anyActive ? Math.max(Services.Sizes.pillH, locksRow.width + 18) : 0)
     opacity: anyActive ? 1.0 : 0.0
-    // collapsed pills stay out of the bar layout entirely
-    // Hidden from Settings > Bar > Pills
-    visible: Services.Prefs.pillVisible("locks") && (opacity > 0)
+    // How much room it is taking along the bar's own axis.
+    readonly property real extent: root.vertical ? height : width
+    // Stays until the collapse has finished, not until the fade has: keyed on
+    // opacity alone it left the layout with 50 ms of width still to give back,
+    // and the gap slammed shut under the pills next to it.
+    visible: Services.Prefs.pillVisible("locks") && (root.anyActive || root.extent > 1)
     clip: true
     Behavior on width { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
     Behavior on height { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
@@ -48,7 +51,7 @@ Rectangle {
             id: label
             x: -ink.tightBoundingRect.x
             y: -(fm.ascent + ink.tightBoundingRect.y)
-            color: Services.Colors.onColor(Services.Colors.ghost)
+            color: Services.Colors.accentText
             font.pixelSize: 20
             font.bold: true
             font.family: "Material Symbols Rounded"

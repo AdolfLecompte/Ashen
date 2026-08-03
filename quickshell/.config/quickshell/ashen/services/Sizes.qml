@@ -15,11 +15,8 @@ Singleton {
     readonly property int pillH: 44
     readonly property int pillR: 10
 
-    // The utility pill: the capsule that peeks out of whichever screen edge
-    // the bar is not on. Slimmer than a bar pill on purpose -- it glues to a
-    // bare edge with nothing around it, so it reads as a ledge rather than a
-    // second bar. Here rather than inside UtilityTriggers because panels grow
-    // out of it and have to know the rect they are growing from.
+    // The utility pill that peeks out of the edges the bar is not on. Slimmer
+    // than a bar pill, so it reads as a ledge. Here because panels grow from it.
     readonly property int utilPillLen: 400
     readonly property int utilPillThick: 36
 
@@ -43,18 +40,13 @@ Singleton {
     readonly property int innerH: 32
     readonly property int innerR: 8
 
-    // Smallest gap allowed between two things you can click. Below this they
-    // read as one control with a seam down it -- and since every button grows
-    // by `pillHoverScale` under the pointer, a 28 px pair at a 2 px gap has the
-    // hovered one touching its neighbour. Rows of buttons may sit further
-    // apart; they may never sit closer.
+    // Smallest gap between two clickable things: closer and they read as one
+    // control, and a hovered button grows into its neighbour. Never less.
     readonly property int btnGap: 6
 
     // ── Type scale ───────────────────────────────────────────────────────
-    // Nine steps, and nothing between them. There were twenty-seven sizes in
-    // the tree when this was written, from 8 to 104, most of them one pixel
-    // apart from a neighbour for no reason anybody could name.
-    // A panel uses at most four of these. If it needs five, it is two panels.
+    // Nine steps and nothing between them. A panel uses at most four; if it
+    // needs five, it is two panels.
     readonly property int fsCaption: 9        // the line under a title, units
     readonly property int fsMeta: 10          // column headers, labels
     readonly property int fsBody: 11          // list rows — the default
@@ -96,12 +88,9 @@ Singleton {
     readonly property real overshoot: 0.7
 
     // ── Panel opening language ──────────────────────────────────────────
-    // A layer surface is not on screen in the frame it is asked for, so a
-    // panel that starts animating the moment it is told to open plays its
-    // first frames unseen and appears already halfway down. Everything that
-    // grows out of a pill waits this long first — and the pill it grew from
-    // has to hand over on the same beat, or the bar goes blank before the
-    // panel has begun to move.
+    // A layer surface is not on screen in the frame it is asked for, so panels
+    // wait this long before growing -- and their pill hands over on the same
+    // beat, or the bar goes blank first.
     readonly property int panelArmMs: 200
     // How long a panel takes to climb back into its pill. The window has to
     // stay mapped for all of it and the pill only comes back at the end, so
@@ -114,11 +103,10 @@ Singleton {
     readonly property int edgeGap: 12
 
     // ── Bar placement ────────────────────────────────────────────────────
-    // `barPosition` is what the user picked; `barPosition` alone must never
-    // drive the layout, because moving the bar is animated: it slides out into
-    // the edge it is leaving and back in from the new one. `applied` is the
-    // edge everything actually lays out against, and it only changes while the
-    // bar is off screen.
+    // `barPosition` is what the user picked; it must never drive the layout on
+    // its own, because moving the bar is animated: it fades out, changes edge
+    // while nobody can see it, and fades back in. `applied` is the edge
+    // everything lays out against, and it only changes while the bar is hidden.
     readonly property string wanted: Prefs.barPosition
     property string applied: Prefs.barPosition
     property bool hidden: false
@@ -130,7 +118,8 @@ Singleton {
 
     Timer {
         id: swapTimer
-        interval: 740
+        // Just long enough for the fade-out to finish.
+        interval: 240
         onTriggered: {
             root.applied = root.wanted
             revealTimer.restart()
@@ -138,7 +127,9 @@ Singleton {
     }
     Timer {
         id: revealTimer
-        interval: 360
+        // Hyprland animates the layer when its geometry changes; coming back
+        // during that jump reads as a pop-in.
+        interval: 320
         onTriggered: root.hidden = false
     }
 

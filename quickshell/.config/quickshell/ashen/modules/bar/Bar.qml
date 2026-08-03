@@ -29,28 +29,20 @@ Scope {
                 left: bar.edge !== "right"
                 right: bar.edge !== "left"
             }
-            // While moving, the window is deeper than the bar so the content can
-            // slide in from outside the screen edge instead of being clipped
-            // (which read as a fade-in on top of the edge). The reserved space
-            // stays at the bar's own thickness the whole time.
-            readonly property int slack: Services.Sizes.barH + 24
-            implicitHeight: bar.vertical ? 0 : Services.Sizes.barH + slack
-            implicitWidth: bar.vertical ? Services.Sizes.barH + slack : 0
+            // Exactly the bar: moving it is a fade now, so there is no travel
+            // to leave room for.
+            implicitHeight: bar.vertical ? 0 : Services.Sizes.barH
+            implicitWidth: bar.vertical ? Services.Sizes.barH : 0
 
             color: "transparent"
             exclusionMode: ExclusionMode.Normal
             exclusiveZone: Services.Sizes.barH
-            // Only the bar strip takes clicks; the slack is see-through.
-            // Spelled out instead of `item: content` on purpose: a Region bound
-            // to an item follows its *scene* position, so the slide-out Translate
-            // below drags the input region off the surface and the compositor
-            // clips it to nothing — the bar keeps drawing but stops taking
-            // clicks after every move. These are the strip's resting bounds.
+            // Spelled out rather than `item: content`: a Region bound to an item
+            // follows its scene position, and anything that moves the content
+            // would drag the input region off the surface.
             mask: Region {
-                x: bar.vertical ? (bar.edge === "left" ? 0 : bar.width - Services.Sizes.barH) : 0
-                y: bar.vertical ? 0 : (bar.edge === "top" ? 0 : bar.height - Services.Sizes.barH)
-                width: bar.vertical ? Services.Sizes.barH : bar.width
-                height: bar.vertical ? bar.height : Services.Sizes.barH
+                x: 0; y: 0
+                width: bar.width; height: bar.height
             }
 
             // A row on a horizontal bar, a column on a vertical one. Everything
@@ -66,26 +58,14 @@ Scope {
                 id: content
                 // Bar-sized strip pinned to the docked edge of a window that may
                 // be deeper than the bar itself while it is moving.
-                width: bar.vertical ? Services.Sizes.barH : bar.width
-                height: bar.vertical ? bar.height : Services.Sizes.barH
-                x: bar.vertical ? (bar.edge === "left" ? 0 : bar.width - width) : 0
-                y: bar.vertical ? 0 : (bar.edge === "top" ? 0 : bar.height - height)
+                anchors.fill: parent
 
-                // Moving the bar slides it out into the edge it is leaving and
-                // back in from the new one; Sizes only swaps the applied edge
-                // while this is all the way out.
-                property real slide: Services.Sizes.hidden ? 1 : 0
-                // Leaves quickly and arrives with a settle, so a move between two
-                // edges of the same axis still reads as a move and not a jump.
-                Behavior on slide {
-                    NumberAnimation { duration: 700; easing.type: Services.Sizes.easeInOut }
-                }
-                opacity: 1 - content.slide
-                transform: Translate {
-                    x: bar.vertical ? (bar.edge === "left" ? -content.slide * (Services.Sizes.barH + 16)
-                                                           : content.slide * (Services.Sizes.barH + 16)) : 0
-                    y: bar.vertical ? 0 : (bar.edge === "top" ? -content.slide * (Services.Sizes.barH + 16)
-                                                              : content.slide * (Services.Sizes.barH + 16))
+                // Moving the bar just hides it: it goes, the edge changes while
+                // nothing is on screen, and it comes back. Same duration both
+                // ways, so no conditional-duration Behavior reading a stale flag.
+                opacity: Services.Sizes.hidden ? 0 : 1
+                Behavior on opacity {
+                    NumberAnimation { duration: 240; easing.type: Services.Sizes.easeInOut }
                 }
 
 
@@ -110,9 +90,6 @@ Scope {
                 Component { id: cSystem;        SystemPill {} }
                 Component { id: cPower;         PowerPill {} }
                 Component { id: cWindow;        WindowPill {} }
-                Component { id: cProcess;       ToolPill { pillKey: "process" } }
-                Component { id: cSettings;      ToolPill { pillKey: "settings" } }
-                Component { id: cClipboard;     ToolPill { pillKey: "clipboard" } }
 
                 // What a section actually shows. Almost always just what the
                 // layout says -- but a pill you took OFF the bar can still be
@@ -147,9 +124,6 @@ Scope {
                     case "system":        return cSystem
                     case "power":         return cPower
                     case "window":        return cWindow
-                    case "process":       return cProcess
-                    case "settings":      return cSettings
-                    case "clipboard":     return cClipboard
                     }
                     return null
                 }

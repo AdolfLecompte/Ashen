@@ -15,10 +15,27 @@ Item {
 
     visible: false
 
+    // mapToGlobal does NOT return screen coordinates on a layer surface: it
+    // returns window-local ones. With the bar on top or on the left the window
+    // starts at 0 and the two happen to agree, which is why this went unnoticed
+    // -- but on the bottom edge a pill reported y≈28 instead of y≈1052, so its
+    // panel grew out of the TOP of the screen, and the right-hand bar had the
+    // same fault sideways. The anchoring says where the window starts.
+    readonly property real originX: {
+        const s = Services.Screens.active
+        return (s && Services.Sizes.barPosition === "right") ? s.width - Services.Sizes.barH : 0
+    }
+    readonly property real originY: {
+        const s = Services.Screens.active
+        return (s && Services.Sizes.barPosition === "bottom") ? s.height - Services.Sizes.barH : 0
+    }
+
     function report() {
         if (!pill || !key) return
         const g = pill.mapToGlobal(0, 0)
-        Services.AppState.setPillCenter(key, g.x + pill.width / 2, g.y + pill.height / 2)
+        Services.AppState.setPillCenter(key,
+            root.originX + g.x + pill.width / 2,
+            root.originY + g.y + pill.height / 2)
         // Size as well: the drop that falls out of a pill has to start the
         // size of that pill, and the neck has to be as wide as it is.
         Services.AppState.setPillSize(key, pill.width, pill.height)
