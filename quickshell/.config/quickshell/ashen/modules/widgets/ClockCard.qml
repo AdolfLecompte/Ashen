@@ -16,11 +16,11 @@ Item {
 
     // ── Metrics ─────────────────────────────────────────────────────────
     readonly property real clockW: 350
-    readonly property real weatherW: 320
+    readonly property real weatherW: 330
     readonly property real gap: 24
     readonly property real pad: 20
-    readonly property real contentW: 1080
-    readonly property real contentH: 350
+    readonly property real contentW: 1100
+    readonly property real contentH: 360
 
     implicitWidth: contentW
     implicitHeight: contentH
@@ -106,6 +106,27 @@ Item {
         color: Services.Colors.ghostAlpha(0.09)
     }
 
+    // A weather fact on one line: its icon and its number, nothing else.
+    component WxFact: Row {
+        property string glyph: ""
+        property string value: ""
+        spacing: 4
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.glyph
+            color: Services.Colors.ghost
+            font.pixelSize: 13
+            font.family: "Material Symbols Rounded"
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.value
+            color: Services.Colors.mist
+            font.pixelSize: 11
+            font.family: "JetBrainsMono NF"
+        }
+    }
+
     component Fact: Row {
         property string glyph: ""
         property string label: ""
@@ -139,16 +160,57 @@ Item {
     // 270° dial, open at the bottom — the same instrument the process panel
     // uses for CPU, so the shell reads as one kit rather than a pile of
     // one-off widgets.
+    // One fact, in a small card: icon and value on a line, its name under it.
+    component Stat: Rectangle {
+        id: stat
+        property string glyph: ""
+        property string value: ""
+        property string caption: ""
+        radius: Services.Sizes.cardR
+        color: Services.Colors.fillInset
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 2
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 5
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: stat.glyph
+                    color: Services.Colors.ghost
+                    font.pixelSize: 15
+                    font.family: "Material Symbols Rounded"
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: stat.value
+                    color: Services.Colors.snow
+                    font.pixelSize: 15
+                    font.bold: true
+                    font.family: "JetBrainsMono NF"
+                }
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: stat.caption
+                color: Services.Colors.mist
+                font.pixelSize: 8
+                font.family: "JetBrainsMono NF"
+            }
+        }
+    }
+
     component Gauge: Column {
         id: gauge
+        onValueChanged: dial.requestPaint()
         property real value: 0
         property real limit: 100
         property string glyph: ""
         property string readout: ""
         property string caption: ""
         spacing: 5
-
-        onValueChanged: dial.requestPaint()
 
         Item {
             width: 74
@@ -212,13 +274,21 @@ Item {
         }
     }
 
-    // Tools swap by dissolving through each other rather than blinking.
+    // Tools slide aside in the direction you moved along the tabs.
+    SlideSwap {
+        id: toolSlide
+        axis: "horizontal"
+        index: root.tab
+        onCommit: root.shownTool = root.tab
+    }
+    property int shownTool: 0
+
     component Tool: Item {
         property int index: 0
         anchors.fill: parent
-        opacity: root.tab === index ? root.extrasOpacity : 0
+        opacity: root.shownTool === index ? root.extrasOpacity * toolSlide.fade : 0
         visible: opacity > 0.01
-        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        transform: Translate { x: toolSlide.offX }
     }
 
     RowLayout {
@@ -301,8 +371,8 @@ Item {
                         radius: 9
                         color: Services.Colors.ghost
                         gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                        Behavior on x { SmoothedAnimation { duration: 250 } }
-                        Behavior on width { SmoothedAnimation { duration: 220 } }
+                        Behavior on x { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
+                        Behavior on width { SmoothedAnimation { duration: Services.Sizes.msStandard } }
                     }
 
                     Row {
@@ -332,7 +402,7 @@ Item {
                                 // fill; idle pills are bare and just brighten.
                                 color: active ? "transparent"
                                     : tabHover.containsMouse ? Services.Colors.ghostAlpha(0.12) : "transparent"
-                                Behavior on color { ColorAnimation { duration: 140 } }
+                                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                                 Row {
                                     id: tabRow
@@ -509,7 +579,7 @@ Item {
                             font.pixelSize: 34
                             font.bold: true
                             font.family: "JetBrainsMono NF"
-                            Behavior on color { ColorAnimation { duration: 200 } }
+                            Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
                         }
 
                         // Drains left to right as it runs down
@@ -539,7 +609,7 @@ Item {
                                     width: 40; height: 24; radius: 8
                                     color: picked ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.15)
                                     gradient: Services.Prefs.useGradients && picked ? Services.Colors.accentGradient : null
-                                    Behavior on color { ColorAnimation { duration: 160 } }
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                                     Text {
                                         anchors.centerIn: parent
                                         text: modelData + "m"
@@ -629,10 +699,7 @@ Item {
                             glyph: "\ue5cb"
                             size: 28
                             glyphSize: 17
-                            onTriggered: {
-                                if (grid.curMonth === 0) { grid.curMonth = 11; grid.curYear-- }
-                                else grid.curMonth--
-                            }
+                            onTriggered: grid.monthIndex--
                         }
                         CtlChip {
                             glyph: "\ue8df"
@@ -640,18 +707,22 @@ Item {
                             glyphSize: 15
                             // Lit while you are already looking at this month
                             active: grid.curMonth === grid.todayMonth && grid.curYear === grid.todayYear
-                            onTriggered: { grid.curMonth = grid.todayMonth; grid.curYear = grid.todayYear }
+                            onTriggered: grid.monthIndex = grid.todayYear * 12 + grid.todayMonth
                         }
                         CtlChip {
                             glyph: "\ue5cc"
                             size: 28
                             glyphSize: 17
-                            onTriggered: {
-                                if (grid.curMonth === 11) { grid.curMonth = 0; grid.curYear++ }
-                                else grid.curMonth++
-                            }
+                            onTriggered: grid.monthIndex++
                         }
                     }
+                }
+
+                SlideSwap {
+                    id: monthSlide
+                    axis: "horizontal"
+                    travel: 34
+                    index: grid.monthIndex
                 }
 
                 Row {
@@ -680,8 +751,16 @@ Item {
                     readonly property int cellSize: Math.min(calStack.width / 7 - 3, 34)
                     height: 6 * cellSize + 5 * spacing
 
-                    property int curMonth: new Date().getMonth()
-                    property int curYear: new Date().getFullYear()
+                    // ONE property moves the calendar. It used to be month and
+                    // year, and stepping past December changed both -- two
+                    // changes, so the slide ran twice for one press.
+                    property int monthIndex: new Date().getFullYear() * 12 + new Date().getMonth()
+                    // The days slide the way the arrow points.
+                    opacity: monthSlide.fade
+                    transform: Translate { x: monthSlide.offX }
+
+                    readonly property int curMonth: monthIndex % 12
+                    readonly property int curYear: Math.floor(monthIndex / 12)
                     readonly property int today: root.now.getDate()
                     readonly property int todayMonth: root.now.getMonth()
                     readonly property int todayYear: root.now.getFullYear()
@@ -704,7 +783,7 @@ Item {
                                 : dayHover.containsMouse && isValid ? Services.Colors.ghostAlpha(0.15)
                                 : "transparent"
                             gradient: Services.Prefs.useGradients && isToday ? Services.Colors.accentGradient : null
-                            Behavior on color { ColorAnimation { duration: 140 } }
+                            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                             Text {
                                 anchors.centerIn: parent
@@ -730,12 +809,15 @@ Item {
         VRule { opacity: root.extrasOpacity }
 
         // ── Right: weather ──────────────────────────────────────────────
+        // City, the reading, three facts on one line, and the days. Nothing
+        // else: the hour-by-hour strip made this the loudest column on a card
+        // that is mostly a clock.
         Item {
             id: wxCol
             Layout.preferredWidth: root.weatherW
             Layout.fillHeight: true
 
-            // Conditions now. The glyph and the number are shared with the bar
+            // Conditions now: the glyph and the number are shared with the bar
             // pill, so they are slots here and fly in from it.
             Item {
                 id: wxNow
@@ -788,141 +870,98 @@ Item {
                 }
             }
 
-            Column {
-                id: wxRest
+            // Humidity, temperature and wind, each in its own dial.
+            Row {
+                id: gaugeRow
                 anchors.top: wxNow.bottom
-                anchors.topMargin: 16
-                width: parent.width
-                spacing: 20
+                anchors.topMargin: 14
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 8
                 opacity: root.extrasOpacity
 
-                Row {
-                    id: gaugeRow
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 8
-
-                        Gauge {
-                            glyph: ""
-                            value: Services.Weather.humidity
-                            limit: 100
-                            readout: Services.Weather.humidity + "%"
-                            caption: "HUMIDITY"
-                        }
-                        Gauge {
-                            // -10..45 °C covers anywhere anyone lives. The dial
-                            // is a sense of where in that range today sits; the
-                            // number is the fact.
-                            glyph: ""
-                            value: Services.Weather.tempC + 10
-                            limit: 55
-                            readout: Services.Weather.temp
-                            caption: "TEMP"
-                        }
-                        Gauge {
-                            // 60 km/h is a gale: past that the dial pins and
-                            // the number carries the detail anyway
-                            glyph: ""
-                            value: Services.Weather.windKph
-                            limit: 60
-                            readout: String(Services.Weather.windKph)
-                        caption: "WIND " + Services.Weather.windCompass(Services.Weather.windDir)
-                    }
+                Gauge {
+                    glyph: "\ue798"
+                    value: Services.Weather.humidity
+                    limit: 100
+                    readout: Services.Weather.humidity + "%"
+                    caption: "HUMIDITY"
                 }
-
-                Rectangle {
-                    width: parent.width
-                    height: 1
-                    color: Services.Colors.ghostAlpha(0.09)
+                Gauge {
+                    // -10..45 °C covers anywhere anyone lives: the dial is a
+                    // sense of where in that range today sits, the number is
+                    // the fact.
+                    glyph: "\ue1ff"
+                    value: Services.Weather.tempC + 10
+                    limit: 55
+                    readout: Services.Weather.temp
+                    caption: "TEMP"
                 }
+                Gauge {
+                    // 60 km/h is a gale: past that the dial pins and the number
+                    // carries the detail anyway.
+                    glyph: "\uefd8"
+                    value: Services.Weather.windKph
+                    limit: 60
+                    readout: String(Services.Weather.windKph)
+                    caption: "WIND " + Services.Weather.windCompass(Services.Weather.windDir)
+                }
+            }
 
-                Column {
-                    id: fcCol
-                    width: parent.width
-                    spacing: 7
+            // The days, as cards. The one thing on this column worth a box.
+            Row {
+                id: fcCol
+                anchors.top: gaugeRow.bottom
+                anchors.topMargin: 16
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 92
+                spacing: 8
+                opacity: root.extrasOpacity
 
-                        Repeater {
-                            model: root.fcDays
-                            delegate: Item {
-                                required property var modelData
-                                readonly property real span: Math.max(1, root.fcMax - root.fcMin)
-                                readonly property real lo: (modelData.minC - root.fcMin) / span
-                                readonly property real hi: (modelData.maxC - root.fcMin) / span
-                                width: parent.width
-                                height: 20
+                Repeater {
+                    model: root.fcDays
 
-                                Text {
-                                    id: dLabel
-                                    anchors.left: parent.left
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 32
-                                    text: modelData.label
-                                    color: Services.Colors.mist
-                                    font.pixelSize: 11
-                                    font.family: "JetBrainsMono NF"
-                                }
-                                Text {
-                                    id: dIcon
-                                    anchors.left: dLabel.right
-                                    anchors.leftMargin: 2
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: modelData.icon
-                                    color: Services.Colors.neutral
-                                    font.pixelSize: 15
-                                    font.family: "Material Symbols Rounded"
-                                }
-                                Text {
-                                    id: dMin
-                                    anchors.left: dIcon.right
-                                    anchors.leftMargin: 6
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 28
-                                    horizontalAlignment: Text.AlignRight
-                                    text: Services.Weather.degrees(modelData.minC)
-                                    color: Services.Colors.ash
-                                    font.pixelSize: 11
-                                    font.family: "JetBrainsMono NF"
-                                }
-                                // Where this day's low..high falls inside the
-                                // whole week's range — the warm day is the one
-                                // whose bar sits furthest right, no reading
-                                // required.
-                                Rectangle {
-                                    anchors.left: dMin.right
-                                    anchors.leftMargin: 8
-                                    anchors.right: dMax.left
-                                    anchors.rightMargin: 8
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    height: 4
-                                    radius: 2
-                                    color: Services.Colors.ghostAlpha(0.12)
+                    delegate: Rectangle {
+                        required property var modelData
+                        width: (fcCol.width - fcCol.spacing * (root.fcDays.length - 1))
+                               / Math.max(1, root.fcDays.length)
+                        height: fcCol.height
+                        radius: Services.Sizes.cardR
+                        color: Services.Colors.fillInset
 
-                                    Rectangle {
-                                        x: parent.width * parent.parent.lo
-                                        width: Math.max(4, parent.width * (parent.parent.hi - parent.parent.lo))
-                                        height: parent.height
-                                        radius: 2
-                                        color: Services.Colors.ghost
-                                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                                    }
-                                }
-                                Text {
-                                    id: dMax
-                                    anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 28
-                                    horizontalAlignment: Text.AlignRight
-                                    text: Services.Weather.degrees(modelData.maxC)
-                                    color: Services.Colors.snow
-                                    font.bold: true
-                                    font.pixelSize: 11
-                                    font.family: "JetBrainsMono NF"
-                                }
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 5
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: modelData.label.toUpperCase()
+                                color: Services.Colors.mist
+                                font.pixelSize: 9
+                                font.bold: true
+                                font.family: "JetBrainsMono NF"
+                            }
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: modelData.icon
+                                color: Services.Colors.ghost
+                                font.pixelSize: 20
+                                font.family: "Material Symbols Rounded"
+                            }
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: Services.Weather.degrees(modelData.maxC)
+                                color: Services.Colors.snow
+                                font.pixelSize: 14
+                                font.bold: true
+                                font.family: "JetBrainsMono NF"
                             }
                         }
                     }
                 }
             }
         }
+    }
 
     readonly property bool isLeap: {
         let y = now.getFullYear()
