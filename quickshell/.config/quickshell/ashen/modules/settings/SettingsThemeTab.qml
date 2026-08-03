@@ -38,8 +38,29 @@ Item {
         "nord": { abyss: "#2e3440", void_: "#3b4252", crypt: "#434c5e", surface: "#434c5e", raised: "#4c566a", elevated: "#4c566a", snow: "#eceff4", mist: "#d8dee9", ash: "#4c566a", ghost: "#88c0d0", shade: "#5e81ac", error_: "#bf616a", neutral: "#b48ead", papirusColor: "cyan" },
     }
 
+
+    // The same seven, in light. Not an inversion: a palette that is merely
+    // flipped comes out muddy, and an accent that reads on black is usually
+    // too pale to read on white. The surface ladder still runs base -> raised,
+    // it just runs upward in brightness instead of downward.
+    property var lightSchemes: {
+        "classic": { abyss: "#f4f4f6", void_: "#eeeef1", crypt: "#e7e7ec", surface: "#e0e0e6", raised: "#d6d6de", elevated: "#c9c9d3", snow: "#15151a", mist: "#45454f", ash: "#6e6e7a", ghost: "#4a4a58", shade: "#6a6a78", error_: "#b04a4a", neutral: "#6a6a78", papirusColor: "grey" },
+        "monochrome": { abyss: "#fafafa", void_: "#f2f2f2", crypt: "#ebebeb", surface: "#e3e3e3", raised: "#d6d6d6", elevated: "#c7c7c7", snow: "#0b0b0b", mist: "#3d3d3d", ash: "#6b6b6b", ghost: "#242424", shade: "#565656", error_: "#5c5c5c", neutral: "#3d3d3d", papirusColor: "grey" },
+        "cyberpunk": { abyss: "#f7f2ff", void_: "#f1e9fb", crypt: "#e9dff7", surface: "#e0d4f2", raised: "#d3c3ea", elevated: "#c2ade0", snow: "#1b0a2e", mist: "#4a2f70", ash: "#7a63a0", ghost: "#c1005f", shade: "#a8005699", error_: "#d10030", neutral: "#00877f", papirusColor: "magenta" },
+        "edgerunners": { abyss: "#f6f9fc", void_: "#eef3f9", crypt: "#e4ebf4", surface: "#d9e3ef", raised: "#c9d6e6", elevated: "#b5c6db", snow: "#06121f", mist: "#0f5c3a", ash: "#5b6f85", ghost: "#6f5d00", shade: "#8f7a00", error_: "#c40030", neutral: "#0077a8", papirusColor: "yellow" },
+        "tokyonight": { abyss: "#e9e9ed", void_: "#e1e2e7", crypt: "#d8dae2", surface: "#cfd2dc", raised: "#c3c7d4", elevated: "#b4bac9", snow: "#1f2335", mist: "#41508a", ash: "#5b6693", ghost: "#2557c9", shade: "#3f6bd6", error_: "#c64343", neutral: "#7847bd", papirusColor: "blue" },
+        "dracula": { abyss: "#fbfbf6", void_: "#f4f4ee", crypt: "#ecece4", surface: "#e3e3da", raised: "#d7d7cc", elevated: "#c7c7ba", snow: "#1a1a1f", mist: "#4a4a63", ash: "#6b6b84", ghost: "#5236b8", shade: "#6e51cf", error_: "#cb3a3a", neutral: "#c2318f", papirusColor: "violet" },
+        "nord": { abyss: "#eceff4", void_: "#e5e9f0", crypt: "#dde3ec", surface: "#d8dee9", raised: "#ccd4e0", elevated: "#bcc6d6", snow: "#2e3440", mist: "#3f4a5c", ash: "#5d6a7d", ghost: "#4a6d97", shade: "#5e81ac", error_: "#a8434c", neutral: "#9d6d92", papirusColor: "cyan" },
+    }
+
+    // The palette a scheme id resolves to right now.
+    function paletteFor(id) {
+        const set = Services.Prefs.themeMode === "light" ? tab.lightSchemes : tab.schemes
+        return set[id] || tab.schemes[id]
+    }
+
     function applyScheme(schemeId) {
-        let c = tab.schemes[schemeId]
+        let c = tab.paletteFor(schemeId)
         if (!c) return
         let json = JSON.stringify({
             abyss: c.abyss, void_: c.void_, crypt: c.crypt, surface: c.surface,
@@ -310,6 +331,27 @@ Item {
                 }
             }
         }
+        // Light/dark is not a scheme, it is a variant of the one you are on:
+        // switching it re-applies the same selection through the other palette,
+        // or asks matugen for the other mode when the colours come from the
+        // wallpaper.
+        function setMode(m) {
+            if (Services.Prefs.themeMode === m) return
+            Services.Prefs.themeMode = m
+            // The scripts run outside the shell, so the mode has to be on disk
+            // before they are asked to recolour.
+            Quickshell.execDetached(["sh", "-c",
+                'printf %s "$1" > "$HOME/.cache/ashen_theme_mode.txt"', "sh", m])
+            if (schemeSection.dynamicActive) modeRecolor.restart()
+            else tab.applyScheme(schemeSection.activeScheme)
+        }
+        // matugen reads the file, so give the write a moment to land.
+        Timer {
+            id: modeRecolor
+            interval: 60
+            onTriggered: schemeSection.recolor()
+        }
+
         function setDynamicType(t) {
             schemeSection.dynamicType = t
             Quickshell.execDetached(["sh", "-c", "echo '" + t + "' > \"$HOME/.cache/ashen_dynamic_type.txt\""])
@@ -319,7 +361,7 @@ Item {
         // the saved style. No-ops unless in dynamic mode. Called when a style
         // pill or the Dynamic tile is clicked so the change lands immediately.
         function recolor() {
-            Quickshell.execDetached([Quickshell.env("HOME") + "/ashen/scripts/ashen-recolor.sh"])
+            Quickshell.execDetached([Services.Paths.script("ashen-recolor.sh")])
         }
 
         RowLayout {
@@ -328,12 +370,24 @@ Item {
             Text { text: "Color Scheme"; color: Services.Colors.snow; font.pixelSize: 13; font.bold: true; font.family: "JetBrainsMono NF" }
         }
 
+        // Above the schemes, because it is not one of them: every scheme below
+        // has a light and a dark face, and this picks which one you get.
+        Segmented {
+            Layout.fillWidth: true
+            options: [
+                { id: "dark", icon: "\ue51c", label: "Dark" },
+                { id: "light", icon: "\ue518", label: "Light" },
+            ]
+            current: Services.Prefs.themeMode
+            onPicked: id => schemeSection.setMode(id)
+        }
+
         // The colours a scheme will actually paint the shell in, taken from
         // `tab.schemes` itself. The model used to carry its own hand-written
         // swatch list, which is one more thing to keep in step with the
         // palette and was already out of step with it.
         function swatchesOf(id) {
-            const c = tab.schemes[id]
+            const c = tab.paletteFor(id)
             if (!c) return []
             return [c.abyss, c.surface, c.ghost, c.neutral, c.snow]
         }
@@ -409,7 +463,7 @@ Item {
                             text: ""
                             font.family: "Material Symbols Rounded"
                             font.pixelSize: 11
-                            color: Services.Colors.onColor(Services.Colors.ghost)
+                            color: Services.Colors.accentText
                         }
                     }
                 }
@@ -427,7 +481,7 @@ Item {
                     // (mpvpaper, not awww, is running).
                     Quickshell.execDetached(["sh", "-c",
                         "echo 'dynamic' > " + Quickshell.env("HOME") + "/.cache/ashen_scheme_mode.txt && " +
-                        Quickshell.env("HOME") + "/ashen/scripts/ashen-recolor.sh"
+                        Services.Paths.script("ashen-recolor.sh")
                     ])
                 }
             }
@@ -513,7 +567,7 @@ Item {
                                     text: ""
                                     font.family: "Material Symbols Rounded"
                                     font.pixelSize: 10
-                                    color: Services.Colors.onColor(Services.Colors.ghost)
+                                    color: Services.Colors.accentText
                                 }
                             }
                         }
@@ -594,13 +648,13 @@ Item {
                                     text: ""
                                     font.family: "Material Symbols Rounded"
                                     font.pixelSize: 11
-                                    color: Services.Colors.abyss
+                                    color: Services.Colors.accentText
                                 }
                                 Text {
                                     text: modelData.label
                                     font.pixelSize: 11
                                     font.family: "JetBrainsMono NF"
-                                    color: parent.parent.active ? Services.Colors.abyss : Services.Colors.snow
+                                    color: parent.parent.active ? Services.Colors.accentText : Services.Colors.snow
                                 }
                             }
                             MouseArea {
@@ -668,6 +722,32 @@ Item {
             }
         }
 
+
+    Card {
+        title: "Panels"
+
+        SectionLabel { text: "How they open" }
+
+        Segmented {
+            options: [
+                { id: "morph", label: "Transform" },
+                { id: "plain", label: "Window" },
+            ]
+            current: Services.Prefs.panelStyle
+            onPicked: id => Services.Prefs.panelStyle = id
+        }
+
+        Text {
+            text: Services.Prefs.panelStyle === "morph"
+                ? "A panel comes out of the capsule you pressed and grows into place."
+                : "A panel simply appears where it lives, at its full size."
+            color: Services.Colors.ash
+            font.pixelSize: 10
+            font.family: "JetBrainsMono NF"
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+    }
 
     Item { Layout.preferredHeight: 8 }
         }

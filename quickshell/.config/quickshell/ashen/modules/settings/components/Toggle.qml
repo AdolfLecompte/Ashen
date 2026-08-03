@@ -13,7 +13,11 @@ Rectangle {
     Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
     Rectangle {
         width: 20; height: 20; radius: 10
-        color: Services.Colors.snow
+        // Reads whichever background it is standing on: the accent when the
+        // switch is on, the panel behind the track when it is off. A fixed
+        // tone disappeared into the accent on a light palette.
+        color: sw.checked ? Services.Colors.accentBody : Services.Colors.surfaceBody
+        Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
         anchors.verticalCenter: parent.verticalCenter
         x: sw.checked ? parent.width - width - 4 : 4
         Behavior on x { NumberAnimation { duration: Services.Sizes.msStandard } }

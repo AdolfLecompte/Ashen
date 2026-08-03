@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Services.SystemTray
 import QtQuick
+import Qt5Compat.GraphicalEffects
 
 import "root:/services" as Services
 
@@ -34,21 +35,32 @@ Rectangle {
                 height: 26
                 visible: !root.isSystemItem(modelData.id)
 
-                // A tray icon is somebody else's pixmap: it cannot lift to
-                // snow the way a glyph does, so growing is the whole of its
-                // hover. No plate behind it -- that was the last of the
-                // washes.
+                // A tray icon is somebody else's pixmap, drawn in whatever
+                // colours that program felt like. Painted through, it is the
+                // one thing on the bar that does not belong to the scheme --
+                // and on a light palette the pale ones simply vanished. So it
+                // is used as a SHAPE and filled with the shell's own colour,
+                // the same way a glyph is: it lifts to snow under the pointer
+                // like everything else, and the bar stays one material.
                 Image {
+                    id: trayIcon
                     anchors.centerIn: parent
                     source: modelData.icon
                     width: 24; height: 24
-                    scale: Services.Sizes.hoverScale(trayHover.containsMouse, trayHover.pressed)
-                    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
                     // render at 2x and downscale: tray icons ship small pixmaps
                     // and look mushy when Qt upscales them
                     sourceSize: Qt.size(48, 48)
                     smooth: true
                     mipmap: true
+                    visible: false
+                }
+                ColorOverlay {
+                    anchors.fill: trayIcon
+                    source: trayIcon
+                    color: trayHover.containsMouse ? Services.Colors.snow : Services.Colors.mist
+                    Behavior on color { ColorAnimation { duration: Services.Sizes.pillHoverMs } }
+                    scale: Services.Sizes.hoverScale(trayHover.containsMouse, trayHover.pressed)
+                    Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
                 }
                 MouseArea {
                     id: trayHover

@@ -90,7 +90,8 @@ Item {
         Rectangle {
             width: root.knobSize; height: root.knobSize
             radius: width / 2
-            color: Services.Colors.snow
+            // It rides ON the filled part of the track, so it reads the accent.
+            color: Services.Colors.accentBody
             border.color: root.knobBorderColor
             border.width: root.knobBorder
             anchors.verticalCenter: parent.verticalCenter
