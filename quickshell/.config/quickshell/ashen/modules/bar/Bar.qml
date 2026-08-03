@@ -78,7 +78,7 @@ Scope {
                 // Leaves quickly and arrives with a settle, so a move between two
                 // edges of the same axis still reads as a move and not a jump.
                 Behavior on slide {
-                    NumberAnimation { duration: 700; easing.type: Easing.InOutCubic }
+                    NumberAnimation { duration: 700; easing.type: Services.Sizes.easeInOut }
                 }
                 opacity: 1 - content.slide
                 transform: Translate {
@@ -110,6 +110,9 @@ Scope {
                 Component { id: cSystem;        SystemPill {} }
                 Component { id: cPower;         PowerPill {} }
                 Component { id: cWindow;        WindowPill {} }
+                Component { id: cProcess;       ToolPill { pillKey: "process" } }
+                Component { id: cSettings;      ToolPill { pillKey: "settings" } }
+                Component { id: cClipboard;     ToolPill { pillKey: "clipboard" } }
 
                 // What a section actually shows. Almost always just what the
                 // layout says -- but a pill you took OFF the bar can still be
@@ -144,6 +147,9 @@ Scope {
                     case "system":        return cSystem
                     case "power":         return cPower
                     case "window":        return cWindow
+                    case "process":       return cProcess
+                    case "settings":      return cSettings
+                    case "clipboard":     return cClipboard
                     }
                     return null
                 }
@@ -164,8 +170,8 @@ Scope {
                     scale: 0
                     opacity: 0
                     Component.onCompleted: { scale = 1; opacity = 1 }
-                    Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutBack; easing.overshoot: 1.1 } }
-                    Behavior on opacity { NumberAnimation { duration: 200 } }
+                    Behavior on scale { NumberAnimation { duration: Services.Sizes.msPronounced; easing.type: Easing.OutBack; easing.overshoot: Services.Sizes.overshoot } }
+                    Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
                 }
 
                 // ── Left ────────────────────────────────────────────────
@@ -173,7 +179,7 @@ Scope {
                     id: startGroup
                     x: bar.vertical ? (parent.width - width) / 2 : bar.pad
                     y: bar.vertical ? bar.pad : (parent.height - height) / 2
-                    move: Transition { NumberAnimation { properties: "x,y"; duration: 240; easing.type: Easing.OutCubic } }
+                    move: Transition { NumberAnimation { properties: "x,y"; duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
 
                     Repeater {
                         model: content.pillsIn("left")
@@ -189,7 +195,7 @@ Scope {
                 // anything joined it.
                 BarGroup {
                     id: centreGroup
-                    move: Transition { NumberAnimation { properties: "x,y"; duration: 240; easing.type: Easing.OutCubic } }
+                    move: Transition { NumberAnimation { properties: "x,y"; duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
 
                     property Item anchorItem: null
                     readonly property real anchorMid: anchorItem
@@ -218,7 +224,7 @@ Scope {
                     id: endGroup
                     x: bar.vertical ? (parent.width - width) / 2 : parent.width - width - bar.pad
                     y: bar.vertical ? parent.height - height - bar.pad : (parent.height - height) / 2
-                    move: Transition { NumberAnimation { properties: "x,y"; duration: 240; easing.type: Easing.OutCubic } }
+                    move: Transition { NumberAnimation { properties: "x,y"; duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
 
                     Repeater {
                         model: content.pillsIn("right")

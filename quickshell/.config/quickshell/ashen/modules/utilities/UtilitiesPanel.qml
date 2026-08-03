@@ -104,13 +104,15 @@ PanelWindow {
         : srcEdge === "bottom" ? root.height - card.openH - Math.max(68, Services.Sizes.marginBottom + 18)
         : (root.height - card.openH) / 2
 
-    Widgets.DropCard {
+    Widgets.PanelHost {
         id: card
         shown: root.shown
         sourceEdge: root.srcEdge
         openXOverride: root.openXCalc
         openYOverride: root.openYCalc
 
+        // Grows out of the whole utility pill, not a chip on it.
+        pillColor: Services.Colors.surfacePill
         pillCX: Services.AppState.utilitiesPillCX
         pillCY: Services.AppState.utilitiesPillCY
         pillW: Services.AppState.utilitiesPillW
@@ -124,86 +126,93 @@ PanelWindow {
                + (Math.ceil(root.actions.length / cols) - 1) * 12 + 40 + 12 + 36
         cardRadius: Services.Sizes.panelR
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 18
-            spacing: 12
+        pillKey: "utilities"
+        restSide: "bottom"
 
-            // No head. The tiles name themselves, and the drawer is
-            // reached from a chip that already wears this icon.
+        body: Component {
+            Item {
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 18
+                    spacing: 12
 
-            Grid {
-                Layout.fillWidth: true
-                columns: card.cols
-                spacing: 12
+                    // No head. The tiles name themselves, and the drawer is
+                    // reached from a chip that already wears this icon.
 
-                Repeater {
-                    model: root.actions
+                    Grid {
+                        Layout.fillWidth: true
+                        columns: card.cols
+                        spacing: 12
 
-                    delegate: Rectangle {
-                        id: tile
-                        required property var modelData
-                        readonly property bool on: modelData.kind === "toggle"
-                                                   && root.stateOf(modelData.id)
+                        Repeater {
+                            model: root.actions
 
-                        width: card.tileW
-                        height: card.tileH
-                        radius: Services.Sizes.cardR
-                        color: on ? Services.Colors.ghost
-                             : (tileHover.containsMouse ? Services.Colors.fillHover
-                                                        : Services.Colors.fillInset)
-                        gradient: Services.Prefs.useGradients && on
-                            ? Services.Colors.accentGradient : null
-                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                            delegate: Rectangle {
+                                id: tile
+                                required property var modelData
+                                readonly property bool on: modelData.kind === "toggle"
+                                                           && root.stateOf(modelData.id)
 
-                        scale: Services.Sizes.hoverScale(tileHover.containsMouse, tileHover.pressed)
-                        Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Easing.OutCubic } }
-
-                        readonly property color fg: on
-                            ? Services.Colors.onColor(Services.Colors.ghost)
-                            : (tileHover.containsMouse ? Services.Colors.snow : Services.Colors.mist)
-
-                        Column {
-                            anchors.centerIn: parent
-                            spacing: 6
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: tile.modelData.glyph
-                                color: tile.fg
-                                font.pixelSize: 22
-                                font.family: "Material Symbols Rounded"
+                                width: card.tileW
+                                height: card.tileH
+                                radius: Services.Sizes.cardR
+                                color: on ? Services.Colors.ghost
+                                     : (tileHover.containsMouse ? Services.Colors.fillHover
+                                                                : Services.Colors.fillInset)
+                                gradient: Services.Prefs.useGradients && on
+                                    ? Services.Colors.accentGradient : null
                                 Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                            }
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: tile.modelData.label
-                                color: tile.fg
-                                font.pixelSize: Services.Sizes.fsBody
-                                font.bold: true
-                                font.family: "JetBrainsMono NF"
-                                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                            }
-                        }
 
-                        // A toggle says which way it is set even when it is off,
-                        // so the tile is never ambiguous about having a state.
-                        Rectangle {
-                            visible: tile.modelData.kind === "toggle"
-                            anchors.top: parent.top
-                            anchors.right: parent.right
-                            anchors.margins: 10
-                            width: 6; height: 6
-                            radius: 3
-                            color: tile.on ? tile.fg : Services.Colors.fillLine
-                            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                        }
+                                scale: Services.Sizes.hoverScale(tileHover.containsMouse, tileHover.pressed)
+                                Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
 
-                        MouseArea {
-                            id: tileHover
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.run(tile.modelData)
+                                readonly property color fg: on
+                                    ? Services.Colors.onColor(Services.Colors.ghost)
+                                    : (tileHover.containsMouse ? Services.Colors.snow : Services.Colors.mist)
+
+                                Column {
+                                    anchors.centerIn: parent
+                                    spacing: 6
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: tile.modelData.glyph
+                                        color: tile.fg
+                                        font.pixelSize: 22
+                                        font.family: "Material Symbols Rounded"
+                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                    }
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: tile.modelData.label
+                                        color: tile.fg
+                                        font.pixelSize: Services.Sizes.fsBody
+                                        font.bold: true
+                                        font.family: "JetBrainsMono NF"
+                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                    }
+                                }
+
+                                // A toggle says which way it is set even when it is off,
+                                // so the tile is never ambiguous about having a state.
+                                Rectangle {
+                                    visible: tile.modelData.kind === "toggle"
+                                    anchors.top: parent.top
+                                    anchors.right: parent.right
+                                    anchors.margins: 10
+                                    width: 6; height: 6
+                                    radius: 3
+                                    color: tile.on ? tile.fg : Services.Colors.fillLine
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                }
+
+                                MouseArea {
+                                    id: tileHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.run(tile.modelData)
+                                }
+                            }
                         }
                     }
                 }

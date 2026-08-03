@@ -85,21 +85,21 @@ Singleton {
 
     // ── Bar layout ──────────────────────────────────────────────────────
     // Which pills live in which of the bar's three sections, and in what order.
-    // ONE packed string, never three fields: the adapter drops sibling writes
-    // made in the same tick, so three lists in three properties would lose two
-    // of them on every drag. Format: "left;centre;right", ids comma separated.
-    // Anything absent from all three is "available" and simply is not built.
+    // ONE packed string, never several fields: the adapter drops sibling writes
+    // made in the same tick. Format: "left;centre;right;utility", ids comma
+    // separated. Anything absent from all four is "available" and is not built.
     property string barLayout: ""
 
     // Runtime truth. Same reason as hiddenPillList: reading the string back in
     // the tick it was written returns the old value.
-    property var barSections: ({ left: [], centre: [], right: [] })
+    property var barSections: ({ left: [], centre: [], right: [], utility: [] })
 
     // The arrangement the bar shipped with, used until the user moves anything.
     readonly property var defaultSections: ({
         left: ["launcher", "notifications", "workspaces", "media"],
         centre: ["locks", "usb", "clock", "recording"],
-        right: ["tray", "system", "power"]
+        right: ["tray", "system", "power"],
+        utility: ["process", "settings", "clipboard"]
     })
 
     function syncBarLayout() {
@@ -111,31 +111,36 @@ Singleton {
             root.barSections = {
                 left: keep(root.defaultSections.left),
                 centre: keep(root.defaultSections.centre),
-                right: keep(root.defaultSections.right)
+                right: keep(root.defaultSections.right),
+                utility: root.defaultSections.utility.slice()
             }
             return
         }
         const parts = raw.split(";")
         const cut = i => (parts[i] || "").split(",").filter(x => x !== "")
-        root.barSections = { left: cut(0), centre: cut(1), right: cut(2) }
+        // A layout saved before the utility pill was arrangeable has three
+        // parts; its tools live where they always did.
+        root.barSections = { left: cut(0), centre: cut(1), right: cut(2),
+                             utility: parts.length > 3 ? cut(3)
+                                    : root.defaultSections.utility.slice() }
     }
 
+    readonly property var sectionIds: ["left", "centre", "right", "utility"]
     function barPills(section) { return root.barSections[section] || [] }
 
     function barSectionOf(id) {
-        for (const s of ["left", "centre", "right"])
+        for (const s of root.sectionIds)
             if (root.barSections[s].indexOf(id) !== -1) return s
         return ""
     }
 
     // Drop `id` into `section` at `index`; section "" parks it as available.
     function moveBarPill(id, section, index) {
-        let next = {
-            left: root.barSections.left.filter(x => x !== id),
-            centre: root.barSections.centre.filter(x => x !== id),
-            right: root.barSections.right.filter(x => x !== id)
-        }
-        if (section === "left" || section === "centre" || section === "right") {
+        let next = {}
+        for (const s of root.sectionIds)
+            next[s] = root.barSections[s].filter(x => x !== id)
+        const placed = root.sectionIds.indexOf(section) !== -1
+        if (placed) {
             const at = (index === undefined || index < 0) ? next[section].length
                      : Math.min(index, next[section].length)
             next[section].splice(at, 0, id)
@@ -144,27 +149,25 @@ Singleton {
         // Every pill still checks pillVisible() itself, so the two have to agree:
         // a pill placed in a section but still on the hidden list would be built,
         // reserve nothing, and simply not draw.
-        root.setPillVisible(id, section === "left" || section === "centre" || section === "right")
+        // Placed anywhere you can see it -- bar or utility pill -- counts as
+        // visible; a panel asks this to know whether it has a chip to grow from.
+        root.setPillVisible(id, placed)
         barWriteTimer.restart()
     }
 
     function resetBarLayout() {
-        root.barSections = {
-            left: root.defaultSections.left.slice(),
-            centre: root.defaultSections.centre.slice(),
-            right: root.defaultSections.right.slice()
-        }
+        let next = {}
+        for (const s of root.sectionIds)
+            next[s] = root.defaultSections[s].slice()
+        root.barSections = next
         barWriteTimer.restart()
     }
 
     Timer {
         id: barWriteTimer
         interval: 0
-        onTriggered: root.barLayout = [
-            root.barSections.left.join(","),
-            root.barSections.centre.join(","),
-            root.barSections.right.join(",")
-        ].join(";")
+        onTriggered: root.barLayout =
+            root.sectionIds.map(s => root.barSections[s].join(",")).join(";")
     }
 
     // Screen recording. An empty dir means "wherever Paths.recordings points".

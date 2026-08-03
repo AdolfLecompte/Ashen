@@ -2,19 +2,11 @@ pragma Singleton
 import Quickshell
 import QtQuick
 
-// What a pill IS, in one place: its name, its compact face, and whether it
-// opens something.
+// What a pill IS, in one place: name, compact face, and what it opens. Used to
+// be spread across Bar.qml, SettingsBarTab and each pill's own glyph.
 //
-// This used to be spread across three files that had to agree by hand --
-// `Bar.qml` mapped ids to components, `SettingsBarTab` kept the human names,
-// and each pill carried its own glyph. Adding a pill meant remembering all
-// three, and the utility pill could not show any of them at all.
-//
-// A pill has two faces. On the bar it is its full self: the clock shows the
-// time and the weather, the workspaces show five chips. Dropped into the
-// utility pill it wears `glyph` instead -- a plain icon chip like every other
-// tool there. That is what lets anything move either way: a two-hundred-pixel
-// clock has no business stretching a strip of icons, but a clock icon does.
+// Two faces: its full self on the bar, `glyph` when dropped into the utility
+// pill. A 200 px clock has no business stretching a strip of icons.
 Singleton {
     id: root
 

@@ -55,13 +55,9 @@ TabPage {
     // Names and icons come from services/Pills.qml, the one catalogue. The
     // copy that used to live here had to be edited by hand every time a pill
     // was added, and was already a name behind.
-    // The ids Bar.pillFor() can actually build. Pills.arrangeable is longer --
-    // it also lists process, settings and clipboard, which live on the utility
-    // pill and have no bar component yet -- so offering those here would let
-    // you drop a pill onto the bar that renders nothing.
-    readonly property var allPills: ["launcher", "notifications", "workspaces", "media",
-                                     "clock", "locks", "usb", "recording", "tray", "system",
-                                     "window", "power"]
+    // Everything the catalogue says you may arrange; the bar and the utility
+    // pill can both build all of them.
+    readonly property var allPills: Services.Pills.arrangeable
     // Whatever is in no section at all
     readonly property var availablePills:
         tab.allPills.filter(id => Services.Prefs.barSectionOf(id) === "")
@@ -96,7 +92,7 @@ TabPage {
             color: dragArea.drag.active ? Services.Colors.ghost
                  : hoverArea.containsMouse ? Services.Colors.ghostAlpha(0.32)
                  : Services.Colors.ghostAlpha(0.18)
-            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
             // What the DropArea reads on the other end. `Drag.mimeData` is
             // only ever filled for Drag.Automatic (a real cross-process drag);
@@ -109,8 +105,8 @@ TabPage {
             Drag.hotSpot.x: width / 2
             Drag.hotSpot.y: height / 2
 
-            Behavior on x { enabled: !dragArea.drag.active; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-            Behavior on y { enabled: !dragArea.drag.active; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+            Behavior on x { enabled: !dragArea.drag.active; NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut } }
+            Behavior on y { enabled: !dragArea.drag.active; NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut } }
 
             // Icon first, then the name: the same face the pill wears on the
             // utility pill, so a chip in this editor is recognisable as the
@@ -217,7 +213,7 @@ TabPage {
                                          : Services.Colors.ghostAlpha(0.05)
             border.color: dropZone.containsDrag ? Services.Colors.ghostAlpha(0.4) : "transparent"
             border.width: 1
-            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
             DropArea {
                 id: dropZone
@@ -258,8 +254,8 @@ TabPage {
                 // position comes from wherever it was left in some other
                 // plate, and animating that would fly it across the editor
                 // before settling where it actually belongs.
-                Behavior on x { enabled: caret.visible; SmoothedAnimation { duration: 120 } }
-                Behavior on y { enabled: caret.visible; SmoothedAnimation { duration: 120 } }
+                Behavior on x { enabled: caret.visible; SmoothedAnimation { duration: Services.Sizes.msMicro } }
+                Behavior on y { enabled: caret.visible; SmoothedAnimation { duration: Services.Sizes.msMicro } }
             }
 
             Flow {
@@ -367,8 +363,16 @@ TabPage {
             Zone { section: "right";  caption: "RIGHT";  ids: Services.Prefs.barPills("right") }
         }
 
-        // Off the bar. Full width, under all three, because it belongs to none
-        // of them.
+        // The utility pill: the other place a pill can live, so it gets a
+        // plate of its own rather than being a hidden special case.
+        Zone {
+            section: "utility"
+            caption: "UTILITY PILL"
+            ids: Services.Prefs.barPills("utility")
+            Layout.topMargin: 4
+        }
+
+        // Off both. Full width, under everything, because it belongs nowhere.
         Zone {
             section: ""
             caption: "AVAILABLE"
@@ -383,7 +387,7 @@ TabPage {
             color: resetHover.containsMouse ? Services.Colors.snow : Services.Colors.ash
             font.pixelSize: 10
             font.family: "JetBrainsMono NF"
-            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
             MouseArea {
                 id: resetHover
                 anchors.fill: parent
@@ -486,7 +490,7 @@ TabPage {
                     radius: 10
                     color: cityCard.active ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.12)
                     gradient: Services.Prefs.useGradients && (cityCard.active) ? Services.Colors.accentGradient : null
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                     RowLayout {
                         anchors.fill: parent
                         anchors.leftMargin: 12
@@ -522,7 +526,7 @@ TabPage {
                         width: 18; height: 18; radius: 9
                         color: rmCityArea.containsMouse ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.4)
                         gradient: Services.Prefs.useGradients && (rmCityArea.containsMouse) ? Services.Colors.accentGradient : null
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                         Text {
                             anchors.centerIn: parent
                             text: "\ue5cd"           // close
@@ -550,7 +554,7 @@ TabPage {
                 color: addCityArea.containsMouse ? Services.Colors.ghostAlpha(0.2) : Services.Colors.ghostAlpha(0.06)
                 border.color: Services.Colors.ghostAlpha(0.3)
                 border.width: 1
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                 RowLayout {
                     anchors.centerIn: parent
                     spacing: 4
@@ -590,9 +594,9 @@ TabPage {
             implicitHeight: cityPickerCol.implicitHeight + 20
             // Slide open/closed instead of snapping.
             Layout.preferredHeight: tab.cityPickerOpen ? implicitHeight : 0
-            Behavior on Layout.preferredHeight { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            Behavior on Layout.preferredHeight { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
             opacity: tab.cityPickerOpen ? 1.0 : 0.0
-            Behavior on opacity { NumberAnimation { duration: 160 } }
+            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
             ColumnLayout {
                 id: cityPickerCol
@@ -651,7 +655,7 @@ TabPage {
                         Layout.preferredHeight: 38
                         radius: 8
                         color: sugArea.containsMouse ? Services.Colors.ghostAlpha(0.18) : Services.Colors.ghostAlpha(0.06)
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                         RowLayout {
                             anchors.fill: parent

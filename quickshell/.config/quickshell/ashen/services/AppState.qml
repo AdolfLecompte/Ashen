@@ -60,6 +60,10 @@ Singleton {
     property bool clipboardVisible: false
 
     property var bigOverlays: ["launcherVisible", "settingsVisible", "wallpaperVisible", "clipboardVisible", "processVisible", "utilitiesVisible"]
+    // Reactive read of a panel's own flag by name, for anything driven from
+    // the pill catalogue rather than wired to one panel.
+    function overlayOpen(name) { return name !== "" && root[name] === true }
+
     function toggleOverlay(name) {
         let wasOpen = root[name]
         for (let n of bigOverlays) root[n] = false
@@ -68,6 +72,11 @@ Singleton {
     function closeBigOverlays() {
         for (let n of bigOverlays) root[n] = false
     }
+    // Asked for by anything in-process that wants the session locked, so it
+    // does not have to shell out to `qs ipc call lockscreen lock`. The lock
+    // surface listens; nothing else needs to know it exists.
+    signal lockRequested()
+
     property bool recording: false
     property real recordingStartTime: 0
     // How long it has been running, as mm:ss. Here rather than in the pill:
@@ -217,6 +226,10 @@ Singleton {
     property real bluetoothPillH: 32
     property real networkPillCenterX: 700
     property bool bluetoothVisible: false
+    property real powerPillCenterX: 1800
+    property real powerPillCenterY: 28
+    property real powerPillW: 44
+    property real powerPillH: 44
     property real bluetoothPillCenterX: 760
     property bool usbVisible: false
     property real usbPillCenterX: 500
@@ -248,6 +261,40 @@ Singleton {
         else if (key === "brightness") { root.brightnessPillW = w; root.brightnessPillH = h }
         else if (key === "battery")    { root.batteryPillW = w;    root.batteryPillH = h }
         else if (key === "usb")        { root.usbPillW = w;        root.usbPillH = h }
+        else if (key === "power")      { root.powerPillW = w;      root.powerPillH = h }
+        else if (key === "process")    { root.processPillW = w;    root.processPillH = h }
+        else if (key === "settings")   { root.settingsPillW = w;   root.settingsPillH = h }
+        else if (key === "clipboard")  { root.clipboardPillW = w;  root.clipboardPillH = h }
+    }
+
+    // A chip on the utility pill publishes itself the same way a bar pill
+    // does, so a panel reads one set of numbers whichever place its chip is
+    // living in today.
+    function setChipRect(key, cx, cy, w, h, edge) {
+        if (key === "process")        { root.processPillCX = cx;   root.processPillCY = cy
+                                        root.processPillW = w;     root.processPillH = h
+                                        root.processSourceEdge = edge }
+        else if (key === "settings")  { root.settingsPillCX = cx;  root.settingsPillCY = cy
+                                        root.settingsPillW = w;    root.settingsPillH = h
+                                        root.settingsSourceEdge = edge }
+        else if (key === "clipboard") { root.clipboardPillCX = cx; root.clipboardPillCY = cy
+                                        root.clipboardPillW = w;   root.clipboardPillH = h
+                                        root.clipboardSourceEdge = edge }
+        else { root.setPillCenter(key, cx, cy); root.setPillSize(key, w, h) }
+    }
+
+    // Where a tool's chip is: an edge name while it lives on the utility pill,
+    // "" once it has been moved onto the bar.
+    function setChipEdge(key, edge) {
+        if (key === "process") root.processSourceEdge = edge
+        else if (key === "settings") root.settingsSourceEdge = edge
+        else if (key === "clipboard") root.clipboardSourceEdge = edge
+    }
+    function chipEdgeOf(key) {
+        if (key === "process") return root.processSourceEdge
+        if (key === "settings") return root.settingsSourceEdge
+        if (key === "clipboard") return root.clipboardSourceEdge
+        return ""
     }
 
     function setPillCenter(key, x, y) {
@@ -260,6 +307,10 @@ Singleton {
         else if (key === "usb")          { root.usbPillCenterX = x;           root.usbPillCenterY = y }
         else if (key === "clock")        { root.clockPillCenterX = x;         root.clockPillCenterY = y }
         else if (key === "notification") { root.notificationPillCenterX = x;  root.notificationPillCenterY = y }
+        else if (key === "power")        { root.powerPillCenterX = x;         root.powerPillCenterY = y }
+        else if (key === "process")      { root.processPillCX = x;            root.processPillCY = y }
+        else if (key === "settings")     { root.settingsPillCX = x;           root.settingsPillCY = y }
+        else if (key === "clipboard")    { root.clipboardPillCX = x;          root.clipboardPillCY = y }
     }
 
     property real trayMenuCenterX: 900
@@ -328,6 +379,23 @@ Singleton {
     // laid out yet still leaves from the right side of the screen.
     function utilChipOf(edge, id) {
         return utilChip[edge + "|" + id] || null
+    }
+
+    // Where a panel should grow from, wherever its chip happens to live: the
+    // utility pill on that edge, or the bar. Published continuously by both,
+    // so a panel opened by keybind knows its origin without anyone clicking.
+    function chipRectOf(key, edge) {
+        if (edge !== "") {
+            const c = root.utilChipOf(edge, key)
+            if (c) return c
+        }
+        if (key === "process")   return { cx: root.processPillCX,   cy: root.processPillCY,
+                                          w: root.processPillW,     h: root.processPillH }
+        if (key === "settings")  return { cx: root.settingsPillCX,  cy: root.settingsPillCY,
+                                          w: root.settingsPillW,    h: root.settingsPillH }
+        if (key === "clipboard") return { cx: root.clipboardPillCX, cy: root.clipboardPillCY,
+                                          w: root.clipboardPillW,   h: root.clipboardPillH }
+        return { cx: 0, cy: 0, w: 44, h: 44 }
     }
 
     // Which utility pill is pinned out, by edge ("" = none). One pill, not all

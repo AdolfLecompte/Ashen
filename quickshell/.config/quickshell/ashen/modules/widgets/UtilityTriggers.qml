@@ -8,11 +8,11 @@ import "root:/services" as Services
 // and a row of icon-only chips glues to that edge, same peek/hide language the
 // old standalone ProcessTrigger used (retired, folded in here). This is the
 // pill every orphan panel (launcher, Settings, notifications, clipboard,
-// processes) grows out of instead of EdgeEntry's edge with nothing behind it
-// -- see the comment atop EdgeEntry.qml. Process is wired up; Settings and
-// Clipboard are still placeholders.
+// processes) grows out of. Process is wired up; Settings and Clipboard are
+// still placeholders.
 Scope {
     id: root
+
 
     // A utility chip: a transport plate that also knows how to hand itself
     // over to the panel it opens. While that panel is up the chip IS the
@@ -44,7 +44,7 @@ Scope {
         // Opacity, not visible: hidden would drop it from the Grid and shove
         // its neighbours sideways mid-animation.
         opacity: takenOver ? 0.0 : 1.0
-        Behavior on opacity { NumberAnimation { duration: 140 } }
+        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
         onOpenChanged: {
             if (!handsOver) return
@@ -263,10 +263,10 @@ Scope {
                 border.color: Services.Colors.ghostAlpha(0.2)
                 border.width: 0
 
-                Behavior on anchors.topMargin { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-                Behavior on anchors.bottomMargin { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-                Behavior on anchors.leftMargin { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-                Behavior on anchors.rightMargin { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                Behavior on anchors.topMargin { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
+                Behavior on anchors.bottomMargin { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
+                Behavior on anchors.leftMargin { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
+                Behavior on anchors.rightMargin { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
 
                 // Declared before the chips, so it sits UNDER them: on top it
                 // was catching every hover move itself and the chips below
@@ -291,8 +291,9 @@ Scope {
                     // The drawer circle keeps its own diameter; the tools
                     // share whatever is left, so adding or removing one
                     // re-spaces the rest instead of leaving dead air.
-                    readonly property int count: chips.children.length
-                    readonly property int toolCount: Math.max(1, count - 2)
+                    readonly property int tools: Services.Prefs.barPills("utility").length
+                    readonly property int count: tools + 2
+                    readonly property int toolCount: Math.max(1, tools)
                     // Derived from the pill's own thickness, not Sizes.innerH:
                     // the chips have to shrink with it or they burst the
                     // capsule they sit in.
@@ -319,67 +320,37 @@ Scope {
                             trig.pinned ? "" : trig.edge
                     }
 
-                    // Process: grows out of this chip. The geometry is read at
-                    // click time, not tracked continuously -- three copies of
-                    // this pill exist (one per free edge) and only the one
-                    // actually clicked is the pill the panel should hang off.
-                    UtilChip {
-                        id: procChip
-                        chipId: "process"
-                        trigRef: trig
-                        glyph: "\ueaa2"
-                        size: chips.circleSize
-                        width: trig.vertical ? chips.circleSize : chips.chipLen
-                        height: trig.vertical ? chips.chipLen : chips.circleSize
-                        open: Services.AppState.processVisible
-                              && Services.AppState.processSourceEdge === trig.edge
-                        onTriggered: {
-                            Services.AppState.processPillCX = trig.chipCX(procChip)
-                            Services.AppState.processPillCY = trig.chipCY(procChip)
-                            Services.AppState.processPillW = procChip.width
-                            Services.AppState.processPillH = procChip.height
-                            Services.AppState.processSourceEdge = trig.edge
-                            Services.AppState.processVisible = !Services.AppState.processVisible
-                        }
-                    }
+                    // Whatever you have dropped in here, in your order. The
+                    // three tools are only the shipped default: any pill may
+                    // live on this pill instead of on the bar.
+                    Repeater {
+                        model: Services.Prefs.barPills("utility")
 
-                    UtilChip {
-                        id: setChip
-                        chipId: "settings"
-                        trigRef: trig
-                        glyph: "\ue8b8"
-                        size: chips.circleSize
-                        width: trig.vertical ? chips.circleSize : chips.chipLen
-                        height: trig.vertical ? chips.chipLen : chips.circleSize
-                        open: Services.AppState.settingsVisible
-                              && Services.AppState.settingsSourceEdge === trig.edge
-                        onTriggered: {
-                            Services.AppState.settingsPillCX = trig.chipCX(setChip)
-                            Services.AppState.settingsPillCY = trig.chipCY(setChip)
-                            Services.AppState.settingsPillW = setChip.width
-                            Services.AppState.settingsPillH = setChip.height
-                            Services.AppState.settingsSourceEdge = trig.edge
-                            Services.AppState.settingsVisible = !Services.AppState.settingsVisible
-                        }
-                    }
-
-                    UtilChip {
-                        id: clipChip
-                        chipId: "clipboard"
-                        trigRef: trig
-                        glyph: "\ue14f"
-                        size: chips.circleSize
-                        width: trig.vertical ? chips.circleSize : chips.chipLen
-                        height: trig.vertical ? chips.chipLen : chips.circleSize
-                        open: Services.AppState.clipboardVisible
-                              && Services.AppState.clipboardSourceEdge === trig.edge
-                        onTriggered: {
-                            Services.AppState.clipboardPillCX = trig.chipCX(clipChip)
-                            Services.AppState.clipboardPillCY = trig.chipCY(clipChip)
-                            Services.AppState.clipboardPillW = clipChip.width
-                            Services.AppState.clipboardPillH = clipChip.height
-                            Services.AppState.clipboardSourceEdge = trig.edge
-                            Services.AppState.clipboardVisible = !Services.AppState.clipboardVisible
+                        delegate: UtilChip {
+                            id: toolChip
+                            required property var modelData
+                            readonly property string flag: Services.Pills.opens(modelData)
+                            chipId: modelData
+                            trigRef: trig
+                            glyph: Services.Pills.glyph(modelData)
+                            size: chips.circleSize
+                            width: trig.vertical ? chips.circleSize : chips.chipLen
+                            height: trig.vertical ? chips.chipLen : chips.circleSize
+                            // Its own panel, on THIS edge: three copies of the
+                            // pill exist and only the one clicked is the one
+                            // the panel should hang off.
+                            open: Services.AppState.overlayOpen(toolChip.flag)
+                                  && Services.AppState.chipEdgeOf(modelData) === trig.edge
+                            // A readout has nothing to open, so it does not
+                            // stand down for anything.
+                            handsOver: toolChip.flag !== ""
+                            onTriggered: {
+                                if (toolChip.flag === "") return
+                                Services.AppState.setChipRect(modelData,
+                                    trig.chipCX(toolChip), trig.chipCY(toolChip),
+                                    toolChip.width, toolChip.height, trig.edge)
+                                Services.AppState.toggleOverlay(toolChip.flag)
+                            }
                         }
                     }
 
