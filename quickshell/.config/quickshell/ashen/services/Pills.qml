@@ -5,8 +5,8 @@ import QtQuick
 // What a pill IS, in one place: name, compact face, and what it opens. Used to
 // be spread across Bar.qml, SettingsBarTab and each pill's own glyph.
 //
-// Two faces: its full self on the bar, `glyph` when dropped into the utility
-// pill. A 200 px clock has no business stretching a strip of icons.
+// `glyph` is the compact face the utility pill's tools wear; a bar pill draws
+// its full self and only needs the label.
 Singleton {
     id: root
 
@@ -29,23 +29,26 @@ Singleton {
         window:        { label: "Active window", glyph: "\ue8f5", opens: "" },
         power:         { label: "Power",         glyph: "", opens: "powerMenuVisible" },
 
-        // The three tools. They were born on the utility pill, but there is
-        // nothing special about them -- they are pills like the rest and may
-        // sit on the bar just as well.
-        process:       { label: "Process",       glyph: "", opens: "processVisible" },
-        settings:      { label: "Settings",      glyph: "", opens: "settingsVisible" },
-        clipboard:     { label: "Clipboard",     glyph: "", opens: "clipboardVisible" },
-        // The drawer is not movable: it is the way in to everything else, so
-        // it is pinned to the end of the utility pill and never listed.
-        utilities:     { label: "Utilities",     glyph: "", opens: "utilitiesVisible" },
+        // The tools. They live on the utility pill, always, in this order --
+        // they are not bar pills and cannot be moved onto it.
+        process:       { label: "Process",       glyph: "\ueaa2", opens: "processVisible" },
+        settings:      { label: "Settings",      glyph: "\ue8b8", opens: "settingsVisible" },
+        clipboard:     { label: "Clipboard",     glyph: "\ue14f", opens: "clipboardVisible" },
+        notes:         { label: "Notes",         glyph: "\ue745", opens: "notesVisible" },
+        // The drawer is pinned to the end of the utility pill and never listed.
+        utilities:     { label: "Utilities",     glyph: "\ue5cc", opens: "utilitiesVisible" },
     })
 
-    // Everything the user may arrange, in the order Settings offers them.
+    // Everything the user may arrange on the bar, in the order Settings
+    // offers them. The tools are not here: they are fixed to the utility pill.
     readonly property var arrangeable: [
         "launcher", "notifications", "workspaces", "media", "clock", "locks",
-        "usb", "recording", "tray", "system", "window", "power",
-        "process", "settings", "clipboard"
+        "usb", "recording", "tray", "system", "window", "power"
     ]
+
+    // The utility pill's chips, in the order they sit in it.
+    readonly property var tools: ["process", "settings", "clipboard", "notes"]
+    function isTool(id) { return root.tools.indexOf(id) !== -1 }
 
     function label(id) { const m = meta[id]; return m ? m.label : id }
     function glyph(id) { const m = meta[id]; return m ? m.glyph : "" }

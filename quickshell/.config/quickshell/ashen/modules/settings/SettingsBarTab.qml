@@ -55,8 +55,7 @@ TabPage {
     // Names and icons come from services/Pills.qml, the one catalogue. The
     // copy that used to live here had to be edited by hand every time a pill
     // was added, and was already a name behind.
-    // Everything the catalogue says you may arrange; the bar and the utility
-    // pill can both build all of them.
+    // Everything the catalogue says you may arrange on the bar.
     readonly property var allPills: Services.Pills.arrangeable
     // Whatever is in no section at all
     readonly property var availablePills:
@@ -120,7 +119,7 @@ TabPage {
                     id: gly
                     anchors.verticalCenter: parent.verticalCenter
                     text: Services.Pills.glyph(slot.pillId)
-                    color: dragArea.drag.active ? Services.Colors.abyss : Services.Colors.ghost
+                    color: dragArea.drag.active ? Services.Colors.accentText : Services.Colors.ghost
                     font.pixelSize: 14
                     font.family: "Material Symbols Rounded"
                 }
@@ -133,7 +132,7 @@ TabPage {
                                     Math.max(0, face.width - 18 - gly.width - chipInner.spacing))
                     elide: Text.ElideRight
                     text: Services.Pills.label(slot.pillId)
-                    color: dragArea.drag.active ? Services.Colors.abyss : Services.Colors.snow
+                    color: dragArea.drag.active ? Services.Colors.accentText : Services.Colors.snow
                     font.pixelSize: 11
                     font.family: "JetBrainsMono NF"
                 }
@@ -363,16 +362,7 @@ TabPage {
             Zone { section: "right";  caption: "RIGHT";  ids: Services.Prefs.barPills("right") }
         }
 
-        // The utility pill: the other place a pill can live, so it gets a
-        // plate of its own rather than being a hidden special case.
-        Zone {
-            section: "utility"
-            caption: "UTILITY PILL"
-            ids: Services.Prefs.barPills("utility")
-            Layout.topMargin: 4
-        }
-
-        // Off both. Full width, under everything, because it belongs nowhere.
+        // Off the bar. Full width, under everything, because it belongs nowhere.
         Zone {
             section: ""
             caption: "AVAILABLE"
@@ -500,12 +490,12 @@ TabPage {
                             text: "\uf1db"                 // location_on
                             font.family: "Material Symbols Rounded"
                             font.pixelSize: 15
-                            color: cityCard.active ? Services.Colors.abyss : Services.Colors.ghost
+                            color: cityCard.active ? Services.Colors.accentText : Services.Colors.ghost
                         }
                         Text {
                             id: cityName
                             text: cityCard.modelData.city
-                            color: cityCard.active ? Services.Colors.abyss : Services.Colors.snow
+                            color: cityCard.active ? Services.Colors.accentText : Services.Colors.snow
                             font.pixelSize: 11
                             font.family: "JetBrainsMono NF"
                             elide: Text.ElideRight
@@ -532,7 +522,7 @@ TabPage {
                             text: "\ue5cd"           // close
                             font.family: "Material Symbols Rounded"
                             font.pixelSize: 11
-                            color: Services.Colors.abyss
+                            color: Services.Colors.accentText
                         }
                         MouseArea {
                             id: rmCityArea
