@@ -50,18 +50,12 @@ Singleton {
     property real prevTxBytes: -1
 
     // [{ pid, name, cpu, mem }], heaviest first
-    property var processes: []
 
     function pushHistory(arr, val) {
         let a = arr.slice()
         a.push(val)
         if (a.length > 40) a.shift()
         return a
-    }
-
-    function kill(pid) {
-        Quickshell.execDetached(["sh", "-c", "kill " + pid])
-        procProc.running = true
     }
 
     onActiveChanged: if (active) {
@@ -81,7 +75,6 @@ Singleton {
         netProc.running = true
         sensorsProc.running = true
         gpuStatProc.running = true
-        procProc.running = true
     }
 
     Timer {
@@ -239,25 +232,4 @@ Singleton {
         }
     }
 
-    Process {
-        id: procProc
-        command: ["sh", "-c", "ps -eo pid=,comm=,%cpu=,%mem= --sort=-%cpu | head -12"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let list = []
-                for (let line of text.trim().split("\n")) {
-                    let p = line.trim().split(/\s+/)
-                    if (p.length < 4) continue
-                    list.push({
-                        pid: p[0],
-                        name: p.slice(1, p.length - 2).join(" "),
-                        cpu: parseFloat(p[p.length - 2]) || 0,
-                        mem: parseFloat(p[p.length - 1]) || 0
-                    })
-                }
-                root.processes = list
-            }
-        }
-    }
 }

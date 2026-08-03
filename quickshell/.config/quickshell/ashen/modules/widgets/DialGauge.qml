@@ -34,6 +34,10 @@ Item {
     property int labelSize: 22
     property int captionSize: 10
 
+    // The vessel fills with liquid as well as stroking its rim; the ring on
+    // its own said the same thing twice as quietly.
+    property bool liquid: true
+    property real liquidAlpha: 0.28
     property color fillColor: Services.Colors.ghost
     property color trackColor: Services.Colors.ghostAlpha(0.14)
     // The ring breathes: for something that is still happening (charging), not
@@ -71,7 +75,7 @@ Item {
         // easeMs 0 means "keep up": a dial tied to a slider being dragged has
         // to be under the finger, not easing towards where it was.
         enabled: root.easeMs > 0 && !sweep.running
-        NumberAnimation { duration: root.easeMs; easing.type: Easing.OutCubic }
+        NumberAnimation { duration: root.easeMs; easing.type: Services.Sizes.easeOut }
     }
 
     onArmedChanged: if (armed && sweepMs > 0) sweep.restart()
@@ -82,7 +86,7 @@ Item {
             target: root; property: "frac"
             to: root.value
             duration: Math.round(Math.max(450, root.sweepMs * root.value))
-            easing.type: Easing.Linear
+            easing.type: Services.Sizes.easeTrace
         }
         // The end value was captured when the sweep started; if a fresher
         // reading landed mid-sweep, settle onto it rather than stopping short.
@@ -136,9 +140,21 @@ Item {
         SequentialAnimation on opacity {
             running: root.glow && root.armed
             loops: Animation.Infinite
-            NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
-            NumberAnimation { to: 0; duration: 900; easing.type: Easing.InOutSine }
+            NumberAnimation { to: 1; duration: 900; easing.type: Services.Sizes.easeLoop }
+            NumberAnimation { to: 0; duration: 900; easing.type: Services.Sizes.easeLoop }
         }
+    }
+
+    // Inside the ring, not under it: the rim stays legible at any level.
+    LiquidFill {
+        anchors.fill: parent
+        visible: root.liquid && root.armed
+        running: root.liquid && root.armed && root.visible
+        level: root.frac
+        inset: root.lw + 3
+        waveAmp: Math.max(2, root.size * 0.028)
+        color_: Qt.rgba(root.fillColor.r, root.fillColor.g,
+                        root.fillColor.b, root.liquidAlpha)
     }
 
     Canvas {
@@ -182,7 +198,7 @@ Item {
             font.family: "Material Symbols Rounded"
             font.pixelSize: root.glyphSize
             color: root.fillColor
-            Behavior on color { ColorAnimation { duration: 120 } }
+            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
         }
         Text {
             id: labelText
@@ -211,7 +227,7 @@ Item {
             font.bold: true
             font.family: "JetBrainsMono NF"
             opacity: root.caption === "" ? 0 : 1
-            Behavior on opacity { NumberAnimation { duration: 140 } }
+            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
         }
     }
 
