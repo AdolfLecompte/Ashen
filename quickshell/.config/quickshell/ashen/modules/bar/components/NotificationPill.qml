@@ -18,7 +18,7 @@ Rectangle {
     radius: Services.Sizes.pillR
     // Whole containment pill fills with the accent while the panel is open, the
     // same inversion every other active pill uses (see RecordingPill /
-    // LocksPill). No inner box, and no hover tint on the plate.
+    // No inner box, and no hover tint on the plate.
     color: open ? Services.Colors.ghost
                 : Services.Colors.surfacePill
     gradient: Services.Prefs.useGradients && (open) ? Services.Colors.accentGradient : null

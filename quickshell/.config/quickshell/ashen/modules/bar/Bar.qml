@@ -83,7 +83,6 @@ Scope {
                 Component { id: cWorkspaces;    Workspaces {} }
                 Component { id: cMedia;         MediaPill {} }
                 Component { id: cClock;         Clock {} }
-                Component { id: cLocks;         LocksPill {} }
                 Component { id: cUsb;           USBPill {} }
                 Component { id: cRecording;     RecordingPill {} }
                 Component { id: cTray;          TrayPill {} }
@@ -96,7 +95,7 @@ Scope {
                 // the only thing that can report a state that is running, and
                 // taking a control off is not the same as asking not to be told.
                 // It claims a slot for as long as the state lasts and gives it
-                // straight back, the way Locks and USB come and go.
+                // straight back, the way USB comes and goes.
                 function pillsIn(section) {
                     const base = Services.Prefs.barPills(section)
                     if (section !== "right") return base
@@ -117,7 +116,6 @@ Scope {
                     case "workspaces":    return cWorkspaces
                     case "media":         return cMedia
                     case "clock":         return cClock
-                    case "locks":         return cLocks
                     case "usb":           return cUsb
                     case "recording":     return cRecording
                     case "tray":          return cTray

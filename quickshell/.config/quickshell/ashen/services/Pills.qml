@@ -21,7 +21,6 @@ Singleton {
         workspaces:    { label: "Workspaces",    glyph: "", opens: "" },
         media:         { label: "Media",         glyph: "", opens: "mediaVisible" },
         clock:         { label: "Clock & Weather", glyph: "", opens: "calendarVisible" },
-        locks:         { label: "Caps / Num",    glyph: "", opens: "" },
         usb:           { label: "USB",           glyph: "", opens: "usbVisible" },
         recording:     { label: "Recording",     glyph: "", opens: "" },
         tray:          { label: "Tray",          glyph: "", opens: "" },
@@ -34,7 +33,6 @@ Singleton {
         process:       { label: "Process",       glyph: "\ueaa2", opens: "processVisible" },
         settings:      { label: "Settings",      glyph: "\ue8b8", opens: "settingsVisible" },
         clipboard:     { label: "Clipboard",     glyph: "\ue14f", opens: "clipboardVisible" },
-        notes:         { label: "Notes",         glyph: "\ue745", opens: "notesVisible" },
         // The drawer is pinned to the end of the utility pill and never listed.
         utilities:     { label: "Utilities",     glyph: "\ue5cc", opens: "utilitiesVisible" },
     })
@@ -42,12 +40,12 @@ Singleton {
     // Everything the user may arrange on the bar, in the order Settings
     // offers them. The tools are not here: they are fixed to the utility pill.
     readonly property var arrangeable: [
-        "launcher", "notifications", "workspaces", "media", "clock", "locks",
+        "launcher", "notifications", "workspaces", "media", "clock",
         "usb", "recording", "tray", "system", "window", "power"
     ]
 
     // The utility pill's chips, in the order they sit in it.
-    readonly property var tools: ["process", "settings", "clipboard", "notes"]
+    readonly property var tools: ["process", "settings", "clipboard"]
     function isTool(id) { return root.tools.indexOf(id) !== -1 }
 
     function label(id) { const m = meta[id]; return m ? m.label : id }
