@@ -120,8 +120,7 @@ Scope {
                     && Services.AppState.utilitiesSourceEdge === trig.edge)
                 || (Services.AppState.settingsVisible
                     && Services.AppState.settingsSourceEdge === trig.edge)
-                || (Services.AppState.notesVisible
-                    && Services.AppState.notesSourceEdge === trig.edge)
+
             onPanelOpenChanged: {
                 if (panelOpen) { hideTimer.stop(); trig.revealed = true }
                 else hideTimer.restart()

@@ -44,7 +44,6 @@ PanelWindow {
         { id: "theme",      glyph: "\ue40a", label: "Theme",         kind: "panel"  },
         { id: "clipboard",  glyph: "\ue14f", label: "Clipboard",     kind: "panel"  },
         { id: "processes",  glyph: "\ue322", label: "Processes",     kind: "panel"  },
-        { id: "notes",      glyph: "\ue745", label: "Notes",         kind: "panel"  },
         { id: "power",      glyph: "\uf8c7", label: "Power",         kind: "panel"  },
         { id: "record",     glyph: "\uf679", label: "Record",        kind: "toggle" },
         { id: "caffeine",   glyph: "\uefef", label: "Keep Awake",    kind: "toggle" },
@@ -76,7 +75,6 @@ PanelWindow {
             case "wallpaper":  Services.AppState.wallpaperVisible = true; break
             case "clipboard":  Services.AppState.clipboardVisible = true; break
             case "processes":  Services.AppState.processVisible = true; break
-            case "notes":      Services.AppState.notesVisible = true; break
             case "power":      Services.AppState.powerMenuVisible = true; break
             case "lock":       Quickshell.execDetached(["loginctl", "lock-session"]); break
             case "record":     Services.AppState.toggleRecording(); break

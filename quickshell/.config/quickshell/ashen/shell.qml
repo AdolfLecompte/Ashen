@@ -73,15 +73,6 @@ ShellRoot {
         }
     }
     IpcHandler {
-        target: "notes"
-        function toggle() {
-            // Nothing was clicked, so nobody named an edge: use the pill a
-            // keybind is meant to come from.
-            Services.AppState.notesSourceEdge = Services.Sizes.utilEdge
-            Services.AppState.toggleOverlay("notesVisible")
-        }
-    }
-    IpcHandler {
         target: "utilities"
         function toggle() {
             // Nothing was clicked, so nobody named an edge: use the pill a
@@ -183,5 +174,4 @@ ShellRoot {
     Widgets.LazyPanel { preloadMs: 3000; shown: Services.AppState.wallpaperVisible;     panel: Component { WallpaperPicker {} } }
     Widgets.LazyPanel { preloadMs: 3360; shown: Services.AppState.clipboardVisible;     panel: Component { Clipboard {} } }
     Widgets.LazyPanel { preloadMs: 3480; shown: Services.AppState.utilitiesVisible;     panel: Component { UtilitiesPanel {} } }
-    Widgets.LazyPanel { preloadMs: 3600; shown: Services.AppState.notesVisible;         panel: Component { NotesPanel {} } }
 }
