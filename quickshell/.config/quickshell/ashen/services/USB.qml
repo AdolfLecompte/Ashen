@@ -3,6 +3,8 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 
+import "root:/services" as Services
+
 Singleton {
     id: root
 

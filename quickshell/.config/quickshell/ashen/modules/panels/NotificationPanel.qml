@@ -446,11 +446,15 @@ Scope {
             transform: Translate { id: rowSlide }
             clip: true
 
+            // Clicking a row goes where the notification points, the same as
+            // clicking its toast did. It only reported hover before, so a
+            // notification you had already let expire was a dead end.
             MouseArea {
                 id: rowHover
                 anchors.fill: parent
                 hoverEnabled: true
-                acceptedButtons: Qt.NoButton
+                cursorShape: row.isSystem ? Qt.ArrowCursor : Qt.PointingHandCursor
+                onClicked: if (!row.isSystem) Services.Notifications.activateFromHistory(row.entry.id)
             }
 
             // Unread marker: a bar down the leading edge, no extra chrome.

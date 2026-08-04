@@ -236,6 +236,24 @@ Singleton {
 
     // Clicking the body takes you to what it is about. Senders put that behind
     // an action called "default"; when there is none, go to the app itself.
+    // From the history: same destination, but the entry stays. A record you
+    // click should not vanish because you followed it.
+    function activateFromHistory(id) {
+        const n = root.liveNotifs[id]
+        if (n) {
+            const acts = n.actions || []
+            for (let i = 0; i < acts.length; i++) {
+                if (acts[i].identifier === "default") {
+                    root.invokeAction(id, "default")
+                    root.markRead(id)
+                    return
+                }
+            }
+        }
+        root.openSender(id)
+        root.markRead(id)
+    }
+
     function activateDefault(id) {
         let n = root.liveNotifs[id]
         if (n) {
@@ -357,7 +375,44 @@ Singleton {
     // ── Sound ──────────────────────────────────────────────────────────────
     // Off by default. A system that makes noise without being asked to is a
     // system you end up muting altogether.
-    readonly property string defaultSound: "/usr/share/sounds/freedesktop/stereo/message.oga"
+    readonly property string defaultSound: Services.Paths.shellSounds + "/ashen-notif.mp3"
+
+    // What the picker offers: whatever is actually THERE, in the shell's own
+    // folder first and the system theme after it. It used to be five names
+    // written into the settings page, which is a list that goes stale and says
+    // nothing about what the machine has.
+    property var soundChoices: []
+    function refreshSounds() { soundList.running = false; soundList.running = true }
+
+    Process {
+        id: soundList
+        running: false
+        // Everything in the shell's own folder, whatever it is -- drop a file
+        // there and it shows up. From the system theme only the handful that
+        // are actually alerts: the set also ships channel tests and phone
+        // tones, and a picker with thirty-four entries is not a choice.
+        readonly property var themePicks: ["message", "message-new-instant", "bell",
+                                           "complete", "dialog-information", "window-attention"]
+        command: ["sh", "-c",
+                  '[ -d "$1" ] && for f in "$1"/*.ogg "$1"/*.oga "$1"/*.wav "$1"/*.mp3 "$1"/*.flac "$1"/*.opus; do ' +
+                  '  [ -f "$f" ] && printf "%s\\n" "$f"; done; ' +
+                  'for n in ' + soundList.themePicks.join(" ") + '; do ' +
+                  '  f="/usr/share/sounds/freedesktop/stereo/$n.oga"; ' +
+                  '  [ -f "$f" ] && printf "%s\\n" "$f"; done',
+                  "sh", Services.Paths.shellSounds]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let out = []
+                for (const line of text.split("\n")) {
+                    const p = line.trim()
+                    if (p === "") continue
+                    const base = p.split("/").pop().replace(/\.[^.]+$/, "")
+                    out.push({ path: p, name: base, mine: p.indexOf(Services.Paths.shellSounds) === 0 })
+                }
+                root.soundChoices = out
+            }
+        }
+    }
     readonly property string soundFile: Services.Prefs.notifySoundFile !== ""
         ? Services.Prefs.notifySoundFile : root.defaultSound
 
@@ -377,7 +432,8 @@ Singleton {
         // pw-play is part of pipewire, which Ashen already requires; paplay is
         // there for a machine still running the pulse daemon.
         soundProc.command = ["sh", "-c",
-                             'pw-play "$1" 2>/dev/null || paplay "$1" 2>/dev/null', "sh", file]
+                             'pw-play --volume "$2" "$1" 2>/dev/null || paplay "$1" 2>/dev/null',
+                             "sh", file, String(Services.Prefs.soundVolume)]
         soundProc.running = true
     }
 
@@ -533,7 +589,7 @@ Singleton {
         saveProc.running = true
     }
 
-    Component.onCompleted: loadProc.running = true
+    Component.onCompleted: { loadProc.running = true; root.refreshSounds() }
 
     Process {
         id: loadProc

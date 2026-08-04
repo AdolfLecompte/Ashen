@@ -11,6 +11,11 @@ Singleton {
 
     readonly property string home: Quickshell.env("HOME") || "/tmp"
 
+    // Sounds shipped WITH the shell. Quickshell.shellPath resolves against
+    // wherever the config was loaded from, so this is right both from a
+    // checkout and from /etc/xdg once installed.
+    readonly property string shellSounds: Quickshell.shellPath("sounds")
+
     // Where the helper scripts live. Running from a clone they sit in the
     // checkout; installed as a package they are on PATH, so the bare name is
     // the right thing to exec. Resolved once, because it cannot change while
@@ -38,6 +43,4 @@ Singleton {
     readonly property string recordings: home + "/Videos"
     // Default wallpaper folder; Settings > Appearance may point elsewhere
     readonly property string wallpapers: home + "/Pictures/Wallpapers"
-    // Default quick-notes folder; Settings > System may point elsewhere
-    readonly property string notes: home + "/Notes"
 }

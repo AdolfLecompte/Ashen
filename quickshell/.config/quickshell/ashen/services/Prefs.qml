@@ -106,7 +106,7 @@ Singleton {
     // The arrangement the bar shipped with, used until the user moves anything.
     readonly property var defaultSections: ({
         left: ["launcher", "notifications", "workspaces", "media"],
-        centre: ["locks", "usb", "clock", "recording"],
+        centre: ["usb", "clock", "recording"],
         right: ["tray", "system", "power"]
     })
 
@@ -178,8 +178,6 @@ Singleton {
     // Where the picker looks for wallpapers. Empty means Paths.wallpapers.
     property string wallpaperDir: ""
 
-    // Where quick notes are kept. Empty means Paths.notes (~/Notes).
-    property string notesDir: ""
 
     // Workspace chips show a glyph for whatever is open on them instead of the
     // number. Empty workspaces always keep their number.
@@ -202,6 +200,8 @@ Singleton {
     property string notifySoundFile: ""
     // Urgency 2 only, for people who want the room quiet otherwise.
     property bool notifySoundCriticalOnly: false
+    // 0..1, applied to everything the shell plays.
+    property real soundVolume: 0.5
 
     property int toastSeconds: 6
     property int maxToasts: 5
@@ -252,6 +252,7 @@ Singleton {
             property alias notifySound: root.notifySound
             property alias notifySoundFile: root.notifySoundFile
             property alias notifySoundCriticalOnly: root.notifySoundCriticalOnly
+            property alias soundVolume: root.soundVolume
             property alias toastSeconds: root.toastSeconds
             property alias maxToasts: root.maxToasts
             property alias hiddenPills: root.hiddenPills
@@ -259,7 +260,6 @@ Singleton {
             property alias recordAudio: root.recordAudio
             property alias recordDir: root.recordDir
             property alias wallpaperDir: root.wallpaperDir
-            property alias notesDir: root.notesDir
             property alias lockShowMedia: root.lockShowMedia
             property alias workspaceIcons: root.workspaceIcons
             property alias idleLockSecs: root.idleLockSecs
