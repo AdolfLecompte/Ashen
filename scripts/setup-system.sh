@@ -80,14 +80,15 @@ PKGS_OFFICIAL=(
     networkmanager bluez bluez-utils udisks2 upower power-profiles-daemon
     brightnessctl lm_sensors pciutils
     wl-clipboard cliphist grim slurp wf-recorder
-    hypridle mpvpaper ffmpeg
+    hypridle mpvpaper ffmpeg wlsunset
     nemo zenity fastfetch cava xdg-utils libnotify
     papirus-icon-theme adw-gtk-theme
     # Fonts the QML asks for BY FAMILY NAME -- a miss renders tofu, not a fallback:
     #   "JetBrainsMono NF"        <- ttf-jetbrains-mono-nerd
     #   "Material Symbols Rounded" <- ttf-material-symbols-variable (official 'extra',
     #                                 NOT the -git: -git Conflicts With this one)
-    #   "Noto Color Emoji"         <- noto-fonts-emoji (emoji picker)
+    #   "Noto Color Emoji"         <- noto-fonts-emoji (emoji in what apps send:
+    #                                 notification bodies, clipboard entries)
     ttf-jetbrains-mono-nerd ttf-material-symbols-variable noto-fonts-emoji
     xdg-desktop-portal-hyprland polkit-gnome
 )
