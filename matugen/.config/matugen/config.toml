@@ -3,35 +3,31 @@ scheme_type = "scheme-tonal-spot"
 [config.wallpaper]
 command = "true"
 set = false
+# NO post_hooks anywhere in this file. A hook fires the moment ITS template is
+# written, while the others still hold the __ASHEN_ACCENT__ placeholders that
+# scripts/ashen-accent.sh substitutes afterwards -- so anything that reloads an
+# app has to run after that script, and lives at the bottom of it instead.
 [templates.ashen_colors]
 input_path = "~/.config/matugen/templates/scheme.json.template"
 output_path = "~/.cache/ashen_scheme.json"
+
+# The candidates ashen-accent.sh picks the accent from: the strong tone, the
+# container tone, and the surface it has to be readable against. It cannot be
+# decided here -- matugen has no contrast ratio -- and it must not be decided
+# twice, or the shell and the apps drift a tone apart on a light palette.
+[templates.ashen_accent]
+input_path = "~/.config/matugen/templates/accent.json"
+output_path = "~/.cache/ashen_accent.json"
+
 [templates.gtk3]
 input_path = "~/.config/matugen/templates/gtk3.css"
 output_path = "~/.config/gtk-3.0/gtk.css"
-# xdg-desktop-portal-gtk renders the file dialogs Brave/Chromium open for
-# downloads. GTK reads gtk.css once at process start and caches it, so that
-# long-lived portal keeps the palette from login and its dialogs show the old
-# wallpaper's colours. Restart it after the new gtk.css lands; it is D-Bus
-# activated, so the next dialog respawns it and reads the fresh file.
-post_hook = "systemctl --user restart xdg-desktop-portal-gtk.service"
 [templates.gtk4]
 input_path = "~/.config/matugen/templates/gtk4.css"
 output_path = "~/.config/gtk-4.0/gtk.css"
 [templates.kitty]
 input_path = "~/.config/matugen/templates/kitty-colors.conf"
 output_path = "~/.config/kitty/ashen-colors.conf"
-# Live-reload every open kitty from the file just written, so fastfetch/prompt
-# repaint without a restart. kitty appends -<pid> to the listen socket.
-post_hook = "sh -c 'for s in /tmp/kitty-ashen.sock-*; do [ -S \"$s\" ] && kitten @ --to \"unix:$s\" set-colors --all --configured \"$HOME/.config/kitty/ashen-colors.conf\" 2>/dev/null; done; true'"
-
-# Only writes the accent hex to the cache; the border is applied to Hyprland by
-# scripts/ashen-apply-border.sh (called from the wallpaper/recolor scripts),
-# because a matugen post_hook runs under Quickshell's env — no
-# HYPRLAND_INSTANCE_SIGNATURE — where hyprctl fails and aborts the hook.
-[templates.hypr_border]
-input_path = "~/.config/matugen/templates/border_color.template"
-output_path = "~/.cache/matugen_border_color.txt"
 
 # btop reads its theme file once at start, so a running instance keeps the old
 # palette until it is restarted; there is no reload hook and nothing to send it.
@@ -49,10 +45,19 @@ output_path = "~/.config/qt5ct/colors/ashen.conf"
 input_path = "~/.config/matugen/templates/qtct-colors.conf"
 output_path = "~/.config/qt6ct/colors/ashen.conf"
 
+# The prompt. Sourced by .zshrc after ~/.p10k.zsh so it wins, which is how the
+# prompt can follow the wallpaper without this rice shipping a p10k config.
+[templates.p10k]
+input_path = "~/.config/matugen/templates/p10k-colors.zsh"
+output_path = "~/.cache/ashen_p10k.zsh"
+
 # The standalone terminal cava. NOT the bar's visualiser: that one runs off
 # ashen.conf, emits raw numbers and is painted in QML, so it takes its colour
 # from Colors like everything else in the shell. A running cava reads the file
 # once, so it picks the new gradient up on its next start.
+# A cava THEME file, which ~/.config/cava/config points at by name. The config
+# itself is static and stowed: rewriting it under a running cava is what used to
+# break the bars, and cava has this split built in for exactly that reason.
 [templates.cava]
 input_path = "~/.config/matugen/templates/cava-config.conf"
-output_path = "~/.config/cava/config"
+output_path = "~/.config/cava/themes/ashen"

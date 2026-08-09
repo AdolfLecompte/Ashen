@@ -17,6 +17,11 @@ source ~/.config/zsh/.zshrc
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
+# The prompt's colours, written by matugen from the wallpaper. AFTER ~/.p10k.zsh
+# on purpose: it overrides the fixed cube indices that file ships with, so the
+# prompt follows the theme without this rice having to own a p10k config.
+[[ ! -f ~/.cache/ashen_p10k.zsh ]] || source ~/.cache/ashen_p10k.zsh
+
 # Ashen: 'clear' tambien recarga fastfetch
 clear() {
     command clear

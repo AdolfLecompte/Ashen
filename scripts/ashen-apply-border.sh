@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # ── Ashen — apply window border ──────────────────────────────────────────
-# Push the matugen-derived accent to Hyprland's active window border, live
-# (hyprctl) and persisted (general.lua). Reads the colour matugen wrote to
-# ~/.cache/matugen_border_color.txt (its hypr_border template output).
+# Push the accent to Hyprland's active window border, live (hyprctl) and
+# persisted (general.lua). Reads ~/.cache/ashen_accent.txt, which
+# ashen-accent.sh writes -- the same tone the shell and the apps ended up with,
+# rather than matugen's `primary`, which on a light palette may not be it.
 #
 # This lives here, NOT in matugen's post_hook, on purpose: matugen runs under
 # Quickshell, and its post_hooks inherit an env WITHOUT
@@ -14,7 +15,7 @@
 set -uo pipefail
 
 CACHE="$HOME/.cache"
-hex="$(cat "$CACHE/matugen_border_color.txt" 2>/dev/null)" || exit 0
+hex="$(cat "$CACHE/ashen_accent.txt" 2>/dev/null)" || exit 0
 [ -n "$hex" ] || exit 0
 
 # The live config, not the checkout: with stow they are the same file, and

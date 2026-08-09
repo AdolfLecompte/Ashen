@@ -1,0 +1,45 @@
+# The standalone cava you run in a terminal. STATIC: nothing regenerates it.
+# The bar's visualiser is a different thing entirely -- it runs off ashen.conf
+# beside this file, emits raw numbers and paints them in QML.
+#
+# Only keys cava documents go in here: an unknown key (`gradient_count`) once
+# made it throw the whole [color] section away and draw its built-in palette.
+
+[general]
+framerate = 60
+# Re-read the config when it changes. Spelled exactly like this and off by
+# default; `autoreload` is not a cava key. Inside a running cava, `c` reloads
+# just the colours.
+live-config = 1
+
+[input]
+method = pulse
+source = auto
+
+[output]
+# 'noncurses' is cava's own default and the one gradients are tuned for.
+method = noncurses
+channels = stereo
+
+[color]
+# Settled: cava wears the terminal's ANSI 4, which both theme paths write as the
+# accent, so it follows a theme change live with nothing to regenerate.
+# The gradient alternative is still generated (themes/ashen, an accent-to-light
+# ramp): to use it, comment `foreground` and put `theme = 'ashen'` back -- at the
+# cost of needing a cava restart on every wallpaper change.
+background = default
+foreground = 'blue'
+
+[smoothing]
+noise_reduction = 85
+monstercat = 1
+waves = 0
+gravity = 120
+
+[eq]
+# Low frequencies are louder, so they are pulled down a little.
+1 = 0.8
+2 = 0.9
+3 = 1.0
+4 = 1.1
+5 = 1.2

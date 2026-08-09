@@ -36,16 +36,13 @@ Singleton {
     readonly property color surfacePanel: Qt.rgba(surface.r, surface.g, surface.b, 0.95)
     readonly property color surfacePill:  Qt.rgba(surface.r, surface.g, surface.b, 0.82)
     // There is no hover fill: things grow and their contents lift to snow.
-    // The veil a modal drops over the screen. Was hardcoded black, the one
-    // colour in the shell that did not come from the scheme.
-    // Always the darkest tone the scheme has: on a light palette that is the
-    // text colour, not the background, and a veil made of the background would
-    // separate nothing from nothing.
-    // Is the palette a light one? Nothing needs a special case for it today,
-    // but anything asking "am I on a light background" should ask this rather
-    // than name a colour.
+
+    // Anything asking "am I on a light background" asks this, never a colour.
     readonly property bool lightTheme: root.lum(root.abyss) > 0.5
 
+    // The veil a modal drops, always the scheme's darkest tone: on a light
+    // palette that is the text colour, and a veil made of the background would
+    // separate nothing from nothing.
     readonly property color scrimBase: root.darkTone
     readonly property color scrim: Qt.rgba(scrimBase.r, scrimBase.g, scrimBase.b, 0.55)
     function surfaceAlpha(a) { return Qt.rgba(surface.r, surface.g, surface.b, a) }
@@ -58,13 +55,18 @@ Singleton {
         function lin(v) { return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }
         return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
     }
-    // Text that can be read on `bg`. The accent is whatever matugen pulled out
-    // of the wallpaper, so which of black and white wins cannot be assumed.
-    // 0.179 is the crossover; both sides clear 4:1.
-    // Which of the scheme's two extremes is actually the dark one. On a light
-    // palette `abyss` is the pale background and `snow` is the near-black text,
-    // so naming them by hand gets it backwards -- and text on the accent came
-    // out dark on dark. Ask the numbers instead.
+    // WCAG contrast ratio, 1..21. Takes hexes or colours.
+    function contrast(a, b) {
+        const ca = typeof a === "string" ? Qt.color(a) : a
+        const cb = typeof b === "string" ? Qt.color(b) : b
+        const la = root.lum(ca), lb = root.lum(cb)
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
+    }
+
+    // Text that can be read on `bg`; 0.179 is the crossover and both sides
+    // clear 4:1. Which extreme is actually the dark one is measured too: on a
+    // light palette `abyss` is the pale background and `snow` the near-black
+    // text, so naming them by hand gets it backwards.
     readonly property color darkTone: root.lum(root.abyss) <= root.lum(root.snow) ? root.abyss : root.snow
     readonly property color lightTone: root.lum(root.abyss) > root.lum(root.snow) ? root.abyss : root.snow
 
@@ -78,22 +80,9 @@ Singleton {
     }
 
     // ── What to paint ON a surface ───────────────────────────────────────
-    // NOT named onSomething: QML reads a leading `on` + capital as a signal
-    // handler, so `onGhost` was never a property at all and every caller got
-    // black.
-    // Named once, used everywhere. Sixty-seven places were spelling out
-    // `onColor(ghost)` by hand, so changing how content sits on the accent
-    // meant editing sixty-seven files instead of this line.
-    //
-    // Not pure black or white: a few parts of the accent are mixed back in, so
-    // the piece belongs to the scheme instead of looking punched out of it.
-    // 0.10 is as far as the tint can go before the worst scheme drops under
-    // 4.5:1 -- measured across all of them, light and dark.
-    //
-    // Written out rather than calling tint(onColor(...)): a binding only
-    // re-runs when it can SEE what it depends on, and two levels of function
-    // call hid `ghost` from it. It was evaluated once, before the scheme had
-    // loaded, and stayed black for the rest of the session.
+    // NOT named `onSomething`: QML reads a leading `on` + capital as a signal
+    // handler, so `onGhost` was never a property and every caller got black.
+    // 0.10 of the accent is mixed back in, as far as it goes before 4.5:1.
     readonly property color accentText: {
         const base = root.lum(root.ghost) > 0.179 ? root.darkTone : root.lightTone
         const k = 0.10
@@ -141,17 +130,13 @@ Singleton {
     }
 
     // Opt-in accent gradient (Theme tab). ONE tone lit from the left, so a
-    // filled pill reads as a surface with a light on it. Horizontal, because
-    // everything wearing it is wider than it is tall. Backgrounds never use it.
-    // How far the two ends travel from the accent. One number, because the
-    // Canvas-drawn copies (PowerMenu's hold fill) have to build the same
-    // gradient by hand and cannot read the Gradient object itself.
+    // filled pill reads as a surface with a light on it. Backgrounds never use
+    // it. The travel is one number, because the Canvas-drawn copies build the
+    // same gradient by hand and cannot read the Gradient object.
     readonly property real gradientDepth: 0.28
-    // On a dark palette the lit end can travel as far as the shaded one: it is
-    // moving away from the background either way. On a light one it is moving
-    // TOWARDS the background, and a pill whose bright end melts into the panel
-    // behind it loses its edge -- so the light end is held back and the shaded
-    // end goes further. The piece still reads as lit, but it stays a piece.
+    // On a light palette the lit end moves TOWARDS the background, and a pill
+    // whose bright end melts into the panel behind it loses its edge -- so
+    // there the light end is held back and the shaded end goes further.
     readonly property real gradientUp: root.lightTheme ? root.gradientDepth * 0.45 : root.gradientDepth
     readonly property real gradientDown: root.lightTheme ? root.gradientDepth * 1.25 : root.gradientDepth
     readonly property Gradient accentGradient: Gradient {
@@ -161,9 +146,41 @@ Singleton {
         GradientStop { position: 1.0; color: root.lift(root.ghost, -root.gradientDown) }
     }
 
-    // ── Live reload: the JSON is written by applyScheme() (Theme tab) or matugen
-    //    (Dynamic mode). As soon as the file changes, every component using
-    //    Services.Colors.* updates itself -- no quickshell restart needed.
+    // ── Live reload: the JSON is written by the Theme tab or by matugen ──
+    // matugen writes both faces at once, so switching mode is a re-pick here,
+    // not a re-run. A hand-picked scheme writes one flat object, used as-is.
+    property var scheme: null
+    onSchemeChanged: root.applyScheme()
+    Connections {
+        target: Prefs
+        function onThemeModeChanged() { root.applyScheme() }
+    }
+
+    function applyScheme() {
+        const all = root.scheme
+        if (!all) return
+        const s = (all.light && all.dark) ? (Prefs.themeMode === "light" ? all.light : all.dark) : all
+        if (s.abyss) root.abyss = s.abyss
+        if (s.void_) root.void_ = s.void_
+        if (s.crypt) root.crypt = s.crypt
+        if (s.surface) root.surface = s.surface
+        if (s.raised) root.raised = s.raised
+        if (s.elevated) root.elevated = s.elevated
+        if (s.snow) root.snow = s.snow
+        if (s.mist) root.mist = s.mist
+        if (s.ash) root.ash = s.ash
+        if (s.ghost) root.ghost = s.ghost
+        if (s.shade) root.shade = s.shade
+        if (s.error_) root.error_ = s.error_
+        if (s.neutral) root.neutral = s.neutral
+        // A light scheme also ships the container tone of each accent, taken only
+        // when it still stands out against a panel -- on a colourful wallpaper that
+        // tone is a pastel, and the accent is a glyph colour in most of the shell.
+        // scripts/ashen-accent.sh repeats this rule for everything outside the shell.
+        if (s.ghostAlt && root.contrast(s.ghostAlt, root.surface) >= 4.5) root.ghost = s.ghostAlt
+        if (s.shadeAlt && root.contrast(s.shadeAlt, root.surface) >= 4.5) root.shade = s.shadeAlt
+    }
+
     FileView {
         id: schemeFile
         path: Paths.scheme
@@ -171,20 +188,8 @@ Singleton {
         onFileChanged: reload()
         onLoaded: {
             try {
-                let s = JSON.parse(text())
-                if (s.abyss) root.abyss = s.abyss
-                if (s.void_) root.void_ = s.void_
-                if (s.crypt) root.crypt = s.crypt
-                if (s.surface) root.surface = s.surface
-                if (s.raised) root.raised = s.raised
-                if (s.elevated) root.elevated = s.elevated
-                if (s.snow) root.snow = s.snow
-                if (s.mist) root.mist = s.mist
-                if (s.ash) root.ash = s.ash
-                if (s.ghost) root.ghost = s.ghost
-                if (s.shade) root.shade = s.shade
-                if (s.error_) root.error_ = s.error_
-                if (s.neutral) root.neutral = s.neutral
+                root.scheme = JSON.parse(text())
+                root.applyScheme()
             } catch (e) {
                 console.warn("[Colors] could not parse ashen_scheme.json:", e)
             }

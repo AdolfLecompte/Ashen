@@ -1,15 +1,34 @@
 {
-  "abyss": "{{colors.surface_container_lowest.default.hex}}",
-  "void_": "{{colors.background.default.hex}}",
-  "crypt": "{{colors.surface_container_low.default.hex}}",
-  "surface": "{{colors.surface_container.default.hex}}",
-  "raised": "{{colors.surface_container_high.default.hex}}",
-  "elevated": "{{colors.surface_container_highest.default.hex}}",
-  "snow": "{{colors.on_surface.default.hex}}",
-  "mist": "{{colors.on_surface_variant.default.hex}}",
-  "ash": "{{colors.outline.default.hex}}",
-  "ghost": "{{colors.primary.default.hex}}",
-  "shade": "{{colors.secondary.default.hex}}",
-  "error_": "{{colors.error.default.hex}}",
-  "neutral": "{{colors.tertiary.default.hex}}"
+  "dark": {
+    "abyss": "{{colors.surface_container_lowest.dark.hex}}",
+    "void_": "{{colors.background.dark.hex}}",
+    "crypt": "{{colors.surface_container_low.dark.hex}}",
+    "surface": "{{colors.surface_container.dark.hex}}",
+    "raised": "{{colors.surface_container_high.dark.hex}}",
+    "elevated": "{{colors.surface_container_highest.dark.hex}}",
+    "snow": "{{colors.on_surface.dark.hex}}",
+    "mist": "{{colors.on_surface_variant.dark.hex}}",
+    "ash": "{{colors.outline.dark.hex}}",
+    "ghost": "{{colors.primary.dark.hex}}",
+    "shade": "{{colors.secondary.dark.hex}}",
+    "error_": "{{colors.error.dark.hex}}",
+    "neutral": "{{colors.tertiary.dark.hex}}"
+  },
+  "light": {
+    "abyss": "{{colors.surface_dim.light.hex}}",
+    "void_": "{{colors.surface_container_highest.light.hex}}",
+    "crypt": "{{colors.surface_container_high.light.hex}}",
+    "surface": "{{colors.surface_container.light.hex}}",
+    "raised": "{{colors.surface_container_low.light.hex}}",
+    "elevated": "{{colors.surface_container_lowest.light.hex}}",
+    "snow": "{{colors.on_surface.light.hex}}",
+    "mist": "{{colors.on_surface_variant.light.hex}}",
+    "ash": "{{colors.outline.light.hex}}",
+    "ghost": "{{colors.primary.light.hex}}",
+    "shade": "{{colors.secondary.light.hex}}",
+    "ghostAlt": "{{colors.primary_container.light.hex}}",
+    "shadeAlt": "{{colors.secondary_container.light.hex}}",
+    "error_": "{{colors.error.light.hex}}",
+    "neutral": "{{colors.tertiary.light.hex}}"
+  }
 }

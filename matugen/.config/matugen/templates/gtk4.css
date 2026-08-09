@@ -2,9 +2,9 @@
    Ashen — GTK4 Template
    ══════════════════════════════════════════ */
 
-@define-color accent_color {{colors.primary.default.hex}};
-@define-color accent_bg_color {{colors.primary.default.hex}};
-@define-color accent_fg_color {{colors.on_primary.default.hex}};
+@define-color accent_color __ASHEN_ACCENT__;
+@define-color accent_bg_color __ASHEN_ACCENT__;
+@define-color accent_fg_color __ASHEN_ON_ACCENT__;
 @define-color destructive_color {{colors.error.default.hex}};
 @define-color destructive_bg_color {{colors.error.default.hex}};
 @define-color destructive_fg_color {{colors.on_error.default.hex}};

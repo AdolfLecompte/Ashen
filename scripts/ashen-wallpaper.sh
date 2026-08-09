@@ -157,6 +157,9 @@ apply_colors() {
     mode="$(cat "$HOME/.cache/ashen_theme_mode.txt" 2>/dev/null)"
     [ "$mode" = "light" ] || mode="dark"
     matugen image "$src" --mode "$mode" --source-color-index 0 --type "$type"
+    # Order matters: the accent has to be resolved and substituted into what
+    # matugen just wrote before anything reads those files, the border included.
+    "$HERE/ashen-accent.sh"
     "$HERE/ashen-apply-border.sh"
 }
 
