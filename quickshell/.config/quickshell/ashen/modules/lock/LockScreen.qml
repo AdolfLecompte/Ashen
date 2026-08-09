@@ -44,12 +44,35 @@ Scope {
             property string errorMsg: ""
             property bool checking: false
             property bool showPower: false
-            property bool showProfiles: false
+            // The two readings at the foot of the screen, each of which opens
+            // into its own card. Only one at a time: two morphs on top of each
+            // other is a mess, and the second one covers the first.
+            property bool lockBatteryOpen: false
+            property bool lockWeatherOpen: false
+            function openLockCard(which) {
+                surface.lockBatteryOpen = which === "battery" && !surface.lockBatteryOpen
+                surface.lockWeatherOpen = which === "weather" && !surface.lockWeatherOpen
+            }
             property int battery: 0
             property bool charging: false
             property string wallpaper: ""
             property bool revealed: false
             property bool unlocking: false
+
+            // The Wayland protocol builds one of these PER OUTPUT, so with two
+            // screens there are two of everything below -- two password fields
+            // with a caret blinking in each, two PamContexts, and only one of
+            // them receiving keys. The login belongs to the screen you are
+            // looking at; the rest stay at rest, showing the time.
+            //
+            // Screens.active always resolves to exactly one screen (it falls
+            // back to the first), so this can never be true twice or false
+            // everywhere -- which is what would lock you out.
+            readonly property bool loginFace: {
+                const a = Services.Screens.active
+                if (!a || !surface.screen) return true
+                return surface.screen.name === a.name
+            }
 
             // Two states, one driver. At rest the screen only tells you things:
             // the time, the weather, the battery, what is playing. Touch it and
@@ -64,7 +87,9 @@ Scope {
             // Typing is asking to log in, so the field never has to be found
             // first. It already holds focus, which is what makes this work.
             function beginAuth() {
-                if (!surface.authing) surface.authing = true
+                // A key or a click on a screen that is not the login one must
+                // not turn it into a second question.
+                if (!surface.authing && surface.loginFace) surface.authing = true
             }
 
             // Intro: the padlock snaps shut before the lock screen itself fades in
@@ -100,7 +125,10 @@ Scope {
                     // After resume the field can lose keyboard focus (mouse still
                     // works). Re-grab it so the password is always typeable without
                     // needing a click. No-op when it already has focus.
-                    if (!surface.unlocking && !passInput.activeFocus) passInput.forceActiveFocus()
+                    // Only from the login screen: with a surface per output, every
+                    // one of them grabbing once a second is a tug of war.
+                    if (surface.loginFace && !surface.unlocking && !passInput.activeFocus)
+                        passInput.forceActiveFocus()
                 }
             }
 
@@ -220,6 +248,16 @@ Scope {
                 id: bgLayer
                 anchors.fill: parent
 
+                // The veil is the background tone, so on a light palette it is
+                // pale: laid on as thick as the dark one it turns the wallpaper
+                // into a white film. Light schemes need only enough of it to
+                // keep the near-black text legible.
+                readonly property bool pale: Services.Colors.lightTheme
+                readonly property real wallOpacity: pale ? 0.85 : 0.45
+                readonly property real veilTop: pale ? 0.12 : 0.45
+                readonly property real veilMid: pale ? 0.20 : 0.62
+                readonly property real veilBottom: pale ? 0.38 : 0.80
+
                 Image {
                     id: wallImg
                     anchors.fill: parent
@@ -236,15 +274,16 @@ Scope {
                     source: wallImg
                     radius: 64
                     visible: wallImg.status === Image.Ready
-                    opacity: 0.45
+                    opacity: bgLayer.wallOpacity
                 }
-                // Vignette: darker at the edges so the corner pills stay readable
+                // Vignette: the background tone deepens towards the edges so the
+                // corner pills stay readable over any wallpaper.
                 Rectangle {
                     anchors.fill: parent
                     gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(Services.Colors.abyss.r, Services.Colors.abyss.g, Services.Colors.abyss.b, 0.45) }
-                        GradientStop { position: 0.5; color: Qt.rgba(Services.Colors.abyss.r, Services.Colors.abyss.g, Services.Colors.abyss.b, 0.62) }
-                        GradientStop { position: 1.0; color: Qt.rgba(Services.Colors.abyss.r, Services.Colors.abyss.g, Services.Colors.abyss.b, 0.80) }
+                        GradientStop { position: 0.0; color: Qt.rgba(Services.Colors.abyss.r, Services.Colors.abyss.g, Services.Colors.abyss.b, bgLayer.veilTop) }
+                        GradientStop { position: 0.5; color: Qt.rgba(Services.Colors.abyss.r, Services.Colors.abyss.g, Services.Colors.abyss.b, bgLayer.veilMid) }
+                        GradientStop { position: 1.0; color: Qt.rgba(Services.Colors.abyss.r, Services.Colors.abyss.g, Services.Colors.abyss.b, bgLayer.veilBottom) }
                     }
                 }
             }
@@ -321,66 +360,17 @@ Scope {
                                             }
                                         }
                                     }
-                                    Row {
+                                    // Only the date: the weather glyph and the battery have capsules of
+                                    // their own at the foot of the screen now.
+                                    Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        spacing: 10
-                                        topPadding: 4
-                                        Text {
-                                            text: surface.currentDay + "  ·  " + surface.currentDate
-                                            color: Services.Colors.snowAlpha(0.5)
-                                            font.pixelSize: 15
-                                            font.family: "JetBrainsMono NF"
-                                            font.weight: Font.Bold
-                                            font.letterSpacing: 1
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-                                        Rectangle {
-                                            width: 1; height: 12
-                                            color: Services.Colors.snowAlpha(0.2)
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-                                        Text {
-                                            text: Services.Weather.icon
-                                            color: Services.Colors.snowAlpha(0.55)
-                                            font.pixelSize: 16
-                                            font.family: "Material Symbols Rounded"
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-                                        Rectangle {
-                                            width: 1; height: 12
-                                            color: Services.Colors.snowAlpha(0.2)
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-                                        Text {
-                                            text: surface.charging ? "\uE1A3"
-                                                : surface.battery >= 90 ? "\uE1A5"
-                                                : surface.battery >= 50 ? "\uF0A1"
-                                                : surface.battery >= 20 ? "\uF09F" : "\uE19C"
-                                            color: surface.charging ? Services.Colors.ghost
-                                                : surface.battery < 20 ? Services.Colors.error_
-                                                : Services.Colors.snowAlpha(0.55)
-                                            font.pixelSize: 16
-                                            font.family: "Material Symbols Rounded"
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-                                        Text {
-                                            text: surface.battery + "%"
-                                            color: surface.charging ? Services.Colors.ghost
-                                                : surface.battery < 20 ? Services.Colors.error_
-                                                : Services.Colors.snowAlpha(0.55)
-                                            font.pixelSize: 14
-                                            font.family: "JetBrainsMono NF"
-                                            font.weight: Font.Bold
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-                                        Text {
-                                            text: Services.Weather.temp
-                                            color: Services.Colors.snowAlpha(0.55)
-                                            font.pixelSize: 14
-                                            font.family: "JetBrainsMono NF"
-                                            font.weight: Font.Bold
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
+                                        topPadding: 6
+                                        text: surface.currentDay + "  ·  " + surface.currentDate
+                                        color: Services.Colors.snowAlpha(0.5)
+                                        font.pixelSize: 15
+                                        font.family: "JetBrainsMono NF"
+                                        font.weight: Font.Bold
+                                        font.letterSpacing: 1
                                     }
                                 }
 
@@ -399,17 +389,19 @@ Scope {
                                     clip: true
                                     color: Services.Colors.surfacePill
 
-                                    // Arriving and leaving with the player is its
-                                    // own fade; going away because the screen is
-                                    // asking for a password rides the driver. One
-                                    // Behavior over both smoothed an already
-                                    // animated value twice.
+                                    // Arriving with the player is its own fade; going away because the screen
+                                    // is asking for a password rides the driver. One Behavior over both
+                                    // smoothed an already animated value twice.
                                     property real playerFade: lockMedia.hasPlayer ? 1.0 : 0.0
                                     Behavior on playerFade { NumberAnimation { duration: Services.Sizes.msPronounced } }
                                     // Gone by halfway, because the login lands
                                     // in the space it is leaving: the two must
                                     // never be on screen together.
-                                    opacity: playerFade * (1 - Math.min(1, surface.auth * 2))
+                                    // On the login screen only: its transport is
+                                    // something you press, and three copies of
+                                    // one song is noise, not information.
+                                    opacity: surface.loginFace
+                                        ? playerFade * (1 - Math.min(1, surface.auth * 2)) : 0
                                     // Settings > System > Lock Screen can drop the card
                                     visible: Services.Prefs.lockShowMedia && opacity > 0.01
                                     transform: Translate {
@@ -433,7 +425,7 @@ Scope {
                         height: authRow.height
                         // The second half of the move, once the music has gone.
                         readonly property real enter: Math.max(0, surface.auth * 2 - 1)
-                        opacity: authGroup.enter
+                        opacity: surface.loginFace ? authGroup.enter : 0
                         visible: opacity > 0.01
                         transform: Translate { y: (1 - authGroup.enter) * 26 }
 
@@ -671,7 +663,80 @@ Scope {
                     }
                     }
 
-                    // ── Bottom right corner: fixed, independent anchors ──
+                    // ── At the foot: the two readings that used to be strung
+                    //    through the clock's date line ──
+                    // Each capsule BECOMES its card, the way the media pill becomes the media
+                    // panel. Readable at rest, gone the moment the screen asks a question.
+                    Row {
+                        id: capsRow
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 44
+                        spacing: 12
+                        // The capsules open cards you have to be able to reach,
+                        // so they live on the screen the pointer is on. They
+                        // stay through the login: typing a password is no reason
+                        // to stop being able to read the battery or change a
+                        // power profile.
+                        opacity: surface.loginFace ? 1 : 0
+                        visible: opacity > 0.01
+
+                        LockCapsule {
+                            id: batCap
+                            glyph: surface.charging ? "\ue1a3"
+                                 : surface.battery >= 90 ? "\ue1a5"
+                                 : surface.battery >= 50 ? "\uf0a1"
+                                 : surface.battery >= 20 ? "\uf09f" : "\ue19c"
+                            label: surface.battery + "%"
+                            tone: surface.charging ? Services.Colors.ghost
+                                : surface.battery < 20 ? Services.Colors.error_
+                                : Services.Colors.mist
+                            // While its card is wearing its face, the capsule
+                            // stands aside rather than sitting under it.
+                            standAside: batPanel.wearingFace
+                            onPicked: surface.openLockCard("battery")
+                        }
+
+                        LockCapsule {
+                            id: wxCap
+                            glyph: Services.Weather.icon
+                            label: Services.Weather.temp
+                            standAside: wxPanel.wearingFace
+                            onPicked: surface.openLockCard("weather")
+                        }
+                    }
+
+                    LockBatteryPanel {
+                        id: batPanel
+                        anchors.fill: parent
+                        shown: surface.lockBatteryOpen
+                        pillCX: capsRow.x + batCap.x + batCap.width / 2
+                        pillCY: capsRow.y + batCap.height / 2
+                        pillW: batCap.width
+                        pillH: batCap.height
+                        battery: surface.battery
+                        charging: surface.charging
+                        profiles: surface.availableProfiles
+                        activeProfile: surface.activeProfile
+                        onProfilePicked: id => surface.setProfile(id)
+                        onDismissed: surface.lockBatteryOpen = false
+                    }
+
+                    LockWeatherPanel {
+                        id: wxPanel
+                        anchors.fill: parent
+                        shown: surface.lockWeatherOpen
+                        pillCX: capsRow.x + wxCap.x + wxCap.width / 2
+                        pillCY: capsRow.y + wxCap.height / 2
+                        pillW: wxCap.width
+                        pillH: wxCap.height
+                        onDismissed: surface.lockWeatherOpen = false
+                    }
+
+                    // ── Bottom right corner: power, and nothing else ──
+                    // On screen the whole time, like the capsules at the foot:
+                    // the way out of the machine should not be something you
+                    // only find by starting to log in.
                     Item {
                         id: cornerArea
                         anchors.bottom: parent.bottom
@@ -679,8 +744,7 @@ Scope {
                         anchors.margins: 24
                         width: powerPill.width
                         height: powerPill.height
-                        // Controls are part of asking, not of being told.
-                        opacity: surface.auth
+                        opacity: surface.loginFace ? 1 : 0
                         visible: opacity > 0.01
 
                         // -- Power: pill fixed on the right, options expand UPWARDS --
@@ -689,16 +753,20 @@ Scope {
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
                             width: 44; height: 44
-                            radius: 10
-                            color: powerPillHover.containsMouse ? Services.Colors.elevated : Services.Colors.surfacePill
-                            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                            radius: Services.Sizes.innerR
+                            color: Services.Colors.surfacePill
                             Text {
                                 anchors.centerIn: parent
                                 text: "\uF8C7"
-                                color: surface.showPower ? Services.Colors.snow : Services.Colors.mist
-                                font.pixelSize: 20
+                                color: surface.showPower || powerPillHover.containsMouse
+                                     ? Services.Colors.snow : Services.Colors.mist
+                                font.pixelSize: 24
                                 font.family: "Material Symbols Rounded"
                                 Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                // The shell's one hover language: it grows and
+                                // brightens, the plate never lights up.
+                                scale: Services.Sizes.hoverScale(powerPillHover.containsMouse, powerPillHover.pressed)
+                                Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
                             }
                             MouseArea {
                                 id: powerPillHover
@@ -724,30 +792,59 @@ Scope {
                                 Behavior on y { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
                             }
                             Repeater {
+                                // Nothing here is red: error_ is for something
+                                // that went wrong, and shutting the machine down
+                                // on purpose is not that.
                                 model: [
-                                    { icon: "\uF8C7", cmd: "systemctl poweroff", color: Services.Colors.error_ },
-                                    { icon: "\uF053", cmd: "systemctl reboot",   color: Services.Colors.mist },
-                                    { icon: "\uF159", cmd: "systemctl suspend",  color: Services.Colors.mist },
+                                    { icon: "\uF8C7", label: "Shut down", cmd: "systemctl poweroff" },
+                                    { icon: "\uF053", label: "Restart",   cmd: "systemctl reboot"   },
+                                    { icon: "\uF159", label: "Suspend",   cmd: "systemctl suspend"  },
                                 ]
                                 delegate: Rectangle {
                                     id: powerItem
                                     required property var modelData
                                     anchors.right: parent.right
                                     width: 44; height: 44
-                                    radius: 10
-                                    // Declarative hover: assigning color in onEntered kills the binding.
-                                    // Opaque hover tone (not a translucent ghost) so it brightens
-                                    // smoothly instead of jumping to transparent over the backdrop.
-                                    color: powerHover.containsMouse ? Services.Colors.elevated
-                                                                    : Services.Colors.surfacePill
-                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                    radius: Services.Sizes.innerR
+                                    color: Services.Colors.surfacePill
+
                                     Text {
                                         anchors.centerIn: parent
                                         text: powerItem.modelData.icon
-                                        color: powerItem.modelData.color
-                                        font.pixelSize: 20
+                                        color: powerHover.containsMouse ? Services.Colors.snow
+                                                                        : Services.Colors.mist
+                                        font.pixelSize: 24
                                         font.family: "Material Symbols Rounded"
+                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                        scale: Services.Sizes.hoverScale(powerHover.containsMouse, powerHover.pressed)
+                                        Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
                                     }
+
+                                    // The word only while you are on it: the
+                                    // tiles are icons, and the name is what says
+                                    // which one you are about to press.
+                                    Rectangle {
+                                        anchors.right: parent.left
+                                        anchors.rightMargin: 8
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: tipText.width + 16
+                                        height: 26
+                                        radius: Services.Sizes.pillR
+                                        color: Services.Colors.surfacePill
+                                        opacity: powerHover.containsMouse ? 1 : 0
+                                        visible: opacity > 0.01
+                                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
+                                        Text {
+                                            id: tipText
+                                            anchors.centerIn: parent
+                                            text: powerItem.modelData.label
+                                            color: Services.Colors.snow
+                                            font.pixelSize: Services.Sizes.fsMeta
+                                            font.bold: true
+                                            font.family: "JetBrainsMono NF"
+                                        }
+                                    }
+
                                     MouseArea {
                                         id: powerHover
                                         anchors.fill: parent
@@ -759,142 +856,62 @@ Scope {
                             }
                         }
 
-                        // -- Battery: pill fixed left of power, profiles expand to the LEFT --
-                        Rectangle {
-                            id: batteryPill
-                            anchors.right: powerPill.left
-                            anchors.rightMargin: 10
-                            anchors.bottom: parent.bottom
-                            width: 78; height: 44
-                            radius: 10
-                            color: batteryPillHover.containsMouse ? Services.Colors.elevated : Services.Colors.surfacePill
-                            Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                            Row {
-                                anchors.centerIn: parent
-                                spacing: 4
-                                Text {
-                                    text: surface.charging ? "\uE1A3" : surface.battery >= 90 ? "\uE1A5" : surface.battery >= 50 ? "\uF0A1" : surface.battery >= 20 ? "\uF09F" : "\uE19C"
-                                    // Charging = accent (ghost) so the state reads at a glance;
-                                    // error_ only for a genuinely low battery on its own power.
-                                    color: surface.charging ? Services.Colors.ghost
-                                        : surface.battery < 20 ? Services.Colors.error_ : Services.Colors.mist
-                                    font.pixelSize: 18
-                                    font.family: "Material Symbols Rounded"
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                                }
-                                Text {
-                                    text: surface.battery + "%"
-                                    color: surface.charging ? Services.Colors.ghost
-                                        : surface.battery < 20 ? Services.Colors.error_ : Services.Colors.mist
-                                    font.pixelSize: 12
-                                    font.family: "JetBrainsMono NF"
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                                }
-                            }
-                            MouseArea {
-                                id: batteryPillHover
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                hoverEnabled: true
-                                onClicked: surface.showProfiles = !surface.showProfiles
-                            }
-                        }
-
-                        // Profiles as a single capsule (like the bar workspaces): one
-                        // pill holds the three icons, with a sliding accent indicator
-                        // behind the active one — instead of three separate tiles.
-                        Rectangle {
-                            id: profileCapsule
-                            anchors.right: batteryPill.left
-                            anchors.rightMargin: 8
-                            anchors.verticalCenter: batteryPill.verticalCenter
-                            height: 44
-                            radius: 10
-                            color: Services.Colors.surfacePill
-                            width: profRow.width + 16
-                            opacity: surface.showProfiles ? 1.0 : 0.0
-                            visible: opacity > 0
-                            // Same deploy as the system (bar) panels: fade + slide in
-                            // from the direction it opens — leftwards, so it enters from the right.
-                            Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
-                            transform: Translate {
-                                x: surface.showProfiles ? 0 : 12
-                                Behavior on x { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
-                            }
-
-                            readonly property var profModel: [
-                                { id: "power-saver", icon: "" },
-                                { id: "balanced", icon: "" },
-                                { id: "performance", icon: "" },
-                            ]
-                            readonly property int activeIdx: {
-                                for (let i = 0; i < profModel.length; i++)
-                                    if (profModel[i].id === surface.activeProfile) return i
-                                return -1
-                            }
-
-                            // Sliding accent indicator behind the active profile
-                            Rectangle {
-                                id: profSlide
-                                width: 34; height: 34; radius: 8
-                                color: Services.Colors.ghost
-                                gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                                y: (parent.height - height) / 2
-                                x: 8 + profileCapsule.activeIdx * (34 + 4)
-                                opacity: profileCapsule.activeIdx >= 0 ? 1 : 0
-                                Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
-                                Behavior on x { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
-                            }
-
-                            Row {
-                                id: profRow
-                                anchors.centerIn: parent
-                                spacing: 4
-                                Repeater {
-                                    model: profileCapsule.profModel
-                                    delegate: Item {
-                                    id: profItem
-                                    required property var modelData
-                                    property bool available: surface.availableProfiles.includes(modelData.id)
-                                    property bool isActive: surface.activeProfile === modelData.id
-                                    width: 34; height: 34
-                                    opacity: available ? 1.0 : 0.3
-
-                                    // Hover brightens available, non-active slots
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        radius: 8
-                                        color: Services.Colors.ghost
-                                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                                        opacity: profHover.containsMouse && profItem.available && !profItem.isActive ? 0.2 : 0
-                                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
-                                    }
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: profItem.modelData.icon
-                                        font.family: "Material Symbols Rounded"
-                                        font.pixelSize: 16
-                                        color: profItem.isActive ? Services.Colors.accentText : Services.Colors.mist
-                                        z: 1
-                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
-                                    }
-
-                                    MouseArea {
-                                        id: profHover
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: profItem.available ? Qt.PointingHandCursor : Qt.ForbiddenCursor
-                                        enabled: profItem.available
-                                        onClicked: surface.setProfile(profItem.modelData.id)
-                                    }
-                                }
-                            }
-                            }
-                        }
                     }
+                }
+            }
+
+            // ── Shared pieces ──────────────────────────────────────────
+            // A reading at the foot of the lock screen. Hover grows it and
+            // brightens what it says; the plate never changes colour.
+            component LockCapsule: Rectangle {
+                id: cap
+                property string glyph: ""
+                property string label: ""
+                property color tone: Services.Colors.mist
+                // Its card has taken over its face.
+                property bool standAside: false
+
+                signal picked()
+
+                width: capRow.width + 28
+                height: 44
+                radius: Services.Sizes.pillR
+                color: Services.Colors.surfacePill
+                opacity: standAside ? 0 : 1
+                Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
+
+                scale: Services.Sizes.hoverScale(capHover.containsMouse, capHover.pressed)
+                Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
+
+                Row {
+                    id: capRow
+                    anchors.centerIn: parent
+                    spacing: 8
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: cap.glyph
+                        color: capHover.containsMouse ? Services.Colors.snow : cap.tone
+                        font.pixelSize: 18
+                        font.family: "Material Symbols Rounded"
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: cap.label
+                        color: capHover.containsMouse ? Services.Colors.snow : cap.tone
+                        font.pixelSize: 14
+                        font.bold: true
+                        font.family: "JetBrainsMono NF"
+                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                    }
+                }
+
+                MouseArea {
+                    id: capHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: cap.picked()
                 }
             }
 
