@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 
 import "root:/services" as Services
 
@@ -15,23 +16,26 @@ Item {
 
     visible: false
 
-    // mapToGlobal does NOT return screen coordinates on a layer surface: it
-    // returns window-local ones. With the bar on top or on the left the window
-    // starts at 0 and the two happen to agree, which is why this went unnoticed
-    // -- but on the bottom edge a pill reported y≈28 instead of y≈1052, so its
-    // panel grew out of the TOP of the screen, and the right-hand bar had the
-    // same fault sideways. The anchoring says where the window starts.
-    readonly property real originX: {
-        const s = Services.Screens.active
-        return (s && Services.Sizes.barPosition === "right") ? s.width - Services.Sizes.barH : 0
-    }
-    readonly property real originY: {
-        const s = Services.Screens.active
-        return (s && Services.Sizes.barPosition === "bottom") ? s.height - Services.Sizes.barH : 0
-    }
+    // The screen THIS bar is on, asked of its own window rather than taken from
+    // Screens.active. With a bar per monitor the two are different things, and
+    // reading the focused one would offset a pill against a screen it is not on.
+    readonly property var barScreen: QsWindow.window ? QsWindow.window.screen : null
+
+    // mapToGlobal returns window-local coordinates on a layer surface, not
+    // screen ones; Sizes owns the correction, since the workspace preview
+    // reports its geometry the same way and needs the same sum.
+    readonly property real originX: Services.Sizes.barOriginX(root.barScreen)
+    readonly property real originY: Services.Sizes.barOriginY(root.barScreen)
+
+    // AppState holds ONE set of numbers per pill, and every panel opens on the
+    // focused monitor -- so only the bar on that monitor has anything true to
+    // say. Without this the bars overwrite each other every couple of seconds
+    // and a panel lands wherever the last one to speak happened to put it.
+    readonly property bool speaks: !root.barScreen
+        || root.barScreen.name === Services.Screens.activeName
 
     function report() {
-        if (!pill || !key) return
+        if (!pill || !key || !root.speaks) return
         const g = pill.mapToGlobal(0, 0)
         Services.AppState.setPillCenter(key,
             root.originX + g.x + pill.width / 2,
@@ -58,6 +62,10 @@ Item {
         function onBarPositionChanged() { root.report() }
         function onHiddenChanged() { root.report() }
     }
+
+    // Focus moved to this monitor: this bar has just become the one that speaks,
+    // and its numbers are whatever the other bar left behind until it says so.
+    onSpeaksChanged: if (root.speaks) root.report()
 
     // Safety net for anything the signals above cannot see (an ancestor moving
     // without resizing). Slow on purpose: this is a backstop, not the source.

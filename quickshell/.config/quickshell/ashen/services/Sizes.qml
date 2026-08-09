@@ -32,6 +32,18 @@ Singleton {
         return hovered ? pillHoverScale : 1.0
     }
 
+    // The same gesture on something wide. 6% of a 32 px chip is two pixels; 6%
+    // of a card half the panel across is thirty, and it shoves itself out of
+    // whatever is holding it. The growth is capped in PIXELS instead, so a chip
+    // keeps exactly the hover it always had and a big surface only breathes.
+    readonly property real hoverGrowPx: 4
+    function hoverScaleFor(w, hovered, pressed) {
+        if (pressed) return pillPressScale
+        if (!hovered) return 1.0
+        if (w <= 0) return pillHoverScale
+        return Math.min(pillHoverScale, 1 + hoverGrowPx / w)
+    }
+
     // The tint a thing takes on under the pointer is NOT here: it is a colour,
     // and it lives with the other fills in Colors (fillRest / fillHover /
     // fillHoverPill). Sizes owns how things move, Colors owns how they look.
@@ -103,10 +115,9 @@ Singleton {
     readonly property int edgeGap: 12
 
     // ── Bar placement ────────────────────────────────────────────────────
-    // `barPosition` is what the user picked; it must never drive the layout on
-    // its own, because moving the bar is animated: it fades out, changes edge
-    // while nobody can see it, and fades back in. `applied` is the edge
-    // everything lays out against, and it only changes while the bar is hidden.
+    // `barPosition` is what the user picked; `applied` is the edge everything
+    // lays out against, and it only changes while the bar is hidden -- moving
+    // the bar is animated: it fades out, swaps edge, and fades back in.
     readonly property string wanted: Prefs.barPosition
     property string applied: Prefs.barPosition
     property bool hidden: false
@@ -150,6 +161,15 @@ Singleton {
     readonly property int marginRight: applied === "right" ? panelTop : edgeGap
     // Corner-pinned panels hang from the bottom edge only when the bar is there
     readonly property bool pinBottom: applied === "bottom"
+
+    // Where the bar's own window starts on `s`. mapToGlobal on a layer surface
+    // hands back window-local coordinates, so anything reporting a position out
+    // of the bar has to add this to get to screen coordinates. Zero on the top
+    // and left edges, which is why it went unnoticed for so long. Takes the
+    // screen rather than reading Screens.active: with a bar per monitor, the one
+    // asking is not always the focused one.
+    function barOriginX(s) { return (s && barPosition === "right") ? s.width - barH : 0 }
+    function barOriginY(s) { return (s && barPosition === "bottom") ? s.height - barH : 0 }
 
     // Where a panel that drops out of a bar pill belongs, in window coords.
     // On a horizontal bar it tracks the pill across the screen and is pinned to

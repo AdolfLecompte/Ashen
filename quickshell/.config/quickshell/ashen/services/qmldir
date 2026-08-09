@@ -22,3 +22,4 @@ singleton Keybinds 1.0 Keybinds.qml
 singleton Windows 1.0 Windows.qml
 singleton Stopwatch 1.0 Stopwatch.qml
 singleton Countdown 1.0 Countdown.qml
+singleton Displays 1.0 Displays.qml

@@ -10,7 +10,10 @@ Scope {
     id: root
 
     Variants {
-        model: Quickshell.screens
+        // Not Quickshell.screens: a mirrored output is in that list and would
+        // get a bar nobody can see. Services.Screens does the filtering, next
+        // to the rest of the reasoning about which screen is which.
+        model: Services.Screens.barScreens
 
         PanelWindow {
             id: bar
@@ -74,10 +77,8 @@ Scope {
                 CavaBackground {}
 
                 // ── Layout ──────────────────────────────────────────────
-                // Which pill goes where is Prefs.barLayout's business now, so
-                // this file no longer names any of them in order. Each id is
-                // mapped to the thing that builds it and nothing else here
-                // knows what a launcher or a clock is.
+                // Which pill goes where is Prefs.barLayout's business: each id maps to
+                // the thing that builds it, and nothing here knows what a clock is.
                 Component { id: cLauncher;      LauncherPill {} }
                 Component { id: cNotifications; NotificationPill {} }
                 Component { id: cWorkspaces;    Workspaces {} }
@@ -90,12 +91,10 @@ Scope {
                 Component { id: cPower;         PowerPill {} }
                 Component { id: cWindow;        WindowPill {} }
 
-                // What a section actually shows. Almost always just what the
-                // layout says -- but a pill you took OFF the bar can still be
-                // the only thing that can report a state that is running, and
-                // taking a control off is not the same as asking not to be told.
-                // It claims a slot for as long as the state lasts and gives it
-                // straight back, the way USB comes and goes.
+                // What a section actually shows. Almost always what the layout
+                // says -- but a pill taken OFF the bar can still be the only
+                // thing able to report a state that is running, so it claims a
+                // slot while that lasts and gives it back, the way USB does.
                 function pillsIn(section) {
                     const base = Services.Prefs.barPills(section)
                     if (section !== "right") return base
@@ -160,11 +159,9 @@ Scope {
                 }
 
                 // ── Centre ──────────────────────────────────────────────
-                // Pivoted, not simply centred: the anchor pill (the clock, if
-                // it is in here) keeps the exact middle of the screen and its
-                // neighbours fall either side of it in list order. Centring the
-                // group as a block would shove the clock off centre the moment
-                // anything joined it.
+                // Pivoted, not centred as a block: the anchor pill holds the exact middle
+                // and its neighbours fall either side. Centring the group would shove the
+                // clock off centre the moment anything joined it.
                 BarGroup {
                     id: centreGroup
                     move: Transition { NumberAnimation { properties: "x,y"; duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }

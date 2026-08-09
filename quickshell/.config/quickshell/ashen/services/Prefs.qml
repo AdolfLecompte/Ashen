@@ -90,18 +90,22 @@ Singleton {
     }
 
     // ── Bar layout ──────────────────────────────────────────────────────
-    // Which pills live in which of the bar's three sections, and in what order.
-    // ONE packed string, never several fields: the adapter drops sibling writes
-    // made in the same tick. Format: "left;centre;right", ids comma separated.
-    // Anything absent from all three is "available" and is not built.
-    //
-    // The utility pill is not a section: its tools are fixed (Pills.tools) and
-    // nothing moves between the two.
+    // Which pills live in which section, and in what order. ONE packed string
+    // ("left;centre;right", ids comma separated), never sibling fields: the
+    // adapter drops writes made in the same tick.
     property string barLayout: ""
 
     // Runtime truth. Same reason as hiddenPillList: reading the string back in
     // the tick it was written returns the old value.
     property var barSections: ({ left: [], centre: [], right: [] })
+
+    // ── Monitor layout ──────────────────────────────────────────────────
+    // Settings > Display, keyed by monitor DESCRIPTION so it survives a port
+    // swap. JSON in one string for the same reason barLayout is packed, and
+    // because the record per monitor has eight fields. Read through
+    // Services.Displays, never parsed by hand. Empty = never arranged, so
+    // whatever Hyprland worked out on its own stands.
+    property string displayLayout: ""
 
     // The arrangement the bar shipped with, used until the user moves anything.
     readonly property var defaultSections: ({
@@ -158,9 +162,18 @@ Singleton {
 
     function resetBarLayout() {
         let next = {}
-        for (const s of root.sectionIds)
+        let shipped = []
+        for (const s of root.sectionIds) {
             next[s] = root.defaultSections[s].slice()
+            shipped = shipped.concat(next[s])
+        }
         root.barSections = next
+        // Visibility comes back with them: dragging a pill out to "available"
+        // hides it, and reset used to restore only the arrangement -- so a
+        // parked pill returned to a slot the bar dutifully spaced for while the
+        // pill itself was still switched off. That was the empty gap.
+        root.hiddenPillList = root.hiddenPillList.filter(id => shipped.indexOf(id) === -1)
+        pillWriteTimer.restart()
         barWriteTimer.restart()
     }
 
@@ -207,10 +220,9 @@ Singleton {
     property int maxToasts: 5
 
     // Active keyboard layout, by code ("latam"). switchxkblayout is runtime-only
-    // and Hyprland has no "default index" setting -- only the order of kb_layout
-    // decides what login starts on. Storing the pick here means the list order
-    // can stay put (the cards must not jump around under the cursor) and the
-    // shell re-applies the choice on startup instead.
+    // and only the ORDER of kb_layout decides what login starts on. Storing the
+    // pick here lets the list order stay put -- the cards must not jump around
+    // under the cursor -- and the shell re-applies the choice on startup.
     property string keyboardLayout: ""
 
     // Every clock in the shell (bar, calendar, lock) formats through these, so
@@ -225,9 +237,8 @@ Singleton {
         id: prefsFile
         path: root.configDir + "/prefs.json"
         // Deliberately NOT watchChanges: this file has no writer but us, and
-        // reload()-ing our own writeAdapter() re-reads the file mid-flight and
-        // reverts whatever was set a moment earlier -- flip two settings quickly
-        // and the first one silently snaps back.
+        // reload()-ing our own writeAdapter() re-reads it mid-flight and reverts
+        // whatever was set a moment earlier.
         // Any write to the adapter lands on disk immediately
         onAdapterUpdated: writeAdapter()
         // File on disk is now the source of truth: let consumers act on it.
@@ -257,6 +268,7 @@ Singleton {
             property alias maxToasts: root.maxToasts
             property alias hiddenPills: root.hiddenPills
             property alias barLayout: root.barLayout
+            property alias displayLayout: root.displayLayout
             property alias recordAudio: root.recordAudio
             property alias recordDir: root.recordDir
             property alias wallpaperDir: root.wallpaperDir

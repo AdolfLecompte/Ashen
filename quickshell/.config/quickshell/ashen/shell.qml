@@ -22,12 +22,9 @@ import "root:/services" as Services
 
 ShellRoot {
     // ── IPC ───────────────────────────────────────────────────────────────
-    // Handlers live here rather than inside the panels: a lazily loaded panel
-    // does not exist while it is closed, and its handler would vanish with it.
-    // All a handler does is flip state; panels react in their onShownChanged.
-    // The three readouts that hang off a system chip. They had no target at
-    // all, so the only way to open them was to click the chip: no keybind, and
-    // nothing a script could reach.
+    // Handlers live here, not inside the panels: a lazily loaded panel does not
+    // exist while it is closed and its handler would vanish with it. All they do
+    // is flip state; panels react in their own onShownChanged.
     IpcHandler {
         target: "volume"
         function toggle() { Services.AppState.toggleOverlay("volumeVisible") }
@@ -44,6 +41,45 @@ ShellRoot {
     IpcHandler {
         target: "launcher"
         function toggle() { Services.AppState.toggleOverlay("launcherVisible") }
+    }
+
+    // Monitors. `apply` is the one worth a keybind: plugging a screen in leaves
+    // Hyprland with its own idea of the layout, and this puts ours back.
+    IpcHandler {
+        target: "displays"
+        function apply() { Services.Displays.applyAll() }
+        // The same apply the tab does: it comes back on its own in 10s unless
+        // `keep` says the screen survived it. What a keybind should call.
+        function tryApply() { Services.Displays.applyWithRevert() }
+        function keep() { Services.Displays.confirm() }
+        function undo() { Services.Displays.revert() }
+        function refresh() { Services.Displays.refresh() }
+        function place(monitor: string, cell: int) { Services.Displays.moveToCell(monitor, cell) }
+        function mirror(monitor: string, target: string) {
+            Services.Displays.setEntry(monitor, { mirror: target })
+        }
+        function assign(monitor: string, workspace: int, on: bool) {
+            Services.Displays.assignWorkspace(monitor, workspace, on)
+        }
+        // 0 / 1 / 2 / 3 = normal, 90, 180, 270. Worth a keybind on a machine
+        // whose screen folds over.
+        function rotate(monitor: string, transform: int) {
+            Services.Displays.setEntry(monitor, { transform: transform })
+        }
+        function scale(monitor: string, factor: string) {
+            Services.Displays.setEntry(monitor, { scale: parseFloat(factor) })
+        }
+        function list(): string {
+            let out = []
+            for (const m of Services.Displays.monitors) {
+                const k = Services.Displays.keyOf(m)
+                const e = Services.Displays.entry(k)
+                out.push(m.name + " key=" + k + " cell=" + e.cell + " scale=" + e.scale
+                         + " transform=" + e.transform + " mirror=" + (e.mirror || "-")
+                         + " pos=" + Services.Displays.positionFor(k))
+            }
+            return out.join("\n")
+        }
     }
     IpcHandler {
         target: "settings"
@@ -154,6 +190,12 @@ ShellRoot {
     NotificationToast {}
     Widgets.UtilityTriggers {}
     LockScreen {}
+
+    // A singleton is built the first time something asks for it, and nothing
+    // asks for this one until Settings > Display is opened -- by which time the
+    // monitors have been sitting in Hyprland's own arrangement all session.
+    // Touching it here is what makes the saved layout come back at login.
+    Component.onCompleted: Services.Displays.refresh()
 
     // ── Built on demand ───────────────────────────────────────────────────
     Widgets.LazyPanel { preloadMs: 1320; shown: Services.AppState.volumeVisible;        panel: Component { VolumePanel {} } }

@@ -19,4 +19,20 @@ Singleton {
         }
         return screens[0]
     }
+
+    // The screens that deserve a bar. A mirrored output still shows up in
+    // Quickshell.screens, but Hyprland renders the source monitor's framebuffer
+    // onto it -- a bar built there is drawn, exclusion-zoned and never seen.
+    // An output Hyprland has not told us about yet keeps its bar: the wildcard
+    // in monitors.lua means a new one is extended, not mirrored.
+    readonly property var barScreens: {
+        const screens = Quickshell.screens
+        if (!screens) return []
+        const mirrored = {}
+        for (const m of Hyprland.monitors.values) {
+            const o = m.lastIpcObject
+            if (o && o.mirrorOf && o.mirrorOf !== "none") mirrored[o.name] = true
+        }
+        return screens.filter(s => !mirrored[s.name])
+    }
 }
