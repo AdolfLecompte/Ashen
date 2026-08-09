@@ -30,7 +30,7 @@ Singleton {
     // A hovered stack is being read, so hold every countdown -- not just the
     // card under the pointer, since they all shuffle as soon as one leaves.
     property int hoverHolds: 0
-    readonly property int leaveMs: 400
+    readonly property int leaveMs: 470
 
     function popupHold(entry) {
         // Critical never ages out on its own; it has to be acknowledged.
@@ -96,10 +96,14 @@ Singleton {
         root.releaseLive(id, byUser)
     }
 
+    // The ONLY way out of the stack. Anything that filters `activePopups` on its
+    // own leaves the id behind in these three lists, and a ghost id keeps
+    // answering `isLeaving` for the rest of the session.
     function dropPopups(ids) {
         root.activePopups = root.activePopups.filter(p => ids.indexOf(p.id) === -1)
         root.leavingIds = root.leavingIds.filter(i => ids.indexOf(i) === -1)
         root.seenPopups = root.seenPopups.filter(i => ids.indexOf(i) === -1)
+        root.sweepQueue = root.sweepQueue.filter(q => ids.indexOf(q.id) === -1)
     }
 
     // ── Sweeping several at once ──────────────────────────────────────────
@@ -118,7 +122,9 @@ Singleton {
             let q = root.sweepQueue.slice()
             const next = q.shift()
             root.sweepQueue = q
-            root.beginLeave(next.id, next.byUser)
+            // It may have gone by another road while it waited its turn.
+            if (root.activePopups.some(p => p.id === next.id))
+                root.beginLeave(next.id, next.byUser)
         }
     }
 
@@ -151,12 +157,33 @@ Singleton {
 
     // Sweeps the toast stack only; the history keeps every entry. Bottom of
     // the stack first: the pile collapses towards the pill it came from.
+    //
+    // Only the cards ON SCREEN sweep. The ones waiting behind the "+N" have
+    // never been drawn, and queueing them meant a card was promoted into a free
+    // slot with its exit already running: the Repeater built it straight into
+    // its last frame, which is the cut-in-half toast this used to show.
     function dismissAllPopups() {
-        const ids = root.activePopups.map(p => p.id).reverse()
-        root.queueLeave(ids, true)
+        const shownIds = root.shownPopups.map(p => p.id).reverse()
+        const hiddenIds = root.activePopups.slice(root.maxPopups).map(p => p.id)
+        for (let i = 0; i < hiddenIds.length; i++) root.releaseLive(hiddenIds[i], true)
+        if (hiddenIds.length > 0) root.dropPopups(hiddenIds)
+        // Next turn, not this one. Dropping the hidden ones reassigns the list,
+        // which rebuilds every card; marking one as leaving in the same tick
+        // means its delegate is BUILT already leaving, and a card built that way
+        // lands straight on its last frame instead of playing an exit.
+        Qt.callLater(function() { root.queueLeave(shownIds, true) })
     }
 
     function dismissPopup(id) { root.beginLeave(id, true) }
+
+    // How long a card that is on its way out still has. A delegate rebuilt
+    // mid-exit asks this to decide whether it is worth playing the exit again
+    // or whether it should just land.
+    function leaveLeft(id) {
+        const ent = root.activePopups.find(p => p.id === id)
+        if (!ent || !ent.leaveAt) return 0
+        return Math.max(0, ent.leaveAt - Date.now())
+    }
 
     // ── Live D-Bus notifications ──────────────────────────────────────────
     // The Notification object is the only thing that can invoke an action or
@@ -500,8 +527,13 @@ Singleton {
 
     function addSystemToast(message, glyph, isLetter, typeKey) {
         // System ones are only shown as a toast, never stored in the history.
-        // Replaces any other active one of the same "type" (typeKey) instead of stacking.
-        root.activePopups = root.activePopups.filter(p => !(p.source === "system" && p.typeKey === typeKey))
+        // Replaces any other active one of the same "type" (typeKey) instead of
+        // stacking. Through dropPopups, never by filtering the list here: the
+        // replaced id has to leave `leavingIds` and the sweep queue with it.
+        const stale = root.activePopups
+            .filter(p => p.source === "system" && p.typeKey === typeKey)
+            .map(p => p.id)
+        if (stale.length > 0) root.dropPopups(stale)
         let entry = {
             appName: "System",
             summary: "SYSTEM ALERT",

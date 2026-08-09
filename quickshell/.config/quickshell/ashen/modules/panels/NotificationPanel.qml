@@ -66,18 +66,41 @@ Scope {
     function removeRow(id) {
         if (win.leavingIds.indexOf(id) !== -1) return
         win.leavingIds = win.leavingIds.concat([id])
-        rowGone.restart()
+        win.scheduleRemoval([id], win.rowLeaveMs + 120)
     }
 
-    // One timer for the lot: rows marked together leave together, each on its
-    // own clearDelay, and the model is only touched once they have all gone.
+    // Rows leave in batches, and every batch keeps its OWN due time. One shared
+    // timer meant a second delete re-armed the first one's wait, so a run of
+    // quick deletes never reached the model at all -- the rows were invisible
+    // and still counted, which is what left a group title with nothing under it.
+    // How long a run takes to sweep. Capped: only the first rows are on screen,
+    // and a group of eighty was making the model wait four seconds.
+    readonly property int sweepCap: 8
+    function sweepSpan(n) { return Math.min(n, win.sweepCap) * win.clearStepMs }
+
+    property var pendingRemovals: []
+    function scheduleRemoval(ids, afterMs) {
+        win.pendingRemovals = win.pendingRemovals.concat([{ ids: ids, dueAt: Date.now() + afterMs }])
+    }
+
     Timer {
-        id: rowGone
-        interval: win.rowLeaveMs + 120
+        id: removalPump
+        interval: 60
+        repeat: true
+        running: win.pendingRemovals.length > 0
         onTriggered: {
-            const ids = win.leavingIds
-            win.leavingIds = []
-            for (let i = 0; i < ids.length; i++) Services.Notifications.removeById(ids[i])
+            const now = Date.now()
+            const due = win.pendingRemovals.filter(b => now >= b.dueAt)
+            if (due.length === 0) return
+            win.pendingRemovals = win.pendingRemovals.filter(b => now < b.dueAt)
+
+            let gone = []
+            for (let i = 0; i < due.length; i++) gone = gone.concat(due[i].ids)
+            // Model first, marks second: dropping the marks first flipped every
+            // row's `clearing` back to false while it was still on screen at
+            // opacity 0, and only a rebuild ever brought it back.
+            for (let j = 0; j < gone.length; j++) Services.Notifications.removeById(gone[j])
+            win.leavingIds = win.leavingIds.filter(id => gone.indexOf(id) === -1)
         }
     }
 
@@ -85,17 +108,27 @@ Scope {
         const ids = Services.Notifications.history
             .filter(e => Services.Notifications.groupKey(e) === app)
             .map(e => e.id)
+            // Whatever is already on its way out is not asked to leave twice:
+            // that second pass was an animation playing over nothing.
+            .filter(id => win.leavingIds.indexOf(id) === -1)
         if (ids.length === 0) return
         win.leavingIds = win.leavingIds.concat(ids)
         // Long enough for the last row's turn to have played.
-        rowGone.interval = win.rowLeaveMs + 120 + ids.length * win.clearStepMs
-        rowGone.restart()
+        win.scheduleRemoval(ids, win.rowLeaveMs + 120 + win.sweepSpan(ids.length))
     }
 
     function fadeClear() {
         if (Services.Notifications.history.length === 0 || win.clearing) return
         win.clearing = true
-        clearTimer.interval = Math.min(950, 260 + Services.Notifications.history.length * win.clearStepMs)
+        // The wait is the last row's own turn, not a guess: a cap that expired
+        // first wiped the model with rows still mid-sweep.
+        const groups = Services.Notifications.groupedHistory
+        let last = 0
+        for (let g = 0; g < groups.length; g++) {
+            const rows = groups[g].items.length
+            last = Math.max(last, g * 70 + win.sweepSpan(rows - 1))
+        }
+        clearTimer.interval = last + 260
         clearTimer.restart()
     }
 
@@ -105,6 +138,19 @@ Scope {
     function toggleGroup(app) {
         if (win.expandedApps.indexOf(app) === -1) win.expandedApps = win.expandedApps.concat([app])
         else win.expandedApps = win.expandedApps.filter(a => a !== app)
+    }
+
+    // A group that no longer exists must not keep its open mark: the next
+    // notification from that app was arriving already unfolded, with no header
+    // to fold it back.
+    Connections {
+        target: Services.Notifications
+        function onGroupedHistoryChanged() {
+            if (win.expandedApps.length === 0) return
+            const names = Services.Notifications.groupedHistory.map(g => g.app)
+            const kept = win.expandedApps.filter(a => names.indexOf(a) !== -1)
+            if (kept.length !== win.expandedApps.length) win.expandedApps = kept
+        }
     }
 
 
@@ -295,7 +341,12 @@ Scope {
                     id: group
                     required property var modelData
                     required property int index
-                    readonly property bool many: modelData.items.length > 1
+                    // The rows on their way out still have to be drawn, but they
+                    // no longer count: a header that outlives its last row is a
+                    // title sitting over nothing.
+                    readonly property var alive: modelData.items.filter(
+                        e => win.leavingIds.indexOf(e.id) === -1)
+                    readonly property bool many: group.alive.length > 1
                     readonly property bool open: win.expandedApps.indexOf(modelData.app) !== -1
                     // A single notice needs no section chrome; a run of them
                     // shows the newest until you ask for the rest.
@@ -304,9 +355,11 @@ Scope {
                     spacing: 4
 
                     Item {
-                        visible: group.many
+                        visible: group.many && group.alive.length > 0
                         width: parent.width
-                        height: group.many ? 22 : 0
+                        height: visible ? 22 : 0
+                        opacity: group.alive.length > 0 ? 1 : 0
+                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
 
                         Text {
                             id: groupName
@@ -334,7 +387,7 @@ Scope {
                             Text {
                                 id: countTxt
                                 anchors.centerIn: parent
-                                text: group.modelData.items.length
+                                text: group.alive.length
                                 color: Services.Colors.mist
                                 font.pixelSize: 9
                                 font.bold: true
@@ -387,8 +440,11 @@ Scope {
                             width: group.width
                             // The sweep runs down the list rather than taking
                             // every row in the same frame.
+                            // Staggered only when a whole run is being swept; a
+                            // single delete has no queue to wait behind.
                             clearDelay: win.clearing ? (group.index * 70) + (index * win.clearStepMs)
-                                                     : (index * win.clearStepMs)
+                                     : (win.leavingIds.length > 1
+                                        ? Math.min(index, win.sweepCap) * win.clearStepMs : 0)
                             clearing: win.clearing
                                 || win.leavingIds.indexOf(modelData.id) !== -1
                         }

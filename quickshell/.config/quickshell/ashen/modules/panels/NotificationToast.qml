@@ -66,7 +66,15 @@ PanelWindow {
                 property real collapse: 1
                 width: 360
                 height: fullH * collapse
-                Behavior on height { NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut } }
+                // Only for the height JUMP when a card gains or loses its
+                // action row. On the way out it has to be off: `collapse` is
+                // already an animation, and a Behavior chasing each of its
+                // intermediate values stretched the collapse past the budget
+                // the service gives the card to be gone in.
+                Behavior on height {
+                    enabled: !card.leaving
+                    NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut }
+                }
 
 
                 function dismiss() { Services.Notifications.dismissPopup(modelData.id) }
