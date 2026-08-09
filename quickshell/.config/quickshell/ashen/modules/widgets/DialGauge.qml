@@ -144,14 +144,17 @@ Item {
         }
     }
 
-    // Inside the ring, not under it: the rim stays legible at any level.
+    // The water runs UNDER the rim rather than up to it. Stopping at the inner
+    // edge left an antialiased hairline of background between the two, which
+    // read as a second border drawn around the liquid; a couple of pixels of
+    // overlap, hidden by the ring painted on top, leaves nothing to show.
     LiquidFill {
         id: liquidFill
         anchors.fill: parent
         visible: root.liquid && root.armed
         running: root.liquid && root.armed && root.visible
         level: root.frac
-        inset: root.lw + 3
+        inset: root.lw - 2
         waveAmp: Math.max(2.5, root.size * 0.032)
         color_: root.liquidColor
         // Doubles as the mask for the submerged half of the centre.

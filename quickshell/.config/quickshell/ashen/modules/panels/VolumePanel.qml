@@ -122,12 +122,11 @@ PanelWindow {
                         width: parent.width
                         height: 120
 
-                        Widgets.DialGauge {
+                        Widgets.LiquidBox {
                             id: dial
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
                             size: 120
-                            lw: 10
                             // Off the SLIDER, not the service: Audio polls once
                             // a second and a dial tied to it lagged the bar you
                             // were dragging.
@@ -137,7 +136,6 @@ PanelWindow {
                             label: Math.round(dial.frac * 100) + "%"
                             glyphSize: 18
                             labelSize: 22
-                            captionSize: 0
                             hideGlyph: card.morphingGlyph
                             hideLabel: card.morphingLabel
                             fillColor: win.muted ? Services.Colors.mist : Services.Colors.ghost

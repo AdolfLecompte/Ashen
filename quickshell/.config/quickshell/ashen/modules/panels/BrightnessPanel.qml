@@ -65,12 +65,11 @@ PanelWindow {
                     height: 120
                     opacity: card.contentAmt
 
-                    Widgets.DialGauge {
+                    Widgets.LiquidBox {
                         id: dial
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         size: 120
-                        lw: 10
                         // Off the slider, not the service: Brightness polls
                         // every 1.5 s and the dial would trail the bar.
                         value: brightBar.shown
@@ -79,7 +78,6 @@ PanelWindow {
                         label: Math.round(dial.frac * 100) + "%"
                         glyphSize: 18
                         labelSize: 22
-                        captionSize: 0
                         hideGlyph: card.morphingGlyph
                         hideLabel: card.morphingLabel
                     }
