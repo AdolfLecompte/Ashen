@@ -31,13 +31,15 @@ specific feature rather than breaking the shell, except where noted.
 ```
 hyprland kitty zsh stow git base-devel
 qt6-base qt6-declarative qt6-5compat
-pipewire pipewire-pulse pipewire-alsa wireplumber
+quickshell
+pipewire pipewire-pulse pipewire-alsa wireplumber libpulse
 networkmanager bluez bluez-utils udisks2 upower power-profiles-daemon
-brightnessctl lm_sensors
+brightnessctl lm_sensors pciutils
 wl-clipboard cliphist grim slurp wf-recorder
-hypridle mpvpaper ffmpeg
-nemo zenity fastfetch cava
-papirus-icon-theme ttf-jetbrains-mono-nerd
+hypridle mpvpaper ffmpeg wlsunset
+nemo zenity fastfetch cava xdg-utils libnotify
+papirus-icon-theme adw-gtk-theme
+ttf-jetbrains-mono-nerd ttf-material-symbols-variable
 xdg-desktop-portal-hyprland polkit-gnome
 ```
 
@@ -47,14 +49,14 @@ xdg-desktop-portal-hyprland polkit-gnome
 ### AUR (via `paru`, `yay`, …)
 
 ```
-quickshell awww matugen grimblast-git
-papirus-folders bibata-cursor-theme ttf-material-symbols-variable-git
+awww matugen grimblast-git
+papirus-folders bibata-cursor-theme
 ```
 
 - **quickshell** must be built with **PAM** and the **Hyprland** modules — the lock
   screen authenticates through `PamContext` (config `login`) and the bar reads
   workspaces over Hyprland IPC. `quickshell-allflags-git` also works.
-- **ttf-material-symbols-variable-git** is required: every icon in the shell is a
+- **ttf-material-symbols-variable** is required: every icon in the shell is a
   Material Symbols Rounded codepoint. Without it the bar renders empty boxes.
 - **awww** paints static images and gifs, **mpvpaper** paints video wallpapers.
 
@@ -79,6 +81,7 @@ which are not packaged — follow their own install instructions.
 | `cava` | audio visualiser (bar background, media panel, lock screen) |
 | `awww` / `mpvpaper` / `matugen` | wallpapers and dynamic colour scheme |
 | `hypridle` | idle → lock |
+| `wlsunset` | night light (blue-light filter), manual and scheduled |
 | `lm_sensors` | temperatures in the process panel |
 | `nvidia-utils` (`nvidia-smi`) | dGPU stats — **only** read when the GPU is already awake |
 
@@ -166,7 +169,7 @@ The keyboard layout pill in the bar is **read-only**. Layouts are declared in
 
 ## Status
 
-1.5.2
+2.0.0
 
 ## License
 
