@@ -24,8 +24,9 @@ PanelWindow {
     // sampling only runs while the panel is up
     onShownChanged: {
         Services.SysMon.active = shown
-        // The chip steps aside for as long as the panel wears its face.
-        Services.AppState.processTakenOver = shown
+        // The chip steps aside for as long as the panel wears its face -- and
+        // in "window" style it never does.
+        Services.AppState.processTakenOver = shown && card.wearingFace
         if (!shown) closeDelay.restart()
     }
 
@@ -40,14 +41,9 @@ PanelWindow {
         onClicked: Services.AppState.processVisible = false
     }
 
-    // The same drop the clock and every system chip opens with -- the shared
-    // component, not another copy of the maths. Its pill is a chip on the
-    // utility trigger rather than one on the bar, so it names that edge and
-    // where it lands; everything else is identical. The utility pill can turn
-    // up on any of the three edges the bar is not on, so both follow it there.
-    // Live from the pill, not a value written when something was clicked:
-    // a keybind never clicks, and the panel used to grow from wherever the
-    // last click had left the numbers.
+    // The same drop the clock and the system chips open with. Its pill is a
+    // chip on the utility trigger, so the edge is read live from the pill
+    // rather than written at click time: a keybind never clicks.
     readonly property string srcEdge: Services.AppState.processSourceEdge
     // Its chip: on the utility pill of that edge, or on the bar.
     readonly property var chipRect: Services.AppState.chipRectOf("process", root.srcEdge)
@@ -72,15 +68,15 @@ PanelWindow {
         pillW: root.chipRect.w
         pillH: root.chipRect.h
 
-        // Laid out like the board itself: the socket square, the card long,
-        // the memory a tall stick, the drive a wide slab, and the two probes
-        // narrow columns down the side.
+        // A board of cards, each saying its own kind of thing: a history worth
+        // drawing, a proportion of something fixed, readings in rings, a vessel.
+        // Seven identical liquid boxes made this panel read as a spreadsheet.
         readonly property int cell: 116
         readonly property int gap: 12
         readonly property int pad: 22
         function span(n) { return n * cell + (n - 1) * gap }
         openW: span(8) + pad * 2
-        openH: span(3) + pad * 2 + 22
+        openH: span(3) + pad * 2 + 40
         cardRadius: 22
 
         pillKey: "process"
@@ -96,202 +92,449 @@ PanelWindow {
                     return Math.max(0, Math.min(1, (card.contentAmt - start) / (1 - start)))
                 }
 
-                // One reading, one vessel. It says which cell it starts in
-                // and how many it covers; the shape follows from that.
-                component Tank: Rectangle {
-                    id: tank
+                // Every card on the board: its place on the grid, its name in
+                // the corner, and its own beat in the arrival.
+                component Card: Rectangle {
+                    id: cd
                     property string glyph: ""
-                    property string title: ""
-                    // 0..1, how full the vessel is
-                    property real level: 0
-                    property string reading: ""
-                    property string sub: ""
-                    property bool alarm: false
+                    property string name: ""
                     property int index: 0
-                    // Place on the grid: column, row, and how many cells wide
-                    // and tall.
                     property int col: 0
                     property int row: 0
                     property int cw: 1
                     property int ch: 1
-                    // Tall and narrow: the reading goes under the glyph rather
-                    // than beside it, and the name sits at the foot.
-                    readonly property bool tall: ch > cw
+                    // What a card puts in its top-right: a part number, a
+                    // percentage, whatever it is the name does not say.
+                    property string note: ""
+                    // Where a card's own content can start.
+                    readonly property int headH: 40
+                    readonly property int inset: 14
 
                     x: col * (card.cell + card.gap)
                     y: row * (card.cell + card.gap)
                     width: card.span(cw)
                     height: card.span(ch)
                     radius: Services.Sizes.cardLgR
-                    color: Services.Colors.fillInset
+                    // Opaque: a translucent plate took its colour from whatever
+                    // wallpaper happened to be behind the panel.
+                    color: Services.Colors.tint(Services.Colors.surface,
+                                                Services.Colors.ghost, 0.07)
                     clip: true
                     opacity: bodyRoot.stage(index)
-                    transform: Translate { y: (1 - bodyRoot.stage(tank.index)) * 12 }
+                    transform: Translate { y: (1 - bodyRoot.stage(cd.index)) * 12 }
 
-                    readonly property color tone: tank.alarm ? Services.Colors.error_
-                                                             : Services.Colors.ghost
-
-                    Widgets.LiquidFill {
-                        anchors.fill: parent
-                        shape: "rect"
-                        radius_: tank.radius
-                        level: tank.level
-                        // A narrow vessel takes a smaller swell, or the wave is
-                        // taller than the column is wide.
-                        waveAmp: tank.tall ? 2.5 : 4
-                        periodMs: 5200
-                        running: root.shown
-                        color_: Qt.rgba(tank.tone.r, tank.tone.g, tank.tone.b, 0.30)
-                    }
-
-                    Column {
-                        anchors.centerIn: parent
-                        width: parent.width - 12
-                        spacing: tank.tall ? 6 : 4
-
+                    Row {
+                        id: cdHead
+                        x: cd.inset
+                        y: cd.inset
+                        spacing: 8
                         Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: tank.glyph
-                            color: tank.tone
-                            font.pixelSize: tank.cw >= 2 && tank.ch >= 2 ? 34 : 22
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: cd.glyph
+                            color: Services.Colors.mist
+                            font.pixelSize: 16
                             font.family: "Material Symbols Rounded"
                         }
                         Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: tank.reading
-                            color: Services.Colors.snow
-                            font.pixelSize: tank.cw >= 2 && tank.ch >= 2
-                                ? Services.Sizes.fsHero : Services.Sizes.fsReadout
-                            font.bold: true
-                            font.family: "JetBrainsMono NF"
-                        }
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            text: tank.title
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: cd.name
                             color: Services.Colors.mist
-                            font.pixelSize: Services.Sizes.fsBody
+                            font.pixelSize: Services.Sizes.fsCaption
                             font.bold: true
+                            font.letterSpacing: 1.4
                             font.family: "JetBrainsMono NF"
-                            elide: Text.ElideRight
                         }
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            text: tank.sub
-                            visible: tank.sub !== ""
-                            color: Services.Colors.ash
-                            font.pixelSize: Services.Sizes.fsMeta
-                            font.family: "JetBrainsMono NF"
-                            elide: Text.ElideRight
-                        }
+                    }
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: cd.inset
+                        anchors.verticalCenter: cdHead.verticalCenter
+                        width: Math.min(implicitWidth, cd.width - cdHead.width - cd.inset * 3)
+                        horizontalAlignment: Text.AlignRight
+                        text: cd.note
+                        visible: cd.note !== ""
+                        color: Services.Colors.ash
+                        font.pixelSize: Services.Sizes.fsMeta
+                        font.family: "JetBrainsMono NF"
+                        elide: Text.ElideRight
                     }
                 }
 
-                Text {
-                    id: chipLine
-                    opacity: card.contentAmt
+                // A proportion of something with a known ceiling: how much of
+                // the memory, how much of the drive. A ring would claim these
+                // are readings that move; they crawl.
+                component Meter: Item {
+                    id: mtr
+                    property real level: 0
+                    property color tone: Services.Colors.ghost
+                    property string leftNote: ""
+                    property string rightNote: ""
+                    height: 22
+
+                    Rectangle {
+                        id: track
+                        width: parent.width
+                        height: 8
+                        radius: 4
+                        color: Services.Colors.fillLine
+                        Rectangle {
+                            width: Math.max(height, parent.width * Math.max(0, Math.min(1, mtr.level)))
+                            height: parent.height
+                            radius: parent.radius
+                            color: mtr.tone
+                            gradient: Services.Prefs.useGradients
+                                ? Services.Colors.accentGradient : null
+                            Behavior on width {
+                                NumberAnimation { duration: Services.Sizes.msPronounced
+                                                  easing.type: Services.Sizes.easeOut }
+                            }
+                        }
+                    }
+                    Text {
+                        anchors.left: parent.left
+                        anchors.top: track.bottom
+                        anchors.topMargin: 4
+                        text: mtr.leftNote
+                        color: Services.Colors.ash
+                        font.pixelSize: Services.Sizes.fsCaption
+                        font.family: "JetBrainsMono NF"
+                    }
+                    Text {
+                        anchors.right: parent.right
+                        anchors.top: track.bottom
+                        anchors.topMargin: 4
+                        text: mtr.rightNote
+                        color: Services.Colors.ash
+                        font.pixelSize: Services.Sizes.fsCaption
+                        font.family: "JetBrainsMono NF"
+                    }
+                }
+
+                // The panel says its own name, like every other one.
+                Item {
+                    id: head
                     x: card.pad
-                    y: card.pad - 2
+                    y: card.pad - 4
                     width: parent.width - card.pad * 2
-                    text: Services.SysMon.cpuModel
-                    color: Services.Colors.ash
-                    font.pixelSize: Services.Sizes.fsMeta
-                    font.family: "JetBrainsMono NF"
-                    elide: Text.ElideRight
+                    height: 26
+                    opacity: card.contentAmt
+
+                    Text {
+                        id: headTitle
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "System"
+                        color: Services.Colors.snow
+                        font.pixelSize: Services.Sizes.fsCardTitle
+                        font.bold: true
+                        font.family: "JetBrainsMono NF"
+                    }
+                    Rectangle {
+                        anchors.left: headTitle.right
+                        anchors.leftMargin: 12
+                        anchors.right: headUp.left
+                        anchors.rightMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        height: 1
+                        color: Services.Colors.fillLine
+                    }
+                    // A pulse rather than a word: the board is live, and it says
+                    // so the way the recording pill does.
+                    Row {
+                        id: headUp
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 6
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 6; height: 6; radius: 3
+                            color: Services.Colors.ghost
+                            SequentialAnimation on opacity {
+                                running: root.shown
+                                loops: Animation.Infinite
+                                NumberAnimation { to: 0.25; duration: 900; easing.type: Services.Sizes.easeLoop }
+                                NumberAnimation { to: 1; duration: 900; easing.type: Services.Sizes.easeLoop }
+                            }
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "LIVE"
+                            color: Services.Colors.ash
+                            font.pixelSize: Services.Sizes.fsCaption
+                            font.bold: true
+                            font.letterSpacing: 1.4
+                            font.family: "JetBrainsMono NF"
+                        }
+                    }
                 }
 
                 Item {
                     x: card.pad
-                    y: card.pad + 22
+                    y: card.pad + 36
                     width: card.span(8)
                     height: card.span(3)
 
-                    // The socket: square, and the biggest thing on the board.
-                    Tank {
+                    // ── CPU: the one reading with a past worth drawing ──
+                    Card {
+                        id: cpuCard
                         index: 0
-                        col: 0; row: 0; cw: 2; ch: 2
-                        glyph: "\ue322"
-                        title: "CPU"
-                        level: Services.SysMon.cpuPercent / 100
-                        reading: Math.round(Services.SysMon.cpuPercent) + "%"
-                    }
-                    // The NIC: small, off in a corner, like the real one.
-                    Tank {
-                        index: 1
-                        col: 0; row: 2; cw: 2; ch: 1
-                        glyph: "\ue894"
-                        title: "Network"
-                        // Throughput has no ceiling of its own, so it is read
-                        // against 5 MB/s: near empty at rest, full on a real
-                        // download.
-                        level: Math.min(1, (Services.SysMon.netRxKBs + Services.SysMon.netTxKBs) / 5000)
-                        reading: {
-                            const kb = Services.SysMon.netRxKBs + Services.SysMon.netTxKBs
-                            return kb >= 1024 ? (kb / 1024).toFixed(1) + " MB/s"
-                                              : Math.round(kb) + " KB/s"
+                        col: 0; row: 0; cw: 5; ch: 2
+                        glyph: ""
+                        name: "CPU USAGE"
+                        note: Services.SysMon.cpuModel
+
+                        Text {
+                            id: cpuNum
+                            x: cpuCard.inset
+                            y: cpuCard.headH
+                            text: Math.round(Services.SysMon.cpuPercent) + "%"
+                            color: Services.Colors.snow
+                            font.pixelSize: Services.Sizes.fsHero
+                            font.bold: true
+                            font.family: "JetBrainsMono NF"
                         }
-                        sub: "\u2193 " + Math.round(Services.SysMon.netRxKBs)
-                             + "   \u2191 " + Math.round(Services.SysMon.netTxKBs) + " KB/s"
+                        Text {
+                            anchors.left: cpuNum.right
+                            anchors.leftMargin: 12
+                            anchors.baseline: cpuNum.baseline
+                            text: Services.SysMon.cpuTemp > 0
+                                ? Services.SysMon.cpuTemp.toFixed(0) + "° now"
+                                : ""
+                            color: Services.Colors.ash
+                            font.pixelSize: Services.Sizes.fsMeta
+                            font.family: "JetBrainsMono NF"
+                        }
+
+                        // The history fills the floor of the card: the line is
+                        // the point of this one, not a decoration beside it.
+                        Widgets.Trend {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: parent.height - cpuCard.headH - 52
+                            values: Services.SysMon.cpuHistory
+                            maxValue: 100
+                            color_: Services.Colors.ghost
+                        }
                     }
-                    // The DIMM: one tall thin stick standing in its slot.
-                    Tank {
+
+                    // ── Memory: a proportion of something fixed ──
+                    Card {
+                        index: 1
+                        col: 5; row: 0; cw: 3; ch: 1
+                        glyph: ""
+                        name: "MEMORY"
+                        id: ramCard
+
+                        Text {
+                            id: ramNum
+                            x: ramCard.inset
+                            y: ramCard.headH - 4
+                            text: Services.SysMon.ramTotalMB > 0
+                                ? Math.round(Services.SysMon.ramUsedMB / Services.SysMon.ramTotalMB * 100) + "%"
+                                : "--"
+                            color: Services.Colors.snow
+                            font.pixelSize: Services.Sizes.fsReadout
+                            font.bold: true
+                            font.family: "JetBrainsMono NF"
+                        }
+                        Text {
+                            anchors.left: ramNum.right
+                            anchors.leftMargin: 10
+                            anchors.baseline: ramNum.baseline
+                            text: (Services.SysMon.ramUsedMB / 1024).toFixed(1) + " / "
+                                  + (Services.SysMon.ramTotalMB / 1024).toFixed(1) + " GB in use"
+                            color: Services.Colors.mist
+                            font.pixelSize: Services.Sizes.fsMeta
+                            font.family: "JetBrainsMono NF"
+                        }
+                        Meter {
+                            x: ramCard.inset
+                            width: parent.width - ramCard.inset * 2
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: 12
+                            level: Services.SysMon.ramTotalMB > 0
+                                ? Services.SysMon.ramUsedMB / Services.SysMon.ramTotalMB : 0
+                            leftNote: "0"
+                            rightNote: Math.round(Services.SysMon.ramTotalMB / 1024) + "GB"
+                        }
+                    }
+
+                    // ── Thermals: two readings, two rings ──
+                    Card {
                         index: 2
-                        col: 2; row: 0; cw: 1; ch: 3
-                        glyph: "\ue30d"
-                        title: "RAM"
-                        level: Services.SysMon.ramTotalMB > 0
-                            ? Services.SysMon.ramUsedMB / Services.SysMon.ramTotalMB : 0
-                        reading: Services.SysMon.ramTotalMB > 0
-                            ? Math.round(Services.SysMon.ramUsedMB / Services.SysMon.ramTotalMB * 100) + "%" : "--"
-                        sub: (Services.SysMon.ramUsedMB / 1024).toFixed(1) + "G"
+                        col: 5; row: 1; cw: 3; ch: 1
+                        glyph: ""
+                        name: "THERMALS"
+                        id: thermCard
+
+                        // Centred, not shoved against the right edge: the
+                        // name sits above them, not beside them.
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.top: parent.top
+                            anchors.topMargin: thermCard.headH - 14
+                            spacing: 14
+
+                            Widgets.DialGauge {
+                                size: 86
+                                lw: 8
+                                labelSize: 17
+                                captionSize: 9
+                                glyph: ""
+                                // Read against 100 degrees, turning at 80.
+                                value: Math.max(0, Math.min(1, Services.SysMon.cpuTemp / 100))
+                                label: Services.SysMon.cpuTemp > 0
+                                    ? Services.SysMon.cpuTemp.toFixed(0) + "°" : "--"
+                                caption: "CPU"
+                                armed: root.shown
+                                fillColor: Services.SysMon.cpuTemp >= 80
+                                    ? Services.Colors.error_ : Services.Colors.ghost
+                            }
+                            Widgets.DialGauge {
+                                size: 86
+                                lw: 8
+                                labelSize: 17
+                                captionSize: 9
+                                glyph: ""
+                                value: Math.max(0, Math.min(1, Services.SysMon.gpuTemp / 100))
+                                label: Services.SysMon.gpuTemp > 0
+                                    ? Services.SysMon.gpuTemp.toFixed(0) + "°" : "--"
+                                caption: "GPU"
+                                armed: root.shown
+                                fillColor: Services.SysMon.gpuTemp >= 80
+                                    ? Services.Colors.error_ : Services.Colors.ghost
+                            }
+                        }
                     }
-                    // The card: long, and the second biggest thing here.
-                    Tank {
+
+                    // ── GPU: the card that stays a vessel ──
+                    Card {
                         index: 3
-                        col: 3; row: 0; cw: 3; ch: 2
-                        glyph: "\ue30a"
-                        title: "GPU"
-                        level: Services.SysMon.gpuPercent / 100
-                        reading: Math.round(Services.SysMon.gpuPercent) + "%"
-                        sub: Services.SysMon.dgpuAwake ? "Discrete" : "Integrated"
+                        col: 0; row: 2; cw: 3; ch: 1
+                        glyph: ""
+                        name: "GPU"
+                        id: gpuCard
+
+                        readonly property color tone: Services.Colors.ghost
+                        readonly property color liquidCol: gpuCard.tone
+                        readonly property color wetInk: Services.Colors.onColor(gpuCard.liquidCol)
+
+                        Widgets.LiquidFill {
+                            id: gpuLiquid
+                            anchors.fill: parent
+                            shape: "rect"
+                            radius_: gpuCard.radius
+                            level: Services.SysMon.gpuPercent / 100
+                            waveAmp: 4.5
+                            periodMs: 5200
+                            running: root.shown
+                            color_: gpuCard.liquidCol
+                            layer.enabled: true
+                        }
+
+                        Item {
+                            id: gpuFace
+                            anchors.fill: parent
+
+                            Text {
+                                id: gpuNum
+                                x: gpuCard.inset
+                                y: gpuCard.headH - 4
+                                text: Math.round(Services.SysMon.gpuPercent) + "%"
+                                color: Services.Colors.snow
+                                font.pixelSize: Services.Sizes.fsReadout
+                                font.bold: true
+                                font.family: "JetBrainsMono NF"
+                            }
+                            Text {
+                                anchors.left: gpuNum.right
+                                anchors.leftMargin: 10
+                                anchors.baseline: gpuNum.baseline
+                                text: Services.SysMon.dgpuAwake ? "Discrete" : "Integrated"
+                                color: Services.Colors.mist
+                                font.pixelSize: Services.Sizes.fsMeta
+                                font.family: "JetBrainsMono NF"
+                            }
+                            Text {
+                                x: gpuCard.inset
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: 12
+                                text: Services.SysMon.igpuFreq > 0
+                                    ? "CLOCK  " + Math.round(Services.SysMon.igpuFreq) + " MHz"
+                                    : ""
+                                color: Services.Colors.ash
+                                font.pixelSize: Services.Sizes.fsCaption
+                                font.letterSpacing: 1.2
+                                font.family: "JetBrainsMono NF"
+                            }
+                        }
+
+                        // The words the liquid has reached, re-inked.
+                        Widgets.Submerged {
+                            anchors.fill: parent
+                            source: gpuFace
+                            mask: gpuLiquid
+                            ink: gpuCard.wetInk
+                        }
                     }
-                    // The drive: a wide flat slab under the card.
-                    Tank {
+
+                    // ── Network: what is moving right now ──
+                    Card {
                         index: 4
-                        col: 3; row: 2; cw: 3; ch: 1
-                        glyph: "\ue1db"
-                        title: "Storage"
-                        level: Services.SysMon.diskPercent / 100
-                        reading: Services.SysMon.diskPercent + "%"
-                        sub: Math.round(Services.SysMon.diskUsedGB) + " / "
-                             + Math.round(Services.SysMon.diskTotalGB) + " GB"
-                        // Disk filling up is the one thing here that is
-                        // actually going wrong.
-                        alarm: Services.SysMon.diskPercent >= 90
+                        col: 3; row: 2; cw: 2; ch: 1
+                        glyph: ""
+                        name: "NETWORK"
+                        id: netCard
+
+                        Text {
+                            id: netNum
+                            x: netCard.inset
+                            y: netCard.headH - 4
+                            text: {
+                                const kb = Services.SysMon.netRxKBs + Services.SysMon.netTxKBs
+                                return kb >= 1024 ? (kb / 1024).toFixed(1) + " MB/s"
+                                                  : Math.round(kb) + " KB/s"
+                            }
+                            color: Services.Colors.snow
+                            font.pixelSize: Services.Sizes.fsReadout
+                            font.bold: true
+                            font.family: "JetBrainsMono NF"
+                        }
+                        Text {
+                            x: netCard.inset
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: 12
+                            text: "↓ " + Math.round(Services.SysMon.netRxKBs)
+                                  + "    ↑ " + Math.round(Services.SysMon.netTxKBs) + " KB/s"
+                            color: Services.Colors.ash
+                            font.pixelSize: Services.Sizes.fsCaption
+                            font.family: "JetBrainsMono NF"
+                        }
                     }
-                    // The two probes: read against 100 degrees, turning at 80.
-                    Tank {
+
+                    // ── Storage: the other proportion ──
+                    Card {
                         index: 5
-                        col: 6; row: 0; cw: 1; ch: 3
-                        glyph: "\ue1ff"
-                        title: "CPU"
-                        level: Services.SysMon.cpuTemp / 100
-                        reading: Services.SysMon.cpuTemp > 0
-                            ? Services.SysMon.cpuTemp.toFixed(0) + "\u00b0" : "--"
-                        alarm: Services.SysMon.cpuTemp >= 80
-                    }
-                    Tank {
-                        index: 6
-                        col: 7; row: 0; cw: 1; ch: 3
-                        glyph: "\ue1ff"
-                        title: "GPU"
-                        level: Services.SysMon.gpuTemp / 100
-                        reading: Services.SysMon.gpuTemp > 0
-                            ? Services.SysMon.gpuTemp.toFixed(0) + "\u00b0" : "--"
-                        alarm: Services.SysMon.gpuTemp >= 80
+                        col: 5; row: 2; cw: 3; ch: 1
+                        glyph: ""
+                        name: "STORAGE"
+                        note: Services.SysMon.diskPercent + "%"
+                        id: diskCard
+
+                        Meter {
+                            x: diskCard.inset
+                            width: parent.width - diskCard.inset * 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.verticalCenterOffset: 8
+                            level: Services.SysMon.diskPercent / 100
+                            // A drive filling up is the one thing on this board
+                            // that is actually going wrong.
+                            tone: Services.SysMon.diskPercent >= 90
+                                ? Services.Colors.error_ : Services.Colors.ghost
+                            leftNote: Math.round(Services.SysMon.diskUsedGB) + " GB used"
+                            rightNote: Math.round(Services.SysMon.diskTotalGB) + " GB"
+                        }
                     }
                 }
             }
