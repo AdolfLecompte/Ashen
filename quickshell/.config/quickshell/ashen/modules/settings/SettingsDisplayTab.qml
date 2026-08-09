@@ -57,25 +57,17 @@ TabPage {
         font.family: "JetBrainsMono NF"
     }
 
-    // ── The board and the screen it has selected, side by side ──────────
-    // The grid is 412 px wide in a card twice that, so the settings go in the
-    // room it was leaving empty rather than under it. The left column has a
-    // fixed width and the right one takes the slack, which is why this does not
-    // hit the trouble the two-column System tab had: there is no ratio for the
-    // content to argue over.
+    // ── The board, the screen it points at, and what you can do to it ────
+    // The 3x3 board says WHERE the screens are and the preview beside it says
+    // what the selected one looks like -- two halves of one question, so they
+    // share a row. Everything you can CHANGE goes underneath at full width:
+    // the old half-column made every control a slot too narrow to read.
     Card {
         title: "Monitors"
-        // Same reason as the row inside: an open picker overflows this card, so
-        // the card itself has to sit above the ones under it.
-        z: 2
 
         RowLayout {
             Layout.fillWidth: true
             spacing: 18
-            // A floating picker list lifts its own z, but z only orders an item
-            // against its SIBLINGS -- so the whole row has to sit above the
-            // Apply row below it, or the button draws over the open list.
-            z: 2
 
             MonitorGrid {
                 Layout.alignment: Qt.AlignTop
@@ -86,34 +78,213 @@ TabPage {
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignTop
-                spacing: 10
+                spacing: 2
+
+                Item {
+                    Layout.fillWidth: true
+                    // The box follows the SCALE and nothing else. It used to be sized
+                    // from the panel, so picking another monitor or another resolution
+                    // made the whole section jump -- and the one thing this preview is
+                    // not about is which numbers the mode has.
+                    Layout.preferredHeight: rig.ext + rig.standH + 16
+                    Behavior on Layout.preferredHeight { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeOut } }
+
+                    Item {
+                        id: rig
+                        anchors.centerIn: parent
+                        width: Math.max(rig.ext, rig.bodyW)
+                        height: rig.ext + rig.standH
+
+                        // The panel's own proportions. NOT the logical size: that
+                        // divides by the scale, which would draw a bigger scale smaller.
+                        readonly property var mode: tab.selMon
+                            ? Services.Displays.modeSize(tab.selMon, tab.selEnt) : { w: 16, h: 9 }
+                        // One size, always. A preview that grew with the scale
+                        // made the whole section jump every time you stepped the
+                        // ladder, and the scale is a number you read, not a shape.
+                        readonly property real longest: 230
+                        // The panel's LONGEST side is always `longest`, whatever shape
+                        // it is, so a 16:9 and a 4:3 fill the same square and switching
+                        // between two monitors does not resize anything.
+                        readonly property real aspect: rig.mode.w / rig.mode.h
+                        readonly property real bodyW: rig.aspect >= 1 ? rig.longest : rig.longest * rig.aspect
+                        readonly property real bodyH: rig.aspect >= 1 ? rig.longest / rig.aspect : rig.longest
+                        // The square the panel turns inside, so a portrait turn has
+                        // somewhere to go. Fixed by `longest`, never by the mode.
+                        readonly property real ext: rig.longest
+                        readonly property real standH: 26
+
+                        Behavior on width { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeOut } }
+                        Behavior on height { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeOut } }
+
+                        opacity: tab.selEnt && tab.selEnt.disabled ? 0.4 : 1.0
+                        Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
+
+                        // The stand stays on the desk: on a real pivot monitor the
+                        // neck is fixed and the panel turns on it. It hangs off
+                        // whichever edge is the lower one, so a turned screen does
+                        // not float above its own pole -- and its LENGTH never
+                        // changes, which is what used to read as a stretch.
+                        // Drawn first, so the panel covers the part behind it.
+                        readonly property real neckTop: rig.ext / 2 + ((tab.selEnt
+                            && (tab.selEnt.transform === 1 || tab.selEnt.transform === 3))
+                            ? rig.bodyW / 2 : rig.bodyH / 2)
+                        readonly property real neckLen: 16
+
+                        Rectangle {
+                            width: 13
+                            radius: 3
+                            x: (rig.width - width) / 2
+                            y: rig.neckTop
+                            height: rig.neckLen
+                            Behavior on y { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeInOut } }
+                            // Solid, not a wash of the accent: two translucent parts
+                            // laid over each other showed the neck through the screen.
+                            color: Services.Colors.tint(Services.Colors.surface, Services.Colors.ghost, 0.16)
+                        }
+                        Rectangle {
+                            width: Math.max(56, rig.longest * 0.34)
+                            height: 6
+                            radius: 3
+                            x: (rig.width - width) / 2
+                            y: rig.neckTop + rig.neckLen
+                            Behavior on y { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeInOut } }
+                            color: Services.Colors.tint(Services.Colors.surface, Services.Colors.ghost, 0.16)
+                        }
+
+                        Rectangle {
+                            id: panel
+                            width: rig.bodyW
+                            height: rig.bodyH
+                            x: (rig.width - width) / 2
+                            y: (rig.ext - height) / 2
+                            Behavior on x { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeOut } }
+                            Behavior on y { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeOut } }
+
+                            // Only this turns, about its own middle -- which is where a
+                            // pivot arm actually holds a screen.
+                            rotation: tab.selEnt ? tab.selEnt.transform * 90 : 0
+                            Behavior on rotation { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeInOut } }
+
+                            radius: Services.Sizes.cardR
+                            color: Services.Colors.tint(Services.Colors.surface, Services.Colors.ghost, 0.30)
+                            border.width: 1
+                            border.color: Services.Colors.tint(Services.Colors.surface, Services.Colors.ghost, 0.42)
+
+                            // The screen inside the chassis: thin bezel on three
+                            // sides, a deeper chin under it, the way a panel is
+                            // actually built.
+                            Rectangle {
+                                id: screen
+                                anchors.fill: parent
+                                anchors.margins: 5
+                                anchors.bottomMargin: 13
+                                radius: Services.Sizes.innerR - 2
+                                color: Services.Colors.tint(Services.Colors.surface, Services.Colors.ghost, 0.13)
+                            }
+
+                            // The power light. One dot, off-centre by nothing:
+                            // it is the only thing in the chin.
+                            Rectangle {
+                                width: 4
+                                height: 4
+                                radius: 2
+                                x: (panel.width - width) / 2
+                                y: panel.height - 9
+                                color: tab.selEnt && tab.selEnt.disabled
+                                    ? Services.Colors.tint(Services.Colors.surface, Services.Colors.ghost, 0.45)
+                                    : Services.Colors.ghost
+                                Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
+                            }
+
+                            ColumnLayout {
+                                anchors.centerIn: screen
+                                width: screen.width - 12
+                                spacing: 2
+                                Text {
+                                    Layout.fillWidth: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    elide: Text.ElideRight
+                                    text: tab.selMon ? tab.selMon.name : ""
+                                    color: Services.Colors.snow
+                                    font.pixelSize: Services.Sizes.fsBody
+                                    font.bold: true
+                                    font.family: "JetBrainsMono NF"
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    elide: Text.ElideRight
+                                    text: Math.round(rig.mode.w) + "×" + Math.round(rig.mode.h)
+                                    color: Services.Colors.mist
+                                    font.pixelSize: Services.Sizes.fsCaption
+                                    font.family: "JetBrainsMono NF"
+                                }
+                            }
+                        }
+                    }
+                }
+
 
                 Text {
                     Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
                     text: tab.selMon ? tab.selMon.name : ""
                     color: Services.Colors.snow
                     font.pixelSize: Services.Sizes.fsCardTitle
                     font.bold: true
                     font.family: "JetBrainsMono NF"
-                    elide: Text.ElideRight
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: tab.sel
+                    horizontalAlignment: Text.AlignHCenter
+                    text: tab.selEnt
+                        ? ("×" + tab.selEnt.scale + "  ·  "
+                           + ["Normal", "90°", "180°", "270°"][tab.selEnt.transform])
+                        : ""
                     color: Services.Colors.ash
-                    font.pixelSize: Services.Sizes.fsCaption
+                    font.pixelSize: Services.Sizes.fsMeta
                     font.family: "JetBrainsMono NF"
-                    elide: Text.ElideRight
                 }
+            }
+        }
+    }
 
-                // Only a secondary screen may mirror, and the only thing worth
-                // mirroring is the one you are sitting in front of. Mirroring an
-                // external onto the laptop panel is the backwards version of the
-                // same request, so the row is simply absent on the primary.
-                FieldLabel { text: "Use"; visible: tab.canMirror }
+    // Everything about the selected screen, two controls to a row so a label
+    // and its control are never fighting for the same 200 px.
+    Card {
+        title: tab.selMon ? tab.selMon.name : "Selected screen"
+
+        Text {
+            Layout.fillWidth: true
+            text: tab.sel
+            color: Services.Colors.ash
+            font.pixelSize: Services.Sizes.fsCaption
+            font.family: "JetBrainsMono NF"
+            elide: Text.ElideRight
+        }
+
+        GridLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: 4
+            columns: 2
+            columnSpacing: 20
+            rowSpacing: 10
+
+            // Only a secondary screen may mirror, and the only thing worth
+            // mirroring is the one you are sitting in front of. Mirroring an
+            // external onto the laptop panel is the backwards version of the
+            // same request, so the row is simply absent on the primary.
+            ColumnLayout {
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                spacing: 4
+                visible: tab.canMirror
+
+                FieldLabel { text: "Use" }
                 Segmented {
                     Layout.fillWidth: true
-                    visible: tab.canMirror
                     options: [
                         { id: "extend", label: "Extended" },
                         { id: tab.primaryKey, label: "Mirror " + tab.primaryName }
@@ -121,10 +292,17 @@ TabPage {
                     current: tab.selEnt ? (tab.selEnt.mirror === "" ? "extend" : tab.selEnt.mirror) : "extend"
                     onPicked: id => tab.patch({ mirror: id === "extend" ? "" : id })
                 }
+            }
 
-                // A list, not a stepper: the modes are the one thing here you
-                // have to READ, and a pair of arrows shows you exactly one of
-                // them at a time.
+            // A list, not a stepper: the modes are the one thing here you
+            // have to READ, and a pair of arrows shows you exactly one of
+            // them at a time.
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                Layout.alignment: Qt.AlignTop
+                spacing: 4
+
                 FieldLabel { text: "Resolution"; dim: !tab.geometryLive }
                 Widgets.DevicePicker {
                     Layout.fillWidth: true
@@ -141,6 +319,13 @@ TabPage {
                     current: tab.selEnt ? tab.selEnt.mode : "preferred"
                     onPicked: name => tab.patch({ mode: name })
                 }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                Layout.alignment: Qt.AlignTop
+                spacing: 4
 
                 FieldLabel { text: "Scale"; dim: !tab.geometryLive }
                 Widgets.DevicePicker {
@@ -148,7 +333,7 @@ TabPage {
                     overlay: true
                     enabled: tab.geometryLive
                     opacity: enabled ? 1 : 0.4
-                    glyph: "\ue85b"
+                    glyph: ""
                     devices: {
                         const out = []
                         const s = tab.selMon ? Services.Displays.modeSize(tab.selMon, tab.selEnt) : null
@@ -159,6 +344,12 @@ TabPage {
                     current: tab.selEnt ? String(tab.selEnt.scale) : "1"
                     onPicked: name => tab.patch({ scale: parseFloat(name) })
                 }
+            }
+
+            ColumnLayout {
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                spacing: 4
 
                 FieldLabel { text: "Rotation"; dim: !tab.geometryLive }
                 Segmented {
@@ -174,34 +365,35 @@ TabPage {
                     current: tab.selEnt ? String(tab.selEnt.transform) : "0"
                     onPicked: id => tab.patch({ transform: parseInt(id) })
                 }
+            }
 
-                // The last screen standing cannot be switched off, or there is
-                // nowhere left to switch it back on from.
-                RowLayout {
+            // The last screen standing cannot be switched off, or there is
+            // nowhere left to switch it back on from.
+            RowLayout {
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                Layout.topMargin: 2
+                spacing: 10
+                ColumnLayout {
                     Layout.fillWidth: true
-                    Layout.topMargin: 2
-                    spacing: 10
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 2
-                        Text {
-                            text: "Enabled"
-                            color: Services.Colors.snow
-                            font.pixelSize: Services.Sizes.fsInput; font.bold: true; font.family: "JetBrainsMono NF"
-                        }
-                        Text {
-                            text: tab.onlyOneLeft ? "The only screen left on" : "Turn this screen off entirely"
-                            color: Services.Colors.ash
-                            font.pixelSize: Services.Sizes.fsMeta; font.family: "JetBrainsMono NF"
-                        }
+                    spacing: 2
+                    Text {
+                        text: "Enabled"
+                        color: Services.Colors.snow
+                        font.pixelSize: Services.Sizes.fsInput; font.bold: true; font.family: "JetBrainsMono NF"
                     }
-                    Item { Layout.fillWidth: true }
-                    Toggle {
-                        enabled: !tab.onlyOneLeft
-                        opacity: enabled ? 1 : 0.4
-                        checked: tab.selEnt ? !tab.selEnt.disabled : true
-                        onToggled: tab.patch({ disabled: tab.selEnt ? !tab.selEnt.disabled : false })
+                    Text {
+                        text: tab.onlyOneLeft ? "The only screen left on" : "Turn this screen off entirely"
+                        color: Services.Colors.ash
+                        font.pixelSize: Services.Sizes.fsMeta; font.family: "JetBrainsMono NF"
                     }
+                }
+                Item { Layout.fillWidth: true }
+                Toggle {
+                    enabled: !tab.onlyOneLeft
+                    opacity: enabled ? 1 : 0.4
+                    checked: tab.selEnt ? !tab.selEnt.disabled : true
+                    onToggled: tab.patch({ disabled: tab.selEnt ? !tab.selEnt.disabled : false })
                 }
             }
         }
@@ -227,144 +419,6 @@ TabPage {
                 label: "Apply"
                 onGo: Services.Displays.applyAll()
             }
-        }
-    }
-
-    // What the settings above actually do to the screen, at a size you can see.
-    // The board upstairs is about WHERE the monitors are, and a 130 px slot is
-    // too small to show a rotation without turning into a puzzle -- so the
-    // change gets a section of its own, where it has room to be an animation.
-    Card {
-        title: "Selected screen"
-
-        Item {
-            Layout.fillWidth: true
-            // The box follows the SCALE and nothing else. It used to be sized
-            // from the panel, so picking another monitor or another resolution
-            // made the whole section jump -- and the one thing this preview is
-            // not about is which numbers the mode has.
-            Layout.preferredHeight: rig.ext + rig.standH + 16
-            Behavior on Layout.preferredHeight { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeOut } }
-
-            Item {
-                id: rig
-                anchors.centerIn: parent
-                width: Math.max(rig.ext, rig.bodyW)
-                height: rig.ext + rig.standH
-
-                // The panel's own proportions. NOT the logical size: that
-                // divides by the scale, which would draw a bigger scale smaller.
-                readonly property var mode: tab.selMon
-                    ? Services.Displays.modeSize(tab.selMon, tab.selEnt) : { w: 16, h: 9 }
-                // Scale up means bigger, the way it looks on the desk.
-                readonly property real longest: Math.min(330,
-                    150 * (tab.selEnt && tab.selEnt.scale > 0 ? tab.selEnt.scale : 1))
-                // The panel's LONGEST side is always `longest`, whatever shape
-                // it is, so a 16:9 and a 4:3 fill the same square and switching
-                // between two monitors does not resize anything.
-                readonly property real aspect: rig.mode.w / rig.mode.h
-                readonly property real bodyW: rig.aspect >= 1 ? rig.longest : rig.longest * rig.aspect
-                readonly property real bodyH: rig.aspect >= 1 ? rig.longest / rig.aspect : rig.longest
-                // The square the panel turns inside, so a portrait turn has
-                // somewhere to go. Fixed by `longest`, never by the mode.
-                readonly property real ext: rig.longest
-                readonly property real standH: 18
-
-                Behavior on width { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeOut } }
-                Behavior on height { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeOut } }
-
-                opacity: tab.selEnt && tab.selEnt.disabled ? 0.4 : 1.0
-                Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
-
-                // The stand stays on the desk. On a real pivot monitor the neck
-                // is fixed and the panel turns on it -- rotating the legs too
-                // would be the whole monitor falling over.
-                // Drawn first, so the panel covers the part of the neck that is
-                // behind it and only the length below it shows.
-                // How far the panel's lower edge is from the pivot right now.
-                // The stand hangs off THAT, not off the bottom of the square, or
-                // a landscape screen ends up on a pole.
-                readonly property real halfDrop: (tab.selEnt
-                    && (tab.selEnt.transform === 1 || tab.selEnt.transform === 3))
-                    ? rig.bodyW / 2 : rig.bodyH / 2
-                readonly property real neckLen: 13
-
-                Rectangle {
-                    width: 5
-                    radius: 2
-                    x: (rig.width - width) / 2
-                    y: rig.ext / 2 + rig.halfDrop
-                    height: rig.neckLen
-                    color: Services.Colors.fillLine
-                    Behavior on y { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeInOut } }
-                }
-                Rectangle {
-                    width: Math.max(40, rig.longest * 0.26)
-                    height: 3
-                    radius: 2
-                    x: (rig.width - width) / 2
-                    y: rig.ext / 2 + rig.halfDrop + rig.neckLen
-                    color: Services.Colors.fillLine
-                    Behavior on y { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeInOut } }
-                }
-
-                Rectangle {
-                    id: panel
-                    width: rig.bodyW
-                    height: rig.bodyH
-                    x: (rig.width - width) / 2
-                    y: (rig.ext - height) / 2
-                    Behavior on x { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeOut } }
-                    Behavior on y { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeOut } }
-
-                    // Only this turns, about its own middle -- which is where a
-                    // pivot arm actually holds a screen.
-                    rotation: tab.selEnt ? tab.selEnt.transform * 90 : 0
-                    Behavior on rotation { NumberAnimation { duration: Services.Sizes.msEmphasis; easing.type: Services.Sizes.easeInOut } }
-
-                    radius: Services.Sizes.innerR
-                    color: Services.Colors.fillRest
-                    border.width: 1
-                    border.color: Services.Colors.fillLine
-
-                    ColumnLayout {
-                        anchors.centerIn: parent
-                        width: panel.width - 12
-                        spacing: 2
-                        Text {
-                            Layout.fillWidth: true
-                            horizontalAlignment: Text.AlignHCenter
-                            elide: Text.ElideRight
-                            text: tab.selMon ? tab.selMon.name : ""
-                            color: Services.Colors.snow
-                            font.pixelSize: Services.Sizes.fsBody
-                            font.bold: true
-                            font.family: "JetBrainsMono NF"
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            horizontalAlignment: Text.AlignHCenter
-                            elide: Text.ElideRight
-                            text: Math.round(rig.mode.w) + "×" + Math.round(rig.mode.h)
-                            color: Services.Colors.mist
-                            font.pixelSize: Services.Sizes.fsCaption
-                            font.family: "JetBrainsMono NF"
-                        }
-                    }
-                }
-            }
-        }
-
-        Text {
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            text: tab.selEnt
-                ? ("×" + tab.selEnt.scale + "  ·  "
-                   + ["Normal", "90°", "180°", "270°"][tab.selEnt.transform])
-                : ""
-            color: Services.Colors.ash
-            font.pixelSize: Services.Sizes.fsMeta
-            font.family: "JetBrainsMono NF"
         }
     }
 

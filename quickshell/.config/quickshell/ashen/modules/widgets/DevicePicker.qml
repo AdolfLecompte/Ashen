@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import "root:/services" as Services
 
 // Collapsible output/input device selector, shared by the volume panel for the
@@ -21,6 +22,31 @@ Column {
     // card -- but in a column of settings a list that shoves five rows down the
     // page loses you your place.
     property bool overlay: false
+
+    // A floating list cannot stay a child of this column: Qt paints what leaves
+    // its ancestors' bounds but stops delivering mouse events to it, so the rows
+    // that fell past the card were visible and dead. The list is handed to the
+    // window's content item instead and follows the header by hand -- on a timer
+    // while it is open, so scrolling the page carries it along.
+    property Item overlayRoot: picker.Window.contentItem
+    property real popX: 0
+    property real popY: 0
+
+    function place() {
+        if (!picker.overlay || !picker.overlayRoot) return
+        const p = head.mapToItem(picker.overlayRoot, 0, head.height + 4)
+        picker.popX = p.x
+        picker.popY = p.y
+    }
+    onExpandedChanged: picker.place()
+
+    Timer {
+        running: picker.overlay && picker.expanded
+        interval: 60
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: picker.place()
+    }
 
     // Human label for the currently active device.
     function currentDesc() {
@@ -94,7 +120,10 @@ Column {
 
         Item {
             id: listBox
-            y: head.height + 4
+            parent: picker.overlay && picker.overlayRoot ? picker.overlayRoot : head
+            x: picker.overlay ? picker.popX : 0
+            y: picker.overlay ? picker.popY : head.height + 4
+            z: 999
             width: head.width
             clip: !picker.overlay
             height: picker.expanded ? optsCol.implicitHeight : 0
