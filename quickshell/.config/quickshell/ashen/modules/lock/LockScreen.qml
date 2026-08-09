@@ -17,6 +17,7 @@ Scope {
         function lock() {
             sessionLock.locked = true
         }
+
     }
 
     // The in-process route, for callers that are already inside this shell.
@@ -487,7 +488,7 @@ Scope {
                                 anchors.left: passField.left
                                 text: Services.AppState.userLabel
                                 color: Services.Colors.snow
-                                font.pixelSize: 24
+                                font.pixelSize: 30
                                 font.family: "JetBrainsMono NF"
                                 font.weight: Font.Bold
                                 font.letterSpacing: 1
@@ -508,9 +509,9 @@ Scope {
                                 id: passField
                                 anchors.bottom: parent.bottom
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                width: 340; height: 52
+                                width: 340; height: 56
                                 transform: Translate { id: shakeT; x: 0 }
-                                radius: 12
+                                radius: Services.Sizes.cardR
                                 color: Services.Colors.surfacePill
                                 border.color: surface.errorMsg !== "" ? Services.Colors.error_
                                     : passInput.activeFocus ? Services.Colors.ghost
@@ -561,9 +562,18 @@ Scope {
                                                     color: Services.Colors.ghost
                                                     gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                                                     anchors.verticalCenter: parent.verticalCenter
-                                                    // Fade in (no bounce): OutBack scale felt springy
+                                                    // Grows into place. A fade on its own
+                                                    // was a dot that had always been
+                                                    // there; the scale is what makes it
+                                                    // read as one more letter typed. No
+                                                    // OutBack -- the bounce felt springy.
                                                     NumberAnimation on opacity {
                                                         from: 0; to: 1; duration: Services.Sizes.msMicro
+                                                        easing.type: Services.Sizes.easeOut
+                                                        running: true
+                                                    }
+                                                    NumberAnimation on scale {
+                                                        from: 0.2; to: 1; duration: 220
                                                         easing.type: Services.Sizes.easeOut
                                                         running: true
                                                     }
@@ -691,9 +701,6 @@ Scope {
                             tone: surface.charging ? Services.Colors.ghost
                                 : surface.battery < 20 ? Services.Colors.error_
                                 : Services.Colors.mist
-                            // While its card is wearing its face, the capsule
-                            // stands aside rather than sitting under it.
-                            standAside: batPanel.wearingFace
                             onPicked: surface.openLockCard("battery")
                         }
 
@@ -701,7 +708,6 @@ Scope {
                             id: wxCap
                             glyph: Services.Weather.icon
                             label: Services.Weather.temp
-                            standAside: wxPanel.wearingFace
                             onPicked: surface.openLockCard("weather")
                         }
                     }

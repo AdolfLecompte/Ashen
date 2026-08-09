@@ -40,8 +40,8 @@ Singleton {
         return h12 + ":" + p[1] + " " + ap
     }
 
-    // Wind direction as a compass point; the panel also rotates an arrow by
-    // the raw degrees, but the letters are what you actually read.
+    // Wind direction as a compass point. Only the clock card reads it; the lock
+    // screen shows the speed in km/h, where the bearing said nothing.
     function windCompass(deg) {
         const pts = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
         return pts[Math.round((deg % 360) / 45) % 8]

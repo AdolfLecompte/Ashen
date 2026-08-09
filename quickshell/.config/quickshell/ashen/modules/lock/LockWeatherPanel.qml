@@ -17,10 +17,6 @@ Item {
     property real pillW: 1
     property real pillH: 1
 
-    // True while the card is on screen wearing the capsule's face -- which in
-    // "window" style it never is, so the capsule stays put.
-    readonly property alias wearingFace: card.wearingFace
-
     signal dismissed()
 
     // Level with the capsule and exactly as tall: it opens sideways out of it.
@@ -34,29 +30,40 @@ Item {
         onClicked: root.dismissed()
     }
 
-    Widgets.MorphCard {
-        id: card
-        anchors.fill: parent
+    // Where it lives when open: to the RIGHT of its capsule and level with it.
+    readonly property real openX: root.pillCX + root.pillW / 2 + root.gap
+    readonly property real openY: root.pillCY - root.cardH / 2
+
+    // It no longer sweeps out of the capsule -- it unfolds from its own centre,
+    // the way the power menu does, and the capsule stays where it is.
+    Widgets.PanelArrive {
+        id: arrive
         shown: root.shown
-        neck: false
-        sideways: true
-        pillCX: root.pillCX
-        pillCY: root.pillCY
-        pillW: root.pillW
-        pillH: root.pillH
-        openW: root.cardW
-        openH: root.cardH
-        // One plate, like the capsule it comes out of.
-        plateColor: Services.Colors.surfacePill
-        // Out to the RIGHT of its capsule and level with it.
-        openXOverride: root.pillCX + root.pillW / 2 + root.gap
-        openYOverride: root.pillCY - root.cardH / 2
+    }
+
+    Rectangle {
+        id: card
+        // Its own fold, not PanelArrive's: in "plain" style that one collapses
+        // to a fade, and this card is small enough that a fade reads as the card
+        // simply being there. It grows from its middle in both styles -- that is
+        // the whole point of the gesture.
+        readonly property real fold: 0.55 + 0.45 * arrive.boxAmt
+        width: root.cardW * card.fold
+        height: root.cardH * card.fold
+        x: root.openX + (root.cardW - width) / 2
+        y: root.openY + (root.cardH - height) / 2
+        radius: Services.Sizes.panelR
+        // One plate, like the capsule beside it.
+        color: Services.Colors.surfacePill
+        opacity: arrive.fade
+        visible: opacity > 0.01
+        clip: true
 
         Item {
             anchors.centerIn: parent
             width: root.cardW
             height: root.cardH
-            opacity: card.contentAmt
+            opacity: arrive.contentAmt
 
             Row {
                 id: statRow
@@ -67,8 +74,7 @@ Item {
                     model: [
                         { glyph: "", text: Services.Weather.feels },
                         { glyph: "", text: Services.Weather.humidity + "%" },
-                        { glyph: "", text: Services.Weather.windKph + " "
-                                 + Services.Weather.windCompass(Services.Weather.windDir) }
+                        { glyph: "", text: Services.Weather.windKph + " km/h" }
                     ]
                     delegate: Row {
                         required property var modelData

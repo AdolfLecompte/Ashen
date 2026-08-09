@@ -4,8 +4,8 @@ import "root:/services" as Services
 import "root:/modules/widgets" as Widgets
 
 // The battery's card on the lock screen: the power profiles, and nothing the
-// capsule already says. Opens sideways, so it covers nothing above it. An Item
-// and not a window -- the lock is one surface -- morphing out of its capsule.
+// capsule already says. It sits beside its capsule, so it covers nothing above
+// it. An Item and not a window -- the lock is one surface.
 Item {
     id: root
 
@@ -20,10 +20,6 @@ Item {
     property bool charging: false
     property var profiles: []
     property string activeProfile: ""
-
-    // True while the card is on screen wearing the capsule's face -- which in
-    // "window" style it never is, so the capsule stays put.
-    readonly property alias wearingFace: card.wearingFace
 
     signal dismissed()
     signal profilePicked(string id)
@@ -43,34 +39,40 @@ Item {
         onClicked: root.dismissed()
     }
 
-    Widgets.MorphCard {
-        id: card
-        anchors.fill: parent
+    // Where it lives when open: to the LEFT of its capsule and level with it --
+    // upwards is where the clock and the music live.
+    readonly property real openX: root.pillCX - root.pillW / 2 - root.gap - root.cardW
+    readonly property real openY: root.pillCY - root.cardH / 2
+
+    // It unfolds from its own centre, like the power menu, instead of sweeping
+    // out of the capsule -- which stays put.
+    Widgets.PanelArrive {
+        id: arrive
         shown: root.shown
-        // No bar to hang from, so no goo neck and no bar-relative landing.
-        neck: false
-        // It leaves the capsule out of its side, so it sweeps sideways.
-        sideways: true
-        pillCX: root.pillCX
-        pillCY: root.pillCY
-        pillW: root.pillW
-        pillH: root.pillH
-        openW: root.cardW
-        openH: root.cardH
-        // No container around it: the capsule of profiles IS the card, so the
-        // blob wears that plate and grows straight into it. Transparent would
-        // have worked too, but then the morph would have nothing to draw.
-        plateColor: Services.Colors.surfacePill
-        // Out to the LEFT of its capsule and level with it: upwards is where
-        // the clock and the music live.
-        openXOverride: root.pillCX - root.pillW / 2 - root.gap - root.cardW
-        openYOverride: root.pillCY - root.cardH / 2
+    }
+
+    Rectangle {
+        id: card
+        // Its own fold, not PanelArrive's: in "plain" style that one collapses
+        // to a fade, and this card is small enough that a fade reads as the card
+        // simply being there. It grows from its middle in both styles -- that is
+        // the whole point of the gesture.
+        readonly property real fold: 0.55 + 0.45 * arrive.boxAmt
+        width: root.cardW * card.fold
+        height: root.cardH * card.fold
+        x: root.openX + (root.cardW - width) / 2
+        y: root.openY + (root.cardH - height) / 2
+        radius: Services.Sizes.panelR
+        color: Services.Colors.surfacePill
+        opacity: arrive.fade
+        visible: opacity > 0.01
+        clip: true
 
         Item {
             anchors.centerIn: parent
             width: root.cardW
             height: root.cardH
-            opacity: card.contentAmt
+            opacity: arrive.contentAmt
 
             // The same capsule the bar uses for a set of choices: one plate,
             // one accent that slides to the pick.
