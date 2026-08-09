@@ -12,6 +12,30 @@ gets corrected.
 
 ## 0. What is actually wrong today
 
+**Settings was brought onto these ladders on 2026-08-07** — every tab and every
+`settings/components/*`. What that pass found and fixed, because the same things
+will be true of anywhere else that has not had it yet:
+
+- **No text size is written as a number any more**, only `Sizes.fs*`. The tabs
+  were using 27 distinct sizes between them, and 12/15/16/22/26 were not on the
+  ladder at all. Glyph sizes were left alone: they ride with their text.
+- **No raw alpha survives** — 17 different `ghostAlpha()` values collapsed onto
+  the five `Colors.fill*` roles. Two scheme tiles were lighting up on hover at
+  0.30 against an active state of 0.28, so the two states looked identical;
+  those now use the hover rule (grow and brighten) like everything else.
+- **No raw radius survives** — 9 values onto the five shape steps.
+- **Dividers are gone.** A panel says where one thing ends by starting the next
+  one, in a box. Four `Divider {}` remained across the tabs; two were inside a
+  single card separating rows that belonged together, two became card boundaries.
+- **A control at the end of a row needs an explicit `Item { Layout.fillWidth }`
+  spacer.** 17 toggles and steppers across seven tabs were hugging their label
+  instead of sitting at the card's right edge, which is most of why the panel
+  read as loose. `Layout.fillWidth` on the label column alone does not do it.
+
+The list tabs — Network, Wi-Fi, Bluetooth — deliberately keep their lists rather
+than being poured into cards: a list of networks is not a stack of settings rows.
+They share the ladders with everything else, which is what they were missing.
+
 Measured across the 21k lines of QML in `quickshell/.config/quickshell/ashen`:
 
 | Thing | Distinct values in use | Should be |
@@ -137,6 +161,40 @@ never hardcode a hex. What each name is *for*:
 
 Text on an accent fill is always `Colors.onColor(bg)`, never a fixed dark.
 
+### What goes ON a surface — four tokens, not sixty-seven `onColor()` calls
+
+| Token | Use |
+|---|---|
+| `accentText` | Title / value sitting on an accent fill |
+| `accentBody` | Its second line — same colour, dimmed |
+| `surfaceText` | Title / value on a panel or pill |
+| `surfaceBody` | Its second line |
+
+They are not pure black or white: a tenth of the surface they sit on is mixed
+back in, so the piece belongs to the scheme instead of looking punched out of
+it. 0.10 is as far as that tint goes before the worst scheme drops under 4.5:1.
+
+**A property may never be named `onSomething`.** QML reads a leading `on` plus a
+capital as a signal handler, so `onGhost` was never a property at all and every
+caller silently got black.
+
+### Light and dark are one scheme with two faces
+
+`Prefs.themeMode`. A scheme is not inverted for light: matugen ships both faces
+at once (a role knows its light and its dark hex) and `Colors` picks by mode, so
+switching is a re-pick, not a regeneration. Rules that hold in both:
+
+- Never name `abyss` "the dark one". On a light palette `abyss` is the pale
+  background and `snow` is the near-black text. Ask `darkTone` / `lightTone`,
+  which sort the two extremes by measured luminance.
+- `lightTheme` is the question to ask, never a hardcoded guess.
+- The light face is anchored on `surface_dim`, not on the lightest container:
+  matugen's light ladder is squashed against white, and a shell built on it has
+  no separation between its sheets and no tint from the wallpaper.
+- A light accent falls back to its container tone only when that tone still
+  clears 4.5:1 against a panel — `ghost` is a *glyph* colour in most of the
+  shell, so a pastel accent is an invisible one.
+
 ### Opacity roles — five, not twenty-four
 
 | Role | Value | Use |
@@ -239,6 +297,18 @@ whole panel, not a hover.
 0.7 is the ceiling. It is about five pixels on a 400 px card — felt, not seen.
 Anything larger reads as a toy.
 
+### `Prefs.panelStyle` — how a panel arrives is a setting
+
+| Value | Arrival |
+|---|---|
+| `morph` | The panel grows out of its capsule (`DropCard`) |
+| `window` | It unfolds where it lives (`ArriveCard`), capsule or not |
+
+Nothing chooses between them by hand: a panel hands its body to `PanelHost`,
+which asks whether the capsule is actually on screen (`Pills.isTool` or
+`Prefs.pillVisible`) and picks the card. A panel with no capsule at all always
+unfolds, which is what `EdgeEntry` is for.
+
 ---
 
 ## 7. Components — use these, don't rewrite them
@@ -253,6 +323,13 @@ Anything larger reads as a toy.
 | A chip on the system pill | `bar/components/SystemChip` | — |
 | A row laid along the bar's axis | `bar/components/BarStrip` | A raw `Row`/`Grid` |
 | Settings surfaces | `settings/components/*` | — |
+| Arranging monitors | `settings/components/MonitorGrid` | A free drag canvas |
+
+**The one thing components/ still has no answer for is a button with a word in
+it.** `IconButton` is a glyph in a box. Settings > Display needs Apply and
+Revert to say what they do, so it carries a private `ActionBtn` — the fourth
+rule says a sixth private copy is never the answer, so if a second surface ever
+needs a text button, that is the moment it moves to `components/`.
 
 ### The two tiers
 
@@ -469,7 +546,24 @@ Ordered by how much each buys.
    now applies to all four — the hand-written copies drew a hairline off a
    small chip.
 
-9. **Hover** — settled. Nothing lights up under the pointer: it grows and its
+9. **`TrayMenu` is the last panel outside `PanelHost`** — it still runs the
+   origin-anchored `Scale` from July. It is not a straight migration: it has no
+   entry in `Pills`, its origin is a tray icon whose rect arrives at runtime,
+   and its height is its content's. `PanelHost` would need a way to be handed a
+   rect directly instead of deriving one from a capsule.
+10. ~~**Apps outside the shell keep matugen's `primary` in light mode**~~ —
+   **done.** A matugen template cannot measure contrast, so the choice is made
+   once in `scripts/ashen-accent.sh` and everyone reads the result: every
+   template now carries `__ASHEN_ACCENT__` / `__ASHEN_ON_ACCENT__` (and the `2`
+   pair for the secondary) where it used to carry a colour, and that script
+   substitutes them the moment matugen returns. It also owns the kitty and
+   portal-gtk reloads — a matugen `post_hook` fires while the other templates
+   are still unsubstituted, so there are no `post_hook`s left in `config.toml`.
+   The window border reads the same resolved hex, so the shell, the apps and
+   Hyprland cannot disagree by construction. Kitty's *selection* pair is the one
+   deliberate holdout: its foreground is `surface_dim`, readable against the
+   strong tone only.
+11. **Hover** — settled. Nothing lights up under the pointer: it grows and its
    contents lift to `snow`. There is no hover fill token anywhere. The bar had
    five different tint strengths for the one gesture before this.
 
@@ -477,7 +571,8 @@ Ordered by how much each buys.
 
 ## 10. Checklist for a new panel
 
-- [ ] Opens with `DropCard` (has a pill) or `EdgeEntry` (does not)
+- [ ] Opens through `PanelHost` (it picks `DropCard` / `ArriveCard`), or
+      `EdgeEntry` if it never had a capsule
 - [ ] Header is `SectionHead`; one per column
 - [ ] Every size from §2, every radius from §3, every opacity from §4
 - [ ] Icons from §5, rendered and checked before committing
