@@ -2,15 +2,9 @@ import QtQuick
 import QtQuick.Layouts
 import "root:/services" as Services
 
-// Clock, calendar and weather as one card instead of three plates in a row.
-//
-// Same deal as MediaCard: content only, no background, and the pieces the bar
-// pill also shows (time, date, weather glyph, temperature) can be turned into
-// laid-out-but-undrawn slots so the panel can fly its own copies in from the
-// pill. `pad` is the padding the caller's background is expected to leave.
-//
-// The three sections are told apart by hairlines rather than by gaps alone —
-// with this much in one card, whitespace on its own stops reading as a break.
+// Clock, calendar and weather as one card. Content only, no background: `pad`
+// is what the caller's plate is expected to leave. The pieces the bar pill also
+// shows can be left laid out but undrawn, as targets for the panel's morph.
 Item {
     id: root
 
@@ -20,7 +14,10 @@ Item {
     readonly property real gap: 24
     readonly property real pad: 20
     readonly property real contentW: 1100
-    readonly property real contentH: 360
+    // Hugs the tallest column, which is the timer: header 184 + the wheels and
+    // their two rows. Any slack past that piles up as dead space at the bottom --
+    // the columns are anchored to the top, not spread down the card.
+    readonly property real contentH: 400
 
     implicitWidth: contentW
     implicitHeight: contentH
@@ -79,6 +76,104 @@ Item {
     // Which tool is showing under the clock
     property int tab: 0
 
+    // How far through the day it is -- what is left of the light is measured
+    // against it. Off `now`, so it ticks with everything else on this card
+    // rather than keeping a clock of its own.
+    readonly property real dayFrac:
+        (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400
+
+    // The next 24 hours and the span they cover. The curve is drawn against
+    // THIS range, not against absolute degrees: a day between 14° and 19° on a
+    // 0..40 chart is a straight line that tells you nothing.
+    readonly property var hours: Services.Weather.hourly || []
+    readonly property int hourMin: {
+        let m = 999
+        for (const h of hours) if (h.tempC < m) m = h.tempC
+        return m === 999 ? 0 : m
+    }
+    readonly property int hourMax: {
+        let m = -999
+        for (const h of hours) if (h.tempC > m) m = h.tempC
+        return m === -999 ? 0 : m
+    }
+
+    // Every third hour of the strip: which sample it is, what it read, and the
+    // time on it. Eight stamps across 24 hours -- one an hour is a smear.
+    readonly property var marks3h: {
+        const out = []
+        for (let i = 0; i < hours.length; i += 3)
+            out.push({ i: i, t: hours[i].tempC, label: root.shortHour(hours[i].label) })
+        return out
+    }
+    // The clock under the chart goes every SIX hours: eight stamps of
+    // "12:00 AM" ran into each other across 330 px.
+    readonly property var marks6h: {
+        const out = []
+        for (let i = 0; i < hours.length; i += 6)
+            out.push({ i: i, label: root.shortHour(hours[i].label) })
+        return out
+    }
+    // "3:00 PM" -> "3PM", "15:00" -> "15". On an axis the minutes are always
+    // :00 and saying so eight times is just wider.
+    function shortHour(s) {
+        if (!s) return ""
+        const t = String(s)
+        const ap = t.indexOf("PM") >= 0 ? "PM" : (t.indexOf("AM") >= 0 ? "AM" : "")
+        return t.split(":")[0] + ap
+    }
+
+    // Aim the countdown without starting it. A second is the floor: the wheels
+    // can be spun to 00:00:00, and a timer of no length is not a thing to hand
+    // to a service that would just refuse it and leave the wheels lying.
+    function aimAt(ms) { Services.Countdown.setPreset(Math.max(1000, ms)) }
+
+    // The quickest lap taken so far, so the strip can point at it.
+    readonly property real bestSplit: {
+        let b = -1
+        for (const l of Services.Stopwatch.laps)
+            if (b < 0 || l.split < b) b = l.split
+        return b
+    }
+
+    // "HH:MM" as a fraction of the day, or -1 for anything that is not one.
+    // The sun times arrive with the forecast and are empty until it lands.
+    // The sun times come from Weather.clockOf, which formats for READING -- so
+    // in 12-hour mode this gets "6:12 PM", and taking the 6 at face value put
+    // sunset before lunch and the ring into the wrong half of its day.
+    function hhmmFrac(s) {
+        if (!s || s.length < 4) return -1
+        const t = String(s).trim()
+        const p = t.split(":")
+        let h = parseInt(p[0])
+        const m = parseInt(p[1])
+        if (isNaN(h) || isNaN(m)) return -1
+        if (t.indexOf("PM") >= 0 && h < 12) h += 12
+        if (t.indexOf("AM") >= 0 && h === 12) h = 0
+        return (h * 3600 + m * 60) / 86400
+    }
+
+    // What the middle of the day ring says: how much light is left, or how long
+    // until it comes back. A number nobody else on the card is already giving.
+    readonly property real sunUpFrac: hhmmFrac(Services.Weather.sunrise)
+    readonly property real sunDownFrac: hhmmFrac(Services.Weather.sunset)
+    function spanText(frac) {
+        const mins = Math.max(0, Math.round(frac * 1440))
+        const h = Math.floor(mins / 60), m = mins % 60
+        return h > 0 ? h + "h " + m + "m" : m + "m"
+    }
+    readonly property string daylightLeft: {
+        if (sunUpFrac < 0 || sunDownFrac < 0) return "—"
+        if (dayFrac < sunUpFrac) return spanText(sunUpFrac - dayFrac)
+        if (dayFrac < sunDownFrac) return spanText(sunDownFrac - dayFrac)
+        return spanText(1 - dayFrac + sunUpFrac)
+    }
+    readonly property string daylightCaption: {
+        if (sunUpFrac < 0 || sunDownFrac < 0) return ""
+        if (dayFrac < sunUpFrac) return "UNTIL SUNRISE"
+        if (dayFrac < sunDownFrac) return "OF LIGHT LEFT"
+        return "UNTIL SUNRISE"
+    }
+
     // The days after today, and the span they cover. Every day's bar is drawn
     // against this shared range — that is the whole point of the bars: you see
     // which day is the warm one without reading a single number.
@@ -127,15 +222,17 @@ Item {
         }
     }
 
+    // One fact of the day: a plain centered row -- glyph, name, number. No
+    // plate and no rule; the list is four lines, it does not need furniture.
     component Fact: Row {
         property string glyph: ""
         property string label: ""
         property string value: ""
-        spacing: 10
+        spacing: 12
         Text {
             text: parent.glyph
             color: Services.Colors.ghost
-            font.pixelSize: 15
+            font.pixelSize: 16
             font.family: "Material Symbols Rounded"
             anchors.verticalCenter: parent.verticalCenter
         }
@@ -143,23 +240,116 @@ Item {
             text: parent.label
             color: Services.Colors.ash
             font.pixelSize: 11
+            font.bold: true
             font.family: "JetBrainsMono NF"
             anchors.verticalCenter: parent.verticalCenter
-            width: 62
+            width: 92
         }
         Text {
             text: parent.value
             color: Services.Colors.snow
-            font.pixelSize: 12
+            font.pixelSize: 13
             font.bold: true
             font.family: "JetBrainsMono NF"
             anchors.verticalCenter: parent.verticalCenter
+            horizontalAlignment: Text.AlignRight
+            width: 78
         }
     }
 
-    // 270° dial, open at the bottom — the same instrument the process panel
-    // uses for CPU, so the shell reads as one kit rather than a pile of
-    // one-off widgets.
+    // One column of a hh:mm:ss picker. A ListView with its highlight range
+    // nailed to the middle row IS a wheel -- no Controls dependency and no
+    // hand-rolled flicking. Nothing here reads `preset` as a binding: the wheel
+    // both follows it and writes it, so the follow has to be an assignment that
+    // can be switched off while it is the one doing the writing.
+    component Wheel: Item {
+        id: wheel
+        property int count: 60
+        property int unitMs: 1000
+        readonly property int rowH: 38
+        // What this column's digits are worth in the current preset.
+        readonly property int value: Math.floor(Services.Countdown.preset / unitMs) % count
+        property bool syncing: false
+        // Nothing this wheel does counts as an instruction until a hand has
+        // moved it. A ListView settles its own currentIndex once it has a
+        // geometry, well after Component.onCompleted -- three wheels each
+        // reporting that settle as a choice is what turned a fresh 5-minute
+        // preset into 01:01:01.
+        property bool touched: false
+
+        width: 66
+        height: rowH * 3
+
+        // Setting currentIndex is enough: StrictlyEnforceRange already drags the
+        // view onto it. Calling positionViewAtIndex as well made the two fight
+        // and land a row off -- three wheels each one step out is where a fresh
+        // 5-minute preset came up as 01:01:01.
+        function sync() {
+            if (view.moving || view.dragging) return
+            wheel.syncing = true
+            view.currentIndex = wheel.value
+            wheel.syncing = false
+        }
+        Component.onCompleted: wheel.sync()
+        Connections {
+            target: Services.Countdown
+            function onPresetChanged() { wheel.sync() }
+        }
+
+        ListView {
+            id: view
+            anchors.fill: parent
+            clip: true
+            model: wheel.count
+            orientation: ListView.Vertical
+            snapMode: ListView.SnapToItem
+            // The selected row is the middle one, always.
+            highlightRangeMode: ListView.StrictlyEnforceRange
+            preferredHighlightBegin: wheel.rowH
+            preferredHighlightEnd: wheel.rowH * 2
+            boundsBehavior: Flickable.StopAtBounds
+
+            onMovementStarted: wheel.touched = true
+            onCurrentIndexChanged: {
+                if (wheel.syncing || !wheel.touched) return
+                const cur = Services.Countdown.preset
+                const mine = Math.floor(cur / wheel.unitMs) % wheel.count
+                if (view.currentIndex === mine) return
+                root.aimAt(cur + (view.currentIndex - mine) * wheel.unitMs)
+            }
+
+            delegate: Item {
+                required property int index
+                width: wheel.width
+                height: wheel.rowH
+                readonly property bool sel: index === view.currentIndex
+                Text {
+                    anchors.centerIn: parent
+                    text: (parent.index < 10 ? "0" : "") + parent.index
+                    color: parent.sel ? Services.Colors.snow : Services.Colors.ash
+                    opacity: parent.sel ? 1 : 0.55
+                    font.pixelSize: parent.sel ? 34 : 24
+                    font.bold: parent.sel
+                    font.family: "JetBrainsMono NF"
+                    Behavior on font.pixelSize { NumberAnimation { duration: Services.Sizes.msMicro } }
+                    Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
+                }
+            }
+        }
+    }
+
+    component WheelColon: Text {
+        width: 14
+        height: 114
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        text: ":"
+        color: Services.Colors.mist
+        font.pixelSize: 30
+        font.bold: true
+        font.family: "JetBrainsMono NF"
+    }
+
     // One fact, in a small card: icon and value on a line, its name under it.
     component Stat: Rectangle {
         id: stat
@@ -199,78 +389,6 @@ Item {
                 font.pixelSize: 8
                 font.family: "JetBrainsMono NF"
             }
-        }
-    }
-
-    component Gauge: Column {
-        id: gauge
-        onValueChanged: dial.requestPaint()
-        property real value: 0
-        property real limit: 100
-        property string glyph: ""
-        property string readout: ""
-        property string caption: ""
-        spacing: 5
-
-        Item {
-            width: 74
-            height: 74
-            anchors.horizontalCenter: parent.horizontalCenter
-
-            Canvas {
-                id: dial
-                anchors.fill: parent
-                onPaint: {
-                    let ctx = getContext("2d")
-                    ctx.reset()
-                    let cx = width / 2, cy = height / 2
-                    let r = (Math.min(width, height) - 10) / 2
-                    let a0 = Math.PI * 0.75
-                    let sweep = Math.PI * 1.5
-                    ctx.lineCap = "round"
-                    ctx.lineWidth = 8
-                    ctx.strokeStyle = Services.Colors.ghostAlpha(0.12)
-                    ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + sweep); ctx.stroke()
-                    let frac = Math.max(0, Math.min(1, gauge.value / gauge.limit))
-                    if (frac > 0) {
-                        ctx.strokeStyle = Services.Colors.ghost
-                        ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + sweep * frac); ctx.stroke()
-                    }
-                }
-                Component.onCompleted: requestPaint()
-                Connections {
-                    target: Services.Colors
-                    function onGhostChanged() { dial.requestPaint() }
-                }
-            }
-
-            Column {
-                anchors.centerIn: parent
-                spacing: 0
-                Text {
-                    text: gauge.glyph
-                    color: Services.Colors.ghost
-                    font.pixelSize: 14
-                    font.family: "Material Symbols Rounded"
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
-                Text {
-                    text: gauge.readout
-                    color: Services.Colors.snow
-                    font.pixelSize: 13
-                    font.bold: true
-                    font.family: "JetBrainsMono NF"
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
-            }
-        }
-
-        Text {
-            text: gauge.caption
-            color: Services.Colors.mist
-            font.pixelSize: 9
-            font.family: "JetBrainsMono NF"
-            anchors.horizontalCenter: parent.horizontalCenter
         }
     }
 
@@ -447,15 +565,60 @@ Item {
                 anchors.bottom: parent.bottom
                 width: parent.width
 
-                // -- Clock: what the date actually tells you --
+                // -- Clock: what today is, in plain rows --
+                // No ring, no plates, no rules: a short centred list.
                 Tool {
                     index: 0
                     Column {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.top: parent.top
-                        spacing: 10
+                        anchors.centerIn: parent
+                        spacing: 14
+
+                        // Daylight leads the list -- it is the one reading
+                        // nothing else on the card gives.
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 12
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: Services.Weather.icon
+                                color: Services.Colors.ghost
+                                font.pixelSize: 20
+                                font.family: "Material Symbols Rounded"
+                            }
+                            Column {
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 1
+                                Text {
+                                    text: root.daylightLeft
+                                    color: Services.Colors.snow
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                    font.family: "JetBrainsMono NF"
+                                }
+                                Text {
+                                    text: root.daylightCaption
+                                    color: Services.Colors.mist
+                                    font.pixelSize: 9
+                                    font.bold: true
+                                    font.family: "JetBrainsMono NF"
+                                }
+                            }
+                        }
 
                         Fact {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            glyph: ""
+                            label: "SUNRISE"
+                            value: Services.Weather.sunrise || "—"
+                        }
+                        Fact {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            glyph: ""
+                            label: "SUNSET"
+                            value: Services.Weather.sunset || "—"
+                        }
+                        Fact {
+                            anchors.horizontalCenter: parent.horizontalCenter
                             glyph: ""
                             label: "WEEK"
                             value: {
@@ -469,40 +632,33 @@ Item {
                             }
                         }
                         Fact {
+                            anchors.horizontalCenter: parent.horizontalCenter
                             glyph: ""
-                            label: "DAY"
+                            label: "DAY of " + (root.isLeap ? "366" : "365")
                             value: {
                                 let start = new Date(root.now.getFullYear(), 0, 0)
-                                let n = Math.floor((root.now - start) / 86400000)
-                                return n + " of " + (root.isLeap ? 366 : 365)
+                                return String(Math.floor((root.now - start) / 86400000))
                             }
-                        }
-                        Fact {
-                            glyph: ""
-                            label: "SUNRISE"
-                            value: Services.Weather.sunrise || "—"
-                        }
-                        Fact {
-                            glyph: ""
-                            label: "SUNSET"
-                            value: Services.Weather.sunset || "—"
                         }
                     }
                 }
 
-                // -- Stopwatch --
+                // -- Stopwatch: the number, and nothing around it --
+                // It had a ring for a while. A stopwatch has no end to be a
+                // fraction of, so the ring was drawing a minute nobody asked
+                // about while the digits -- the whole point -- had to shrink to
+                // fit inside it.
                 Tool {
                     index: 1
                     Column {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.top: parent.top
-                        spacing: 12
+                        anchors.centerIn: parent
+                        spacing: 20
 
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: Services.Stopwatch.display
                             color: Services.Colors.snow
-                            font.pixelSize: 34
+                            font.pixelSize: 46
                             font.bold: true
                             font.family: "JetBrainsMono NF"
                         }
@@ -527,36 +683,46 @@ Item {
                             }
                         }
 
-                        // Newest first: the lap you just took is the one you
-                        // want to read.
-                        Column {
+                        // Newest on the left, the fastest one wearing the accent:
+                        // which lap was the good one is a comparison, and a
+                        // column of bare numbers never makes it for you.
+                        Row {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 3
+                            spacing: 6
                             Repeater {
                                 model: Services.Stopwatch.laps.slice(-4).reverse()
-                                delegate: Row {
+                                delegate: Rectangle {
                                     required property var modelData
-                                    spacing: 10
-                                    Text {
-                                        text: "#" + modelData.index
-                                        color: Services.Colors.ash
-                                        font.pixelSize: 10
-                                        font.family: "JetBrainsMono NF"
-                                        width: 26
-                                    }
-                                    Text {
-                                        text: Services.Stopwatch.format(modelData.split)
-                                        color: Services.Colors.snow
-                                        font.pixelSize: 11
-                                        font.bold: true
-                                        font.family: "JetBrainsMono NF"
-                                        width: 76
-                                    }
-                                    Text {
-                                        text: Services.Stopwatch.format(modelData.total)
-                                        color: Services.Colors.mist
-                                        font.pixelSize: 10
-                                        font.family: "JetBrainsMono NF"
+                                    // Nothing is "fastest" until there is
+                                    // something to be faster than.
+                                    readonly property bool best: Services.Stopwatch.laps.length > 1
+                                        && modelData.split === root.bestSplit
+                                    width: 60
+                                    height: 34
+                                    radius: Services.Sizes.innerR
+                                    color: best ? Services.Colors.ghost : Services.Colors.fillInset
+                                    gradient: Services.Prefs.useGradients && best
+                                        ? Services.Colors.accentGradient : null
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+
+                                    Column {
+                                        anchors.centerIn: parent
+                                        spacing: 0
+                                        Text {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            text: "#" + modelData.index
+                                            color: parent.parent.best ? Services.Colors.accentBody : Services.Colors.ash
+                                            font.pixelSize: 9
+                                            font.family: "JetBrainsMono NF"
+                                        }
+                                        Text {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            text: Services.Stopwatch.format(modelData.split)
+                                            color: parent.parent.best ? Services.Colors.accentText : Services.Colors.snow
+                                            font.pixelSize: 11
+                                            font.bold: true
+                                            font.family: "JetBrainsMono NF"
+                                        }
                                     }
                                 }
                             }
@@ -564,40 +730,52 @@ Item {
                     }
                 }
 
-                // -- Countdown --
+                // -- Countdown: pick the time on the wheels, or take a preset --
                 Tool {
                     index: 2
                     Column {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.top: parent.top
-                        spacing: 12
+                        anchors.centerIn: parent
+                        spacing: 18
 
-                        Text {
+                        // Two faces, one slot: the wheels are for setting, and
+                        // once it is counting the only thing worth the space is
+                        // what is left.
+                        Item {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: Services.Countdown.display
-                            color: Services.Countdown.running ? Services.Colors.snow : Services.Colors.mist
-                            font.pixelSize: 34
-                            font.bold: true
-                            font.family: "JetBrainsMono NF"
-                            Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
-                        }
+                            width: wheels.width
+                            height: 114
 
-                        // Drains left to right as it runs down
-                        Rectangle {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: 200
-                            height: 4
-                            radius: 2
-                            color: Services.Colors.ghostAlpha(0.15)
-                            Rectangle {
-                                width: parent.width * Services.Countdown.progress
-                                height: parent.height
-                                radius: 2
-                                color: Services.Colors.ghost
-                                gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
+                            Row {
+                                id: wheels
+                                anchors.centerIn: parent
+                                spacing: 2
+                                opacity: Services.Countdown.active ? 0 : 1
+                                visible: opacity > 0.01
+                                Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
+
+                                Wheel { id: wHours;   count: 24; unitMs: 3600000 }
+                                WheelColon { }
+                                Wheel { id: wMins;    count: 60; unitMs: 60000 }
+                                WheelColon { }
+                                Wheel { id: wSecs;    count: 60; unitMs: 1000 }
+                            }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Services.Countdown.display
+                                color: Services.Countdown.running ? Services.Colors.snow : Services.Colors.mist
+                                font.pixelSize: 46
+                                font.bold: true
+                                font.family: "JetBrainsMono NF"
+                                opacity: Services.Countdown.active ? 1 : 0
+                                visible: opacity > 0.01
+                                Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }
+                                Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
                             }
                         }
 
+                        // The lengths worth a button; the wheels cover everything
+                        // between them.
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter
                             spacing: 6
@@ -606,9 +784,10 @@ Item {
                                 delegate: Rectangle {
                                     required property var modelData
                                     readonly property bool picked: Services.Countdown.preset === modelData * 60000
-                                    width: 40; height: 24; radius: 8
-                                    color: picked ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.15)
-                                    gradient: Services.Prefs.useGradients && picked ? Services.Colors.accentGradient : null
+                                    width: 42; height: 24; radius: 8
+                                    color: picked ? Services.Colors.ghost : Services.Colors.fillInset
+                                    gradient: Services.Prefs.useGradients && picked
+                                        ? Services.Colors.accentGradient : null
                                     Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                                     Text {
                                         anchors.centerIn: parent
@@ -621,7 +800,9 @@ Item {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: Services.Countdown.startFor(modelData * 60000)
+                                        // A length aims the timer; starting is
+                                        // the one button that starts things.
+                                        onClicked: root.aimAt(modelData * 60000)
                                     }
                                 }
                             }
@@ -635,14 +816,6 @@ Item {
                                 active: Services.Countdown.running
                                 available: Services.Countdown.remaining > 0
                                 onTriggered: Services.Countdown.toggle()
-                            }
-                            CtlChip {
-                                glyph: ""
-                                onTriggered: Services.Countdown.bump(-60000)
-                            }
-                            CtlChip {
-                                glyph: ""
-                                onTriggered: Services.Countdown.bump(60000)
                             }
                             CtlChip {
                                 glyph: ""
@@ -676,6 +849,9 @@ Item {
                     width: parent.width
                     height: 26
 
+                    // The name rides the SAME slide as the days. It already
+                    // reads off `shownIndex`, so it changed at the commit --
+                    // correct, but as a cut, next to a grid that travels.
                     Text {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
@@ -684,6 +860,8 @@ Item {
                         font.pixelSize: 14
                         font.family: "JetBrainsMono NF"
                         font.bold: true
+                        opacity: monthSlide.fade
+                        transform: Translate { x: monthSlide.offX }
                     }
 
                     Row {
@@ -758,12 +936,9 @@ Item {
                     // year, and stepping past December changed both -- two
                     // changes, so the slide ran twice for one press.
                     property int monthIndex: new Date().getFullYear() * 12 + new Date().getMonth()
-                    // The month on show, which is the one the days are drawn
-                    // from. It follows `monthIndex` on the slide's commit, so
-                    // the grid changes while it is off screen instead of
-                    // swapping under you and then sliding. Assigned, never
-                    // bound: a binding would track the month live and the days
-                    // would change on the press.
+                    // The month the days are drawn from, following `monthIndex` on the slide's
+                    // commit so the grid changes off screen. Assigned, never bound: a binding
+                    // would track the month live and the days would change on the press.
                     property int shownIndex: 0
                     Component.onCompleted: grid.shownIndex = grid.monthIndex
                     // The days slide the way the arrow points.
@@ -881,47 +1056,107 @@ Item {
                 }
             }
 
-            // Humidity, temperature and wind, each in its own dial.
+            // The three figures, as figures. They used to be three dials, and
+            // a dial that says "62%" next to the number 62% is drawing the same
+            // sentence twice.
             Row {
-                id: gaugeRow
+                id: wxFacts
                 anchors.top: wxNow.bottom
-                anchors.topMargin: 14
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: 8
+                anchors.topMargin: 10
+                anchors.left: parent.left
+                spacing: 16
                 opacity: root.extrasOpacity
 
-                Gauge {
-                    glyph: "\ue798"
-                    value: Services.Weather.humidity
-                    limit: 100
-                    readout: Services.Weather.humidity + "%"
-                    caption: "HUMIDITY"
+                WxFact { glyph: ""; value: Services.Weather.feels }
+                WxFact { glyph: ""; value: Services.Weather.humidity + "%" }
+                WxFact {
+                    glyph: ""
+                    value: Services.Weather.windKph + " "
+                         + Services.Weather.windCompass(Services.Weather.windDir)
                 }
-                Gauge {
-                    // -10..45 °C covers anywhere anyone lives: the dial is a
-                    // sense of where in that range today sits, the number is
-                    // the fact.
-                    glyph: "\ue1ff"
-                    value: Services.Weather.tempC + 10
-                    limit: 55
-                    readout: Services.Weather.temp
-                    caption: "TEMP"
+            }
+
+            // The next 24 hours: the one thing this column can say that no
+            // other part of the card already says. The curve is the same Trend
+            // the process panel draws, shifted so the coldest hour sits on the
+            // floor -- a chart of absolute temperature is a flat line all day.
+            Item {
+                id: hourly
+                anchors.top: wxFacts.bottom
+                anchors.topMargin: 14
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 88
+                opacity: root.extrasOpacity
+                visible: root.hours.length > 1
+
+                // The curve, with the temperature written ON it every three
+                // hours and the clock under it. A line with no numbers was the
+                // complaint and it was the right one: a shape alone says the
+                // afternoon is warmer, which anyone already knew.
+                Trend {
+                    id: curve
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.topMargin: 14
+                    height: 46
+                    values: {
+                        const out = []
+                        for (const h of root.hours) out.push(h.tempC - root.hourMin)
+                        return out
+                    }
+                    // Never zero: a day that holds one temperature would divide
+                    // the chart by nothing.
+                    maxValue: Math.max(1, root.hourMax - root.hourMin)
                 }
-                Gauge {
-                    // 60 km/h is a gale: past that the dial pins and the number
-                    // carries the detail anyway.
-                    glyph: "\uefd8"
-                    value: Services.Weather.windKph
-                    limit: 60
-                    readout: String(Services.Weather.windKph)
-                    caption: "WIND " + Services.Weather.windCompass(Services.Weather.windDir)
+
+                // Every third hour gets its degrees, sitting just above where
+                // the line actually is -- the same arithmetic Trend uses to
+                // place the point, or the number would float off its own curve.
+                Repeater {
+                    model: root.marks3h
+                    delegate: Text {
+                        required property var modelData
+                        readonly property int span: Math.max(1, root.hours.length - 1)
+                        readonly property real fx: hourly.width * modelData.i / span
+                        readonly property real fy: {
+                            const cap = Math.max(1, root.hourMax - root.hourMin)
+                            const f = (modelData.t - root.hourMin) / cap
+                            return curve.y + 3 + (curve.height - 6) * (1 - f)
+                        }
+                        x: Math.max(0, Math.min(hourly.width - width, fx - width / 2))
+                        y: fy - height - 2
+                        text: Services.Weather.degrees(modelData.t)
+                        color: Services.Colors.snow
+                        font.pixelSize: 10
+                        font.bold: true
+                        font.family: "JetBrainsMono NF"
+                    }
+                }
+
+                // The clock under the curve, every six hours.
+                Repeater {
+                    model: root.marks6h
+                    delegate: Text {
+                        required property var modelData
+                        readonly property int span: Math.max(1, root.hours.length - 1)
+                        x: Math.max(0, Math.min(hourly.width - width,
+                                                hourly.width * modelData.i / span - width / 2))
+                        anchors.top: curve.bottom
+                        anchors.topMargin: 5
+                        text: modelData.label
+                        color: Services.Colors.ash
+                        font.pixelSize: 9
+                        font.family: "JetBrainsMono NF"
+                    }
                 }
             }
 
             // The days, as cards. The one thing on this column worth a box.
             Row {
                 id: fcCol
-                anchors.top: gaugeRow.bottom
+                anchors.top: hourly.bottom
                 anchors.topMargin: 16
                 anchors.left: parent.left
                 anchors.right: parent.right

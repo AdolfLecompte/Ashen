@@ -144,12 +144,10 @@ Singleton {
         packLocs([{ lat: lat, lon: lon, city: parts.slice(2).join("|") }], 0)
     }
 
-    // Open-Meteo speaks WMO weather codes (ints), not text, so both the glyph
-    // and the human label are derived from the code here.
-    //
-    // Day/night comes from the API's own `is_day`, never from the local clock:
-    // with several saved cities "our" hour says nothing about whether the sun
-    // is up over Tokyo, and the icon used to lie about exactly that.
+    // Open-Meteo speaks WMO codes, so the glyph and the label are derived from
+    // the code here. Day or night comes from the API's own `is_day`, never the
+    // local clock: with several saved cities our hour says nothing about whether
+    // the sun is up over Tokyo.
     function codeToIcon(code, daylight) {
         let night = !daylight
         if (code === 0) return night ? "\uf159" : "\uf157"              // clear

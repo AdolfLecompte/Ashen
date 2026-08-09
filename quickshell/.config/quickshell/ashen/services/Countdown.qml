@@ -5,12 +5,9 @@ import QtQuick
 import "root:/services" as Services
 
 // Named Countdown, not Timer: `Timer` is a QML type and a singleton wearing
-// that name would shadow it inside every file that imports the services.
-//
-// Same reasoning as Stopwatch — the countdown has to outlive the panel, or you
-// could never start one and walk away, which is the entire point. Remaining
-// time is a subtraction against a wall-clock deadline, so a late tick or a
-// suspended laptop cannot make it drift.
+// that name would shadow it in every file importing the services. Like
+// Stopwatch it outlives the panel, so time is a subtraction against a
+// wall-clock deadline and a late tick cannot make it drift.
 Singleton {
     id: root
 
@@ -76,6 +73,16 @@ Singleton {
         endsAt = 0
         rang = false
     }
+    // Aim the timer without starting it: what the panel's ring and its length
+    // buttons do. Anything banked from a previous run is dropped -- the number
+    // you just set IS what a start should count down.
+    function setPreset(ms) {
+        if (ms <= 0 || running) return
+        preset = ms
+        leftover = 0
+        rang = false
+    }
+
     // Nudge the preset from the panel's +/- controls
     function bump(deltaMs) {
         if (running) {

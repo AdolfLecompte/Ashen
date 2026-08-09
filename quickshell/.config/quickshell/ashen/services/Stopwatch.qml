@@ -3,12 +3,10 @@ pragma Singleton
 import Quickshell
 import QtQuick
 
-// Lives out here rather than in the clock panel on purpose: a stopwatch that
-// resets the moment you close the panel is a toy. Start it, go away, come back.
-//
-// Time is read off the wall clock, never accumulated tick by tick — a 100 ms
-// Timer that fires late (and it will) would quietly lose seconds over an hour.
-// The ticker only exists to repaint; `elapsed` is always a subtraction.
+// Lives out here, not in the clock panel: a stopwatch that resets when you
+// close the panel is a toy. Time is read off the wall clock, never accumulated
+// tick by tick -- a 100 ms Timer that fires late (and it will) would quietly
+// lose seconds over an hour. The ticker only exists to repaint.
 Singleton {
     id: root
 

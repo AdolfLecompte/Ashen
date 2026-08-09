@@ -4,6 +4,9 @@ import QtQuick
 import "root:/services" as Services
 import "root:/modules/widgets" as Widgets
 
+// The media pill's panel: the pill does not open a card beside itself, it
+// BECOMES the card. The blob and its drivers live in Widgets.MorphCard.
+// The card shows Widgets.MediaCard and takes its size from it.
 PanelWindow {
     id: root
     anchors { top: true; left: true; right: true; bottom: true }
@@ -12,70 +15,32 @@ PanelWindow {
     color: "transparent"
     // stays mapped through the close animation, so the exit plays in reverse
     readonly property bool shown: Services.AppState.mediaVisible
-    visible: shown || closeDelay.running
+    visible: shown || card.closing
 
-    // A layer surface is not presented on the frame it is asked for, so a morph
-    // started at click time spends its first ~200 ms off screen and only its
-    // tail is ever seen. Hold the pill, let the surface land, then run.
-    onShownChanged: {
-        if (shown) {
-            arm.restart()
-        } else {
-            arm.stop()
-            Services.AppState.mediaMorphing = false
-            openAnim.stop()
-            closeAnim.start()
-            closeDelay.restart()
-        }
+    // The pill stands aside while its panel is wearing its face.
+    Binding {
+        target: Services.AppState
+        property: "mediaMorphing"
+        // Not `morphing`: in "window" style the card never wears the pill's
+        // face, and the pill must stay where it is.
+        value: card.wearingFace
     }
-    Timer {
-        id: arm
-        interval: 200
-        onTriggered: {
-            Services.AppState.mediaMorphing = true
-            closeAnim.stop()
-            // The style may have changed since it last closed.
-            card.restDrivers()
-            openAnim.start()
-        }
-    }
-    // Long enough to cover the slowest leg of the morph back into the pill
-    Timer { id: closeDelay; interval: 560 }
 
-    readonly property bool opening: Services.AppState.mediaMorphing
-
-    // ── Dynamic-island morph ────────────────────────────────────────────
-    // This panel is not a card that appears next to the pill: it IS the pill,
-    // grown up. It starts as an exact copy of the pill's rect and swells into
-    // the full card, so the two read as one object changing size.
-    //
-    // The droplet comes from animating the axes apart instead of together: the
-    // blob stretches downward first (it falls out of the bar), then the width
-    // catches up and spreads with a hair of overshoot, the way a drop flattens
-    // when it lands. A goo neck keeps it tied to the bar until it pinches off.
-    //
-    // What the card actually shows is Widgets.MediaCard, the same item the lock
-    // screen mounts. This file only owns the blob and the trip: everything the
-    // pill and the card have in common — cover, title, times, the three
-    // transport chips — is ONE item that travels between the two layouts,
-    // while the card's own extras fade in behind it.
-    //
-    // The card's size comes from the shared item, so growing the cover there
-    // grows the panel here and the two can never disagree.
     readonly property real openW: panelRef.contentW + panelRef.pad * 2
     readonly property real openH: panelRef.artSize + panelRef.pad * 2
-    readonly property real pillW: Math.max(1, Services.AppState.mediaPillW)
-    readonly property real pillH: Math.max(1, Services.AppState.mediaPillH)
-    readonly property real pillCX: Services.AppState.mediaPillCenterX
-    readonly property real pillCY: Services.AppState.mediaPillCenterY
 
-    // The player state lives in the shared card. `hasPlayer` is derived from
-    // the copy we hold, not fetched separately: two bindings onto the same ref
-    // update in whatever order QML likes, so for a frame `hasPlayer` was true
-    // while `activePlayer` was already null and every `hasPlayer && player.x`
-    // guard in the file threw.
+    // `hasPlayer` is derived from the copy we hold, not fetched separately:
+    // two bindings onto the same ref update in whatever order QML likes, so
+    // for a frame `hasPlayer` was true while `activePlayer` was already null.
     readonly property var activePlayer: panelRef.activePlayer
     readonly property bool hasPlayer: root.activePlayer !== null
+
+    // Chip sizes at each end of the trip
+    readonly property real chipSm: Services.Sizes.innerH
+    readonly property real playSm: Services.Sizes.innerH
+    // Origin of the pill reference layout, in card coordinates
+    readonly property real prColX: pillRef.x + refCol.x
+    readonly property real prColY: pillRef.y + refCol.y
 
     MouseArea {
         anchors.fill: parent
@@ -89,180 +54,22 @@ PanelWindow {
         Keys.onEscapePressed: Services.AppState.mediaVisible = false
     }
 
-    // The goo bridge, drawn under the card so the card's own edge hides where
-    // the two meet. Alive only while the blob is on its way out of the bar.
-    Widgets.GooNeck {
-        active: !Services.Sizes.barVertical
-        pillCX: root.pillCX
-        pillW: root.pillW
-        fromBelow: Services.Sizes.barPosition === "bottom"
-        barEdge: Services.Sizes.barPosition === "bottom"
-            ? parent.height - Services.Sizes.barH : Services.Sizes.barH
-        cardEdge: Services.Sizes.barPosition === "bottom"
-            ? card.y + card.height : card.y
-        cardHalfW: card.width / 2
-        pinch: Math.max(0, Math.min(1, card.fall / 0.55))
-        fillColor: Services.Colors.surfacePanel
-    }
-
-    Rectangle {
+    Widgets.MorphCard {
         id: card
+        anchors.fill: parent
 
-        // Where the grown-up card wants to end up: same placement rules as
-        // before, so it still tracks its pill and follows the bar around.
-        readonly property real openX: Services.Sizes.panelX(parent.width, root.openW, root.pillCX)
-        readonly property real openY: Services.Sizes.panelY(parent.height, root.openH, root.pillCY)
-
-        // Only drawn once the morph is actually armed, so the pill never has to
-        // share the screen with a copy of itself.
-        visible: root.opening || closeDelay.running
-
-        function lerp(a, b, t) { return a + (b - a) * t }
-
-        // Three drivers rather than one, so the shape lags behind the motion
-        // and the blob deforms on the way instead of scaling rigidly.
-        // "Window" style: the drivers land on 1 at once and only the opacity
-        // moves, so the card appears where it would have dropped without
-        // becoming the pill first. The morph timings below are untouched.
-        readonly property bool plain: Services.Prefs.panelStyle === "plain"
-        property real plainFade: 0
-
-
-        // Where the drivers rest while it is closed. In "window" they stay
-        // landed -- the card never becomes the pill -- but in "transform" they
-        // have to be back at zero or the drop has nowhere to fall from. The
-        // style can change between one opening and the next, so this is
-        // applied on the way in rather than assumed.
-        function restDrivers() {
-            const v = card.plain ? 1 : 0
-            card.fall = v; card.stretch = v; card.spread = v; card.morph = v
-            card.contentAmt = card.plain ? 1 : 0
-            card.plainFade = 0
-        }
-        onPlainChanged: if (!root.shown) card.restDrivers()
-
-        property real fall: 0      // travel from the bar to the resting spot
-        property real stretch: 0   // height
-        property real spread: 0    // width
-        // 0 = shared items sit in the pill's arrangement, 1 = the card's.
-        // Deliberately started late: the box opens first and the contents
-        // rearrange inside it afterwards, never both at once.
-        property real morph: 0
-        // Fade for everything that exists only in the card
-        property real contentAmt: 0
-
-        // Origin of the pill reference layout, in card coordinates
-        readonly property real prColX: pillRef.x + refCol.x
-        readonly property real prColY: pillRef.y + refCol.y
-
-        // Chip sizes at each end of the trip
-        readonly property real chipSm: Services.Sizes.innerH
-        readonly property real playSm: Services.Sizes.innerH
-
-        // Explicit animations rather than Behaviors with direction-dependent
-        // durations: a `root.opening ? a : b` inside a Behavior is read with
-        // the *old* value of the flag, so the close silently ran with the open
-        // timings. Two named animations leave no room for that.
-        ParallelAnimation {
-            id: openAnim
-            NumberAnimation {
-                target: card; property: "plainFade"; to: 1
-                duration: card.plain ? 260 : 0; easing.type: Services.Sizes.easeOut
-            }
-            NumberAnimation {
-                target: card; property: "fall"; to: 1
-                duration: card.plain ? 0 : 460; easing.type: Services.Sizes.easeOut
-            }
-            // Height leads: the drop elongates as it detaches from the bar
-            NumberAnimation {
-                target: card; property: "stretch"; to: 1
-                duration: card.plain ? 0 : 360; easing.type: Services.Sizes.easeOut
-            }
-            // Width trails and lands wide: the flatten-on-impact part. The
-            // overshoot is tiny (~5 px) — a real bounce reads as a pop.
-            NumberAnimation {
-                target: card; property: "spread"; to: 1
-                duration: card.plain ? 0 : 560; easing.type: Easing.OutBack; easing.overshoot: Services.Sizes.overshoot
-            }
-            // Box first, contents after: the shared items hold the pill's
-            // arrangement while the blob grows around them, then travel.
-            SequentialAnimation {
-                PauseAnimation { duration: card.plain ? 0 : 200 }
-                NumberAnimation {
-                    target: card; property: "morph"; to: 1
-                    duration: card.plain ? 0 : 340; easing.type: Services.Sizes.easeOut
-                }
-            }
-            // The card-only extras arrive last, filling the gaps the travelling
-            // items have opened up by then.
-            SequentialAnimation {
-                PauseAnimation { duration: card.plain ? 0 : 380 }
-                NumberAnimation { target: card; property: "contentAmt"; to: 1; duration: card.plain ? 0 : 200 }
-            }
-        }
-
-        // Closing is not the opening backwards: the extras leave, the items
-        // regroup into the pill, and only then does the shape collapse — the
-        // same order, mirrored, so the box is never smaller than its contents.
-        ParallelAnimation {
-            id: closeAnim
-            NumberAnimation {
-                target: card; property: "plainFade"; to: 0
-                duration: card.plain ? 200 : 0; easing.type: Services.Sizes.easeIn
-            }
-            NumberAnimation { target: card; property: "contentAmt"; to: 0; duration: card.plain ? 0 : 90 }
-            SequentialAnimation {
-                PauseAnimation { duration: card.plain ? 0 : 40 }
-                NumberAnimation {
-                    target: card; property: "morph"; to: card.plain ? 1 : 0
-                    duration: card.plain ? 0 : 260; easing.type: Services.Sizes.easeInOut
-                }
-            }
-            SequentialAnimation {
-                PauseAnimation { duration: card.plain ? 0 : 160 }
-                ParallelAnimation {
-                    NumberAnimation {
-                        target: card; property: "fall"; to: card.plain ? 1 : 0
-                        duration: card.plain ? 0 : 340; easing.type: Services.Sizes.easeInOut
-                    }
-                    NumberAnimation {
-                        target: card; property: "stretch"; to: card.plain ? 1 : 0
-                        duration: card.plain ? 0 : 300; easing.type: Services.Sizes.easeInOut
-                    }
-                    NumberAnimation {
-                        target: card; property: "spread"; to: card.plain ? 1 : 0
-                        duration: card.plain ? 0 : 300; easing.type: Services.Sizes.easeInOut
-                    }
-                }
-            }
-        }
-
-        width: root.pillW + (root.openW - root.pillW) * spread
-        height: (root.pillH + (root.openH - root.pillH) * stretch)
-                * (card.plain ? 0.06 + 0.94 * card.plainFade : 1)
-        x: root.pillCX + (openX + root.openW / 2 - root.pillCX) * fall - width / 2
-        y: card.plain ? openY
-           : root.pillCY + (openY + root.openH / 2 - root.pillCY) * fall - height / 2
-
-        // Pill corner while small, card corner once open
-        opacity: card.plain ? card.plainFade : 1
-        radius: Services.Sizes.pillR + (20 - Services.Sizes.pillR) * Math.min(1, spread)
-        color: Services.Colors.surfacePanel
-        clip: true
-
-        MouseArea { anchors.fill: parent; onClicked: {} }
+        shown: root.shown
+        pillW: Math.max(1, Services.AppState.mediaPillW)
+        pillH: Math.max(1, Services.AppState.mediaPillH)
+        pillCX: Services.AppState.mediaPillCenterX
+        pillCY: Services.AppState.mediaPillCenterY
+        openW: root.openW
+        openH: root.openH
 
         // ── Reference layout A: the pill ────────────────────────────────
-        // An exact structural copy of MediaPill's row, laid out but never
-        // drawn. It exists so the shared items know where the pill puts
-        // them, to the pixel, without anyone maintaining a second set of
-        // coordinates by hand.
-        //
-        // Centred, not left-anchored: the real pill is exactly its row plus 10
-        // px of margin either side, so centring lands on the same pixels while
-        // the card still matches the pill — and once the box starts inflating
-        // the contents hold the middle instead of being dragged along by the
-        // left edge. The box grows around them; they only move when told to.
+        // A structural copy of MediaPill's row, laid out but never drawn, so the
+        // shared items know where the pill puts them. Centred, not left-anchored:
+        // the box then grows around its contents instead of dragging them along.
         Row {
             id: pillRef
             opacity: 0
@@ -323,17 +130,16 @@ PanelWindow {
                 spacing: 4
                 anchors.verticalCenter: parent.verticalCenter
 
-                Item { id: refPrev; width: card.chipSm; height: card.chipSm }
-                Item { id: refPlay; width: card.playSm; height: card.playSm }
-                Item { id: refNext; width: card.chipSm; height: card.chipSm }
+                Item { id: refPrev; width: root.chipSm; height: root.chipSm }
+                Item { id: refPlay; width: root.playSm; height: root.playSm }
+                Item { id: refNext; width: root.chipSm; height: root.chipSm }
             }
         }
 
         // ── Reference layout B: the card ────────────────────────────────
-        // The real thing, the same item the lock screen shows. `ghostShared`
-        // leaves the pieces the morph flies in laid out but undrawn, so they
-        // are targets rather than duplicates; `extrasOpacity` holds back what
-        // the pill has no counterpart for until the blob has finished opening.
+        // `ghostShared` leaves the flown pieces laid out but undrawn, so they are
+        // targets rather than duplicates; `extrasOpacity` holds back what the pill
+        // has no counterpart for until the blob has finished opening.
         Widgets.MediaCard {
             id: panelRef
             anchors.centerIn: parent
@@ -370,7 +176,7 @@ PanelWindow {
             Text {
                 anchors.centerIn: parent
                 visible: flyImg.status !== Image.Ready
-                text: ""
+                text: "\ue405"
                 color: Services.Colors.ash
                 font.family: "Material Symbols Rounded"
                 font.pixelSize: card.lerp(18, 40, card.morph)
@@ -392,8 +198,8 @@ PanelWindow {
             font.family: "JetBrainsMono NF"
             elide: Text.ElideRight
             width: visW / s
-            x: card.lerp(card.prColX + refTitle.x, panelRef.x + panelRef.titleX, card.morph)
-            y: card.lerp(card.prColY + refTitle.y + refTitle.height / 2,
+            x: card.lerp(root.prColX + refTitle.x, panelRef.x + panelRef.titleX, card.morph)
+            y: card.lerp(root.prColY + refTitle.y + refTitle.height / 2,
                          panelRef.y + panelRef.titleCY, card.morph) - height / 2
             transform: Scale {
                 origin.x: 0
@@ -412,9 +218,9 @@ PanelWindow {
             color: Services.Colors.mist
             font.pixelSize: 10; font.bold: true
             font.family: "JetBrainsMono NF"
-            x: card.lerp(card.prColX + refTimes.x + refPos.x,
+            x: card.lerp(root.prColX + refTimes.x + refPos.x,
                          panelRef.x + panelRef.posX, card.morph)
-            y: card.lerp(card.prColY + refTimes.y + refPos.y + refPos.height / 2,
+            y: card.lerp(root.prColY + refTimes.y + refPos.y + refPos.height / 2,
                          panelRef.y + panelRef.posCY, card.morph) - height / 2
         }
         // The slash has nowhere to go once the numbers separate, so it is the
@@ -427,7 +233,7 @@ PanelWindow {
             font.family: "JetBrainsMono NF"
             opacity: 1 - Math.min(1, card.morph * 4)
             visible: opacity > 0.01
-            x: card.lerp(card.prColX + refTimes.x + refSep.x, flyPos.x + flyPos.width, card.morph)
+            x: card.lerp(root.prColX + refTimes.x + refSep.x, flyPos.x + flyPos.width, card.morph)
             y: flyPos.y
         }
         Text {
@@ -436,9 +242,9 @@ PanelWindow {
             color: Services.Colors.mist
             font.pixelSize: 10; font.bold: true
             font.family: "JetBrainsMono NF"
-            x: card.lerp(card.prColX + refTimes.x + refLen.x,
+            x: card.lerp(root.prColX + refTimes.x + refLen.x,
                          panelRef.x + panelRef.lenX, card.morph)
-            y: card.lerp(card.prColY + refTimes.y + refLen.y + refLen.height / 2,
+            y: card.lerp(root.prColY + refTimes.y + refLen.y + refLen.height / 2,
                          panelRef.y + panelRef.lenCY, card.morph) - height / 2
         }
 
@@ -447,8 +253,8 @@ PanelWindow {
         // behaves identically at either size.
         Widgets.CtlChip {
             id: flyPrev
-            glyph: ""
-            size: card.lerp(card.chipSm, panelRef.chipLg, card.morph)
+            glyph: "\ue045"
+            size: card.lerp(root.chipSm, panelRef.chipLg, card.morph)
             glyphSize: card.lerp(18, 20, card.morph)
             available: root.activePlayer !== null && root.activePlayer.canGoPrevious
             onTriggered: if (root.activePlayer) root.activePlayer.previous()
@@ -460,7 +266,7 @@ PanelWindow {
         Widgets.CtlChip {
             id: flyPlay
             glyph: panelRef.playGlyph
-            size: card.lerp(card.playSm, panelRef.playLg, card.morph)
+            size: card.lerp(root.playSm, panelRef.playLg, card.morph)
             glyphSize: card.lerp(20, 24, card.morph)
             available: root.hasPlayer
             active: root.activePlayer !== null && root.activePlayer.isPlaying
@@ -472,8 +278,8 @@ PanelWindow {
         }
         Widgets.CtlChip {
             id: flyNext
-            glyph: ""
-            size: card.lerp(card.chipSm, panelRef.chipLg, card.morph)
+            glyph: "\ue044"
+            size: card.lerp(root.chipSm, panelRef.chipLg, card.morph)
             glyphSize: card.lerp(18, 20, card.morph)
             available: root.activePlayer !== null && root.activePlayer.canGoNext
             onTriggered: if (root.activePlayer) root.activePlayer.next()
