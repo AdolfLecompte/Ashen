@@ -6,16 +6,10 @@ import QtQuick.Layouts
 import "root:/modules/widgets" as Widgets
 import "root:/services" as Services
 
-// The shell's own actions, in one place.
-//
-// These used to live inside the launcher, reachable only by typing ">" first —
-// which meant the launcher was two programs sharing a text field, and the whole
-// list was invisible unless you already knew it was there. The launcher is for
-// applications now; this is for the shell.
-//
-// It grows out of the round chip on the utility pill. That chip is the only
-// circle on the pill precisely because this is not one more tool: it is the way
-// in to all of them.
+// The shell's own actions, in one place. They used to live inside the launcher
+// behind a ">" prefix, invisible unless you already knew: the launcher is for
+// applications now. Grows out of the round chip on the utility pill, the only
+// circle there because it is the way in to all the tools rather than one more.
 PanelWindow {
     id: root
     anchors { top: true; left: true; right: true; bottom: true }
@@ -33,8 +27,7 @@ PanelWindow {
 
     function close() { Services.AppState.utilitiesVisible = false }
 
-    // Three kinds of thing live here and they behave differently, so each says
-    // which it is rather than the panel guessing from its name:
+    // Three kinds of thing live here, so each says which it is:
     //   panel  — opens something and stands down
     //   toggle — flips a state, and shows that state
     //   act    — does it once, no state to show

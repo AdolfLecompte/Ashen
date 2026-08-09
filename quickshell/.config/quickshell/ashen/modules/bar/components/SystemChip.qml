@@ -3,13 +3,8 @@ import QtQuick
 import "root:/services" as Services
 
 // One chip inside the system pill: wifi, bluetooth, volume, brightness,
-// battery, keyboard. They were six copies of the same forty lines in one file,
-// which is why nothing could be changed in one of them without reading all six.
-//
-// The caller says what it shows (glyph, label), whether it counts as on
-// (`active`), and what a click means. Everything else — the fill, the hover
-// grow, the vertical expand, the pill-centre report the panel hangs off — is
-// the same for all of them and lives here.
+// battery, keyboard. The caller says what it shows and what a click does; the
+// fill, the hover, the expand and the pill-centre report are shared.
 Rectangle {
     id: chip
 
@@ -35,12 +30,10 @@ Rectangle {
 
     signal activated()
 
-    // While its panel is up the chip IS the panel: it steps aside so the drop
-    // that grew out of its rect reads as the chip itself falling open. The whole
-    // chip goes, not just its contents — that is what the clock and the media
-    // pill do, and leaving an empty capsule sitting on the bar made these five
-    // the odd ones out. Opacity, not `visible`: invisible keeps its slot, hidden
-    // would let the strip close the gap and shove the other chips sideways.
+    // While its panel is up the chip IS the panel, so it steps aside: the whole
+    // chip, not just its contents, the way the clock and the media pill do.
+    // Opacity, not `visible`: invisible keeps its slot, hidden would let the
+    // strip close the gap and shove the other chips sideways.
     property bool takenOver: false
     onOpenChanged: {
         if (open) { handBack.stop(); handOver.restart() }
@@ -63,7 +56,7 @@ Rectangle {
         interval: Services.Sizes.panelCloseMs - 40
         onTriggered: chip.takenOver = false
     }
-    opacity: (takenOver && Services.Prefs.panelStyle === "morph") ? 0.0 : 1.0
+    opacity: (takenOver && Services.Pills.wearsFace) ? 0.0 : 1.0
     Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
     // The panel wears this for the first frames of its fall.
@@ -80,13 +73,10 @@ Rectangle {
     property bool vertical: Services.Sizes.barVertical
     readonly property bool hovered: hover.containsMouse
     readonly property bool expanded: vertical && (hovered || open)
-    // Lit, the text is whichever of black and white can be read on the accent —
-    // not a fixed dark, which only held while the accent happened to be light.
-    // matugen hands the shell whatever the wallpaper had in it, and on the
-    // current palette `ghost` is a mid grey that white wins on. The hover tint
-    // never takes dark text at all: it is a wash over the pill rather than a
-    // fill, and dark letters on it came out as a smudge — the same one the
-    // launcher, power and notification pills already had taken out.
+    // Lit, the text is whichever of black and white can be read on the accent --
+    // matugen hands the shell whatever the wallpaper had, so "the accent is
+    // light" is not something to assume. The hover tint never takes dark text:
+    // it is a wash, not a fill, and dark letters on it came out as a smudge.
     readonly property color contentColor: active
         ? Services.Colors.accentText
         : (hovered ? Services.Colors.snow : idleColor)
@@ -152,20 +142,16 @@ Rectangle {
         Text {
             text: chip.label
             color: chip.contentColor
-            // Where a band is set: a network called "HUAWEI-LeaderAP-7EC0" made
-            // the chip a hundred pixels wider and dragged the open panel across
-            // the screen with it, since the chip's width is where the panel
-            // hangs from. Floor as well as ceiling, so "Off" does not snap it
-            // narrow either; past the ceiling the name trails off.
+            // Floor and ceiling on the width: the chip is where the panel hangs from,
+            // so a long SSID used to drag the open panel across the screen and "Off"
+            // used to snap it narrow. Past the ceiling the name trails off.
             width: chip.maxLabelW > 0
                 ? Math.max(chip.minLabelW, Math.min(implicitWidth, chip.maxLabelW))
                 : implicitWidth
             elide: chip.maxLabelW > 0 ? Text.ElideRight : Text.ElideNone
-            // Sideways there is no room for the words unless you ask for them.
-            // An empty label (icon-only chip) still counted as a lane in
-            // BarStrip's Grid, so the spacing after the glyph was reserved
-            // with nothing to fill it -- the icon sat off-centre in its own
-            // chip. Zero text drops it from the layout entirely.
+            // Sideways there is no room for the words. Zero text, not an empty label:
+            // an empty one still counted as a lane in BarStrip's Grid and reserved the
+            // spacing after the glyph, leaving the icon off-centre in its own chip.
             visible: chip.label !== "" && (!chip.vertical || chip.expanded)
             font.pixelSize: chip.vertical ? 9 : 12
             font.family: "JetBrainsMono NF"

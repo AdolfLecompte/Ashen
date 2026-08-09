@@ -35,13 +35,9 @@ Rectangle {
                 height: 26
                 visible: !root.isSystemItem(modelData.id)
 
-                // A tray icon is somebody else's pixmap, drawn in whatever
-                // colours that program felt like. Painted through, it is the
-                // one thing on the bar that does not belong to the scheme --
-                // and on a light palette the pale ones simply vanished. So it
-                // is used as a SHAPE and filled with the shell's own colour,
-                // the same way a glyph is: it lifts to snow under the pointer
-                // like everything else, and the bar stays one material.
+                // A tray icon is somebody else's pixmap, and on a light palette the pale
+                // ones vanished. Used as a SHAPE and filled with the shell's own colour,
+                // the way a glyph is, so it lifts to snow under the pointer.
                 Image {
                     id: trayIcon
                     anchors.centerIn: parent

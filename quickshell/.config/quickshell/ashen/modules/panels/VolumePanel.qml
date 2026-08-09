@@ -4,12 +4,10 @@ import QtQuick
 import "root:/services" as Services
 import "root:/modules/widgets" as Widgets
 
-// Sound, as one thing with two sides rather than two stacked copies of the
-// same three controls. The dial says what the level is right now; the two
-// categories under it say whose level that is. Output and input have the same
-// layout, the same slider in the same place and the same device list -- only
-// the icons and the devices differ -- so moving between them moves nothing on
-// the screen except the reading.
+// Sound as one thing with two sides, not two stacked copies of the same three
+// controls. The dial says what the level is; the categories under it say whose.
+// Output and input share the layout, the slider and the device list, so moving
+// between them moves nothing on screen except the reading.
 PanelWindow {
     id: win
     anchors { top: true; left: true; right: true; bottom: true }

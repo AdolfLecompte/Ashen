@@ -153,10 +153,8 @@ PanelWindow {
                     }
 
                     // ── The ring ────────────────────────────────────────────
-                    // Connected in the middle, everything you have paired orbiting it.
-                    // Strangers are not here: they live in the scan list below, so the
-                    // ring only ever holds devices that mean something to you and the
-                    // slots stay put.
+                    // Connected in the middle, everything paired orbiting it. Strangers live
+                    // in the scan list below, so the slots stay put.
                     Widgets.NodeGraph {
                         id: graph
                         width: parent.width

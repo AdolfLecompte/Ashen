@@ -20,11 +20,9 @@ PanelWindow {
     // The dial is held dark until the card is really on screen, then sweeps up
     // from empty; DialGauge does the sweep itself off this flag.
     property bool battArmed: false
-    // Holds the sweep until the card's contents are actually on screen, so the
-    // whole 0->level trace is seen. It has to clear the drop's own wait for the
-    // window plus the pause before the contents fade in — at 260 the sweep was
-    // running behind a body still at zero opacity, and most of it was spent
-    // before there was anything to look at.
+    // Holds the sweep until the card's contents are on screen, so the whole
+    // 0->level trace is seen. It has to clear the drop's wait for the window
+    // plus the pause before the contents fade in.
     Timer {
         id: openDelay
         interval: Services.Sizes.panelArmMs + 360
@@ -121,11 +119,9 @@ PanelWindow {
                     anchors.margins: 20
                     spacing: 12
 
-                    // The same dial as sound and brightness, grown: reading in the
-                    // middle, charge around the rim. It used to be a rounded-rectangle
-                    // outline traced along its own border, which was a shape nothing
-                    // else in the shell used and had its own ladder of thresholds so
-                    // the trace could sit at 86% while the number said 91.
+                    // The same dial as sound and brightness, grown: reading in the middle,
+                    // charge around the rim. The old rounded-rectangle trace was a shape
+                    // nothing else used, with its own ladder of thresholds.
                     Widgets.DialGauge {
                         id: dial
                         Layout.alignment: Qt.AlignHCenter

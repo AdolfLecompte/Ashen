@@ -119,12 +119,10 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
     Rectangle {
         anchors.fill: parent
         radius: Services.Sizes.pillR
-        // No hover plate here, deliberately. This pill is not a button with a
-        // face: it is a strip of controls that each answer for themselves, and
-        // lighting the whole thing under the pointer said "click me" over three
-        // chips that do different things. It also already animates its own
-        // width, and a plate changing under a box that is resizing reads as a
-        // glitch.
+        // No hover plate, deliberately: this is a strip of controls that each
+        // answer for themselves, and lighting the whole thing said "click me"
+        // over three chips that do different things. It also animates its own
+        // width, and a plate changing under a resizing box reads as a glitch.
         color: Services.Colors.surfacePill
         border.color: Services.Colors.fillRest
         border.width: 0
@@ -133,7 +131,7 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
         // be read with the flag's old value, so each direction would get the
         // other one's timing. The card sits on the same rect anyway, so the
         // few frames where both are drawn are indistinguishable.
-        opacity: (root.takenOverByPanel && Services.Prefs.panelStyle === "morph") ? 0.0 : 1.0
+        opacity: (root.takenOverByPanel && Services.Pills.wearsFace) ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
 

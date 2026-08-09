@@ -25,12 +25,23 @@ Item {
     readonly property int pillR: Services.Sizes.pillR
     readonly property int pad: 8
 
+    // The monitor THIS bar is on, asked of its own window. Every screen has its
+    // own strip, so reading the FOCUSED monitor made both bars mark the same
+    // workspace -- with eDP-1 on 2 and the second screen on 3, both said 3.
+    // Same trick PillCenter uses to find its screen.
+    readonly property var barMonitor: {
+        const name = QsWindow.window && QsWindow.window.screen
+            ? QsWindow.window.screen.name : ""
+        for (const m of Hyprland.monitors.values)
+            if (m.name === name) return m
+        return Hyprland.focusedMonitor
+    }
+    readonly property var barIpc: root.barMonitor ? root.barMonitor.lastIpcObject : null
+
     // Hyprland does not emit the `workspace` event when entering a special, so
     // focusedWorkspace is useless: the monitor is what knows which one is shown.
     readonly property string shownSpecial: {
-        const mon = Hyprland.focusedMonitor
-        const ipc = mon ? mon.lastIpcObject : null
-        const sw = ipc ? ipc.specialWorkspace : null
+        const sw = root.barIpc ? root.barIpc.specialWorkspace : null
         return (sw && sw.name) ? sw.name : ""
     }
     readonly property bool inSpecial: shownSpecial !== ""
@@ -40,24 +51,24 @@ Item {
         .filter(w => w.id < 0)
         .sort((a, b) => b.id - a.id)
 
+    // Everything this strip reads comes off the monitor object, and that object
+    // is only as fresh as the last refresh -- so anything that can move a
+    // workspace has to ask for one.
     Connections {
         target: Hyprland
         function onRawEvent(event) {
-            if (event.name.startsWith("activespecial"))
+            const n = event.name
+            if (n.startsWith("activespecial") || n.startsWith("workspace") || n === "focusedmon")
                 Hyprland.refreshMonitors()
         }
     }
 
-    // Last focused normal workspace: specials have a negative id and would break
-    // the group-of-5 calculation.
-    property int lastNormalId: 1
-    Connections {
-        target: Hyprland
-        function onFocusedWorkspaceChanged() {
-            const f = Hyprland.focusedWorkspace
-            if (f && f.id > 0)
-                root.lastNormalId = f.id
-        }
+    // The workspace THIS monitor is showing. `activeWorkspace` stays on the
+    // normal one while a special is up (the special has its own field), so the
+    // group-of-5 calculation never sees a negative id.
+    readonly property int lastNormalId: {
+        const aw = root.barIpc ? root.barIpc.activeWorkspace : null
+        return (aw && aw.id > 0) ? aw.id : 1
     }
 
     function specialIcon(name) {
@@ -97,8 +108,15 @@ Item {
             id: dwell
             interval: 600
             onTriggered: {
+                // Window-local out of mapToGlobal, same as PillCenter: without
+                // the bar's own origin added, a bottom or right bar reported a
+                // chip near the top-left and the preview grew from there.
                 const g = ph.mapToGlobal(0, 0)
-                Services.AppState.setWsPreview(ph.wsId, ph.label, g.x, g.y, ph.width, ph.height)
+                const s = QsWindow.window ? QsWindow.window.screen : null
+                Services.AppState.setWsPreview(ph.wsId, ph.label,
+                    Services.Sizes.barOriginX(s) + g.x,
+                    Services.Sizes.barOriginY(s) + g.y,
+                    ph.width, ph.height)
             }
         }
     }
@@ -195,11 +213,8 @@ Item {
                     Rectangle {
                         anchors.fill: parent
                         radius: root.innerR
-                        // The plate says whether the workspace has anything on
-                        // it, and nothing else. Active chips are carried by the
-                        // sliding indicator, so they stay bare. Hover is the
-                        // chip growing and its number lifting -- it does not
-                        // light up under them.
+                        // The plate says whether the workspace has anything on it, nothing else.
+                        // Active chips are carried by the sliding indicator, so they stay bare.
                         color: Services.Colors.fillRest
                         opacity: parent.isActive ? 0 : parent.hasWindows ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard } }

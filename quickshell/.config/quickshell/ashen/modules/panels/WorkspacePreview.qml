@@ -5,15 +5,10 @@ import QtQuick
 import "root:/services" as Services
 import "root:/modules/widgets" as Widgets
 
-// Dwell on a workspace chip and it grows into a small live view of that
-// workspace — the same blob-out-of-the-pill move the media and clock panels
-// use, just smaller and quicker.
-//
-// The pictures are real: Hyprland's toplevel-export protocol hands over a
-// window's contents even when its workspace is not the one on screen, which is
-// the whole reason this can show anything at all. Windows are placed at their
-// true positions, scaled down by the monitor's own size, so the preview is a
-// miniature of the actual layout rather than a row of thumbnails.
+// Dwell on a workspace chip and it grows into a live view of that
+// workspace. The pictures are real: toplevel-export hands over a window's
+// contents even when its workspace is not on screen, and windows sit at
+// their true positions, scaled by the monitor.
 PanelWindow {
     id: root
     anchors { top: true; left: true; right: true; bottom: true }

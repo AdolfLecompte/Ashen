@@ -45,6 +45,48 @@ PanelWindow {
         ethProc.running = true
     }
 
+    // ── The scan ring, slot by slot ─────────────────────────────────────
+    // Every network in range that is not saved and not the one we are on.
+    readonly property var strangersAll: networks.filter(
+        n => !n.active && !knownNetworks.includes(n.ssid))
+
+    // Which SSID owns each of the six slots. Kept ACROSS scans on purpose: the
+    // ring used to be "the six strongest", and signal jitters by a few percent
+    // on every sweep, so networks traded places in and out of the ring while
+    // you were looking at it — a node appearing from nowhere, wired to nothing.
+    // A slot is only given up when its network stops being in range.
+    property var scanSlots: [null, null, null, null, null, null]
+    onStrangersAllChanged: updateScanSlots()
+    function updateScanSlots() {
+        const inRange = {}
+        for (const n of strangersAll) inRange[n.ssid] = true
+        const slots = scanSlots.slice()
+        for (let i = 0; i < slots.length; i++)
+            if (slots[i] && !inRange[slots[i]]) slots[i] = null
+        // Whatever is left over fills the holes, strongest first.
+        const held = slots.filter(x => x)
+        const fresh = strangersAll.filter(n => held.indexOf(n.ssid) < 0)
+                                  .slice().sort((a, b) => b.signal - a.signal)
+        for (let i = 0; i < slots.length && fresh.length > 0; i++)
+            if (!slots[i]) slots[i] = fresh.shift().ssid
+        scanSlots = slots
+    }
+
+    function wifiGlyph(sig) {
+        return sig >= 75 ? "\ue1ba" : sig >= 50 ? "\uebe1"
+             : sig >= 25 ? "\uebd6" : "\uebe4"
+    }
+
+    // Slot-shaped, holes and all: a missing network leaves its place empty
+    // rather than pulling the rest of the ring around behind it.
+    readonly property var scanRing: scanSlots.map(id => {
+        if (!id) return null
+        const n = strangersAll.find(x => x.ssid === id)
+        if (!n) return null
+        return { id: n.ssid, glyph: root.wifiGlyph(n.signal), label: n.ssid,
+                 sub: n.signal + "%", active: false }
+    })
+
     Process {
         id: scanProc
         command: ["nmcli", "-t", "-f", "active,ssid,signal,security", "dev", "wifi"]
@@ -155,10 +197,12 @@ PanelWindow {
         anchors.fill: parent
         z: -1
         onClicked: {
-            if (root.showConnectDialog) {
-                root.showConnectDialog = false
-                graph.disarm()
-            } else Services.AppState.networkVisible = false
+            // `graph` lives inside the panel's body Component, which is its own
+            // id scope: reaching for it from out here threw, so the dialog went
+            // away and the network stayed armed -- lit up, wired to nothing.
+            // Closing the dialog is the signal; the body disarms off that.
+            if (root.showConnectDialog) root.showConnectDialog = false
+            else Services.AppState.networkVisible = false
         }
     }
 
@@ -192,11 +236,9 @@ PanelWindow {
                 readonly property Item labelTarget: bodyRoot.shownTab === "wifi"
                     ? graph.hubLabelItem : ethGraph.hubLabelItem
 
-                // Which side the body is showing. Follows the tab a beat later,
-                // on the slide's commit: the tab you pressed lights up at once,
-                // what it reveals arrives when there is nothing left to read.
-                // Assigned, never bound -- a binding would track the tab live
-                // and the body would jump on the press like it used to.
+                // Which side the body is showing. Follows the tab a beat later, on the
+                // slide's commit. Assigned, never bound -- a binding would track the tab
+                // live and the body would jump on the press like it used to.
                 property string shownTab: "wifi"
                 Component.onCompleted: bodyRoot.shownTab = Services.AppState.networkTab
 
@@ -363,18 +405,13 @@ PanelWindow {
                                 readonly property var knownInRange: root.networks.filter(
                                     n => !n.active && root.knownNetworks.includes(n.ssid))
 
-                                function wifiGlyph(sig) {
-                                    return sig >= 75 ? "\ue1ba" : sig >= 50 ? "\uebe1"
-                                         : sig >= 25 ? "\uebd6" : "\uebe4"
-                                }
-
                                 hubActive: Services.Network.wifiSsid !== ""
                                 // Disconnected, the hub has to say exactly what the chip on
                                 // the bar says, or there is nothing for the chip's icon and
                                 // word to fly onto. Connected they already agreed, which is
                                 // why Wi-Fi was the one that worked.
                                 hubGlyph: Services.Network.wifiSsid !== ""
-                                    ? graph.wifiGlyph(Services.Network.wifiSignal)
+                                    ? root.wifiGlyph(Services.Network.wifiSignal)
                                     : (Services.Network.wifiEnabled ? "\ueb31" : "\ue1da")
                                 hubLabel: Services.Network.wifiSsid !== ""
                                     ? Services.Network.wifiSsid
@@ -391,25 +428,11 @@ PanelWindow {
                                 scanGlyph: "\ue8b6"
                                 scanLabel: "Scan"
                                 scanSub: graph.scanMode
-                                    ? (graph.strangers.length + " nearby") : "Nearby"
-                                // Six slots, and the six worth having are the six you can
-                                // actually reach — so the ring is picked by signal. It is
-                                // then laid out by name, because signal jitters on every
-                                // scan and sorting by it made the slots reshuffle under
-                                // your finger. Anything past six lives in Settings, which
-                                // keeps the plain lists.
-                                readonly property var strangers: root.networks.filter(
-                                    n => !n.active && !root.knownNetworks.includes(n.ssid))
-                                    .slice().sort((a, b) => b.signal - a.signal)
-                                    .slice(0, 6)
-                                    .sort((a, b) => a.ssid.localeCompare(b.ssid))
-                                scanNodes: graph.strangers.map(n => ({
-                                    id: n.ssid,
-                                    glyph: graph.wifiGlyph(n.signal),
-                                    label: n.ssid,
-                                    sub: n.signal + "%",
-                                    active: false
-                                }))
+                                    ? (root.strangersAll.length + " nearby") : "Nearby"
+                                // Slots owned across scans -- see root.scanSlots. Picking the
+                                // six strongest every sweep meant the ring swapped members
+                                // while you were looking at it.
+                                scanNodes: root.scanRing
                                 onScanActivated: root.refreshNetworks()
                                 // Nothing is agreed with a stranger yet, so this only asks:
                                 // the wire is strung to it and the password panel follows a
@@ -425,20 +448,16 @@ PanelWindow {
 
                                 nodes: graph.knownInRange.map(n => ({
                                     id: n.ssid,
-                                    glyph: graph.wifiGlyph(n.signal),
+                                    glyph: root.wifiGlyph(n.signal),
                                     label: n.ssid,
                                     sub: n.signal + "%",
                                     active: false
                                 }))
 
-                                // `nmcli dev wifi connect SSID` was the bug: for a network
-                                // you already have a profile for it tries to build a second
-                                // one, gets asked for a password it was never given, and
-                                // fails — and the panel had already closed itself, so
-                                // nothing ever said so. Bring the saved profile up by name
-                                // instead (NetworkManager calls it "SSID 1"), and only fall
-                                // back to a fresh connect when there is no profile. The
-                                // panel stays open now: the swap on the ring is the report.
+                                // `nmcli dev wifi connect SSID` builds a SECOND profile for a network you
+                                // already have one for, is asked for a password it never got, and fails.
+                                // Bring the saved profile up by name (NM calls it "SSID 1") and only fall
+                                // back to a fresh connect when there is no profile.
                                 onNodeActivated: function(id) {
                                     Quickshell.execDetached(["sh", "-c",
                                         'ssid="$1"; prof=$(nmcli -t -f NAME,TYPE connection show | while IFS=: read -r n t; do [ "$t" = 802-11-wireless ] || continue; s=$(nmcli -g 802-11-wireless.ssid connection show "$n"); if [ "$s" = "$ssid" ]; then printf %s "$n"; break; fi; done); if [ -n "$prof" ]; then nmcli connection up id "$prof"; else nmcli device wifi connect "$ssid"; fi',
@@ -455,6 +474,15 @@ PanelWindow {
                                 }
                             }
 
+                            // Whoever closes the dialog -- the button, Escape, a click on
+                            // the dark -- means the same thing: nothing was asked of that
+                            // network after all, so it stops being the armed one.
+                            Connections {
+                                target: root
+                                function onShowConnectDialogChanged() {
+                                    if (!root.showConnectDialog) graph.disarm()
+                                }
+                            }
 
                             // The password lives in the card, not in a second one on top of
                             // it: a stranger you are joining is still on the ring behind
@@ -664,11 +692,9 @@ PanelWindow {
                                 readonly property var linked: ethGraph.ports.find(p => p.up) || null
 
                                 hubActive: ethGraph.linked !== null
-                                // The chip wears `lan` and the interface name when the
-                                // cable is what is carrying you, so the hub wears them
-                                // too and the piece has somewhere to land; it was showing
-                                // `settings_ethernet` and the profile name, which are both
-                                // different strings. The profile moves to the sub-line.
+                                // The chip wears `lan` and the interface name when the cable is carrying
+                                // you, so the hub wears them too and the flown piece has somewhere to
+                                // land. The profile name moves to the sub-line.
                                 hubGlyph: "\ueb2f"
                                 hubLabel: ethGraph.linked ? ethGraph.linked.dev : "No cable"
                                 hubSub: ethGraph.linked ? ethGraph.linked.conn : ""

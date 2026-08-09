@@ -3,10 +3,8 @@ import QtQuick
 import "root:/services" as Services
 
 // The system pill is a strip of chips and nothing else. Each one is a
-// SystemChip: what it shows and what a click does live here, how it looks and
-// behaves lives there. It used to be six near-identical forty-line blocks in
-// this file, so every tweak had to be made six times and half the bugs were one
-// of the copies drifting from the others.
+// SystemChip: what it shows and what a click does live here, how it looks
+// and behaves lives there.
 Rectangle {
     id: root
     // Hidden from Settings > Bar > Pills
@@ -45,11 +43,9 @@ Rectangle {
             active: Services.Network.online || Services.Network.wifiEnabled
             open: Services.AppState.networkVisible
             glyph: Services.Network.wifiSsid !== "" ? (Services.Network.wifiSignal >= 75 ? "\ue1ba" : Services.Network.wifiSignal >= 50 ? "\uebe1" : Services.Network.wifiSignal >= 25 ? "\uebd6" : "\uebe4") : (Services.Network.ethConnection !== "" ? "\ueb2f" : (Services.Network.wifiEnabled ? "\ueb31" : "\ue1da"))
-            // "On" and "Off" said whether a switch was thrown, which is the one
-            // thing you can already see from the fill. These say what the radio
-            // is doing instead. Note that with the radio simply on, Wi-Fi is not
-            // literally scanning the whole time — NetworkManager sweeps every so
-            // often — so "Searching" is the intent, not a live state.
+            // These say what the radio is DOING; "On"/"Off" only repeated what the
+            // fill already shows. With the radio simply on, NetworkManager sweeps every
+            // so often, so "Searching" is the intent, not a live state.
             label: Services.Network.wifiSsid !== "" ? Services.Network.wifiSsid
                  : (Services.Network.ethConnection !== "" ? Services.Network.ethDevice
                  : (Services.Network.wifiEnabled ? "Searching" : "Disabled"))

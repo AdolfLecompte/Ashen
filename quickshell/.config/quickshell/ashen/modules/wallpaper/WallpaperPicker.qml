@@ -429,12 +429,9 @@ Scope {
                                 required property int index
                                 property bool isCurrent: index === win.currentIndex
 
-                                // How far this card is from the middle of the
-                                // view, in cards, read off the LIVE scroll
-                                // position rather than off the index. Index
-                                // distance is a whole number, so the cards used
-                                // to jump a step at a time no matter how slowly
-                                // you dragged; this follows your finger.
+                                // Distance from the middle in cards, off the LIVE scroll position rather
+                                // than the index: index distance is a whole number, so the cards jumped a
+                                // step at a time however slowly you dragged.
                                 readonly property real dist:
                                     (slot.x + win.cardW / 2 - view.contentX - view.width / 2) / win.cardW
                                 // 1 dead centre, 0 two cards out. Falls off fast

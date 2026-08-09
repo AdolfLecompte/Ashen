@@ -53,7 +53,7 @@ Rectangle {
     gradient: Services.Prefs.useGradients && (root.anyMounted) ? Services.Colors.accentGradient : null
     border.width: 0
     width: root.vertical ? Services.Sizes.pillH : (root.present ? icon.implicitWidth + 24 : 0)
-    opacity: (root.takenOver && Services.Prefs.panelStyle === "morph") ? 0.0 : (root.present ? 1.0 : 0.0)
+    opacity: (root.takenOver && Services.Pills.wearsFace) ? 0.0 : (root.present ? 1.0 : 0.0)
     // Hidden from Settings > Bar > Pills. `visible` keys on the device being
     // there, not on opacity: while the pill is handed over to its panel it is
     // transparent but must keep its slot, or the strip closes the gap and the

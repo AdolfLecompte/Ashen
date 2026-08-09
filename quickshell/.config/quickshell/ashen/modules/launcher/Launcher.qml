@@ -113,13 +113,9 @@ Scope {
         Process {
             id: appLoader
             command: ["sh", "-c",
-                // walk XDG_DATA_HOME + XDG_DATA_DIRS instead of hardcoding two paths:
-                // flatpak exports its .desktop files under /var/lib/flatpak/exports/share
-                // (and ~/.local/share/flatpak/... for user installs), which are in
-                // XDG_DATA_DIRS but were invisible to the old find.
-                // Read the paths line by line: Steam's shortcuts have spaces in
-                // their filenames ("Gun Devil.desktop") and $(find) would split them.
-                // Earlier dirs win, per the XDG spec, so dedupe by desktop id.
+                // Walk XDG_DATA_HOME + XDG_DATA_DIRS, not two hardcoded paths: flatpak
+                // exports under dirs the old find never saw. Line by line, because Steam's
+                // shortcuts have spaces; deduped by desktop id, earlier dirs winning.
                 "seen=''; for d in \"${XDG_DATA_HOME:-$HOME/.local/share}\" $(echo \"${XDG_DATA_DIRS:-/usr/local/share:/usr/share}\" | tr ':' ' '); do [ -d \"$d/applications\" ] || continue; find \"$d/applications\" -name '*.desktop' 2>/dev/null; done | while IFS= read -r f; do id=${f##*/}; case \" $seen \" in *\" $id \"*) continue ;; esac; seen=\"$seen $id\"; echo '---'; grep -E '^(Name|Comment|Exec|Icon|Categories|NoDisplay)=' \"$f\" 2>/dev/null; done"
             ]
             running: false

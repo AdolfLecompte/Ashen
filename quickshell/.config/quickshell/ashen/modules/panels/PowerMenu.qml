@@ -63,12 +63,18 @@ PanelWindow {
         pillColor: Services.Colors.surfacePill
         pillGlyph: Services.AppState.pillGlyph("power")
 
-        readonly property int tileW: 160
-        readonly property int tileH: 172
-        readonly property int gap: 14
-        readonly property int pad: 24
+        // Square tiles standing on their own: no card around them, because the
+        // four ways out are four things, not one panel with things in it.
+        readonly property int tileW: 190
+        readonly property int tileH: 190
+        readonly property int gap: 16
+        // The card is invisible but still CLIPS: with no padding the hover
+        // growth got sliced off at the edge tiles. This is room to breathe in,
+        // not a margin you can see.
+        readonly property int pad: 16
         openW: 4 * tileW + 3 * gap + pad * 2
         openH: tileH + pad * 2
+        cardColor: "transparent"
         // Centred whichever way it arrives: it is the most consequential thing
         // in the shell and should not be read out of the corner of your eye.
         openXOverride: (root.width - host.openW) / 2
@@ -86,8 +92,16 @@ PanelWindow {
                     return Math.max(0, Math.min(1, (host.contentAmt - start) / (1 - start)))
                 }
 
+                // What the pointer is on. The tiles carry no words of their own:
+                // an icon the size of a fist is the thing you press, and the
+                // name belongs where it cannot make four tiles into a paragraph.
+                property string hovered: ""
+
                 Row {
-                    anchors.centerIn: parent
+                    id: tileRow
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: host.pad
                     spacing: host.gap
 
                     Repeater {
@@ -170,8 +184,14 @@ PanelWindow {
                                         ctx.closePath()
                                     }
 
+                                    // The tiles stand alone now, so each one is
+                                    // its own capsule: the flat dark surface,
+                                    // not a translucent one. Every plate tone in
+                                    // Colors carries alpha, and four of them
+                                    // floating over a wallpaper with no panel
+                                    // behind read as smudges rather than tiles.
                                     shape()
-                                    ctx.fillStyle = Services.Colors.fillInset
+                                    ctx.fillStyle = Services.Colors.surface
                                     ctx.fill()
 
                                     if (tile.holdAmt <= 0.001) return
@@ -197,32 +217,42 @@ PanelWindow {
                             // take whichever of black and white reads on it.
                             readonly property bool onAccent: tile.holdAmt > 0.5
 
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: 12
+                            // The icon lifts a little to make room the moment the
+                            // name arrives, so nothing on the tile ever moves
+                            // except at the one instant you are looking at it.
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.verticalCenterOffset: hover.containsMouse ? -14 : 0
+                                Behavior on anchors.verticalCenterOffset {
+                                    NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut }
+                                }
                                 z: 1
+                                text: tile.modelData.icon
+                                color: tile.onAccent
+                                    ? Services.Colors.accentText
+                                    : (hover.containsMouse ? Services.Colors.snow : Services.Colors.ghost)
+                                font.pixelSize: 68
+                                font.family: "Material Symbols Rounded"
+                                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                            }
 
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: tile.modelData.icon
-                                    color: tile.onAccent
-                                        ? Services.Colors.accentText
-                                        : (hover.containsMouse ? Services.Colors.snow : Services.Colors.ghost)
-                                    font.pixelSize: 40
-                                    font.family: "Material Symbols Rounded"
-                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                                }
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: tile.modelData.label
-                                    color: tile.onAccent
-                                        ? Services.Colors.accentText
-                                        : (hover.containsMouse ? Services.Colors.snow : Services.Colors.mist)
-                                    font.pixelSize: Services.Sizes.fsCardTitle
-                                    font.bold: true
-                                    font.family: "JetBrainsMono NF"
-                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                                }
+                            // Its own name, on its own tile: which one you are
+                            // about to press is a question about THIS tile, and
+                            // the answer belongs where you are looking.
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: 22
+                                z: 1
+                                text: tile.modelData.label
+                                color: tile.onAccent ? Services.Colors.accentText : Services.Colors.snow
+                                font.pixelSize: Services.Sizes.fsCardTitle
+                                font.bold: true
+                                font.family: "JetBrainsMono NF"
+                                opacity: hover.containsMouse ? 1 : 0
+                                Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
+                                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                             }
 
                             MouseArea {

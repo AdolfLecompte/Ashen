@@ -158,12 +158,9 @@ Scope {
             onClicked: Services.AppState.clipboardVisible = false
         }
 
-        // Same drop as Process and the bar's own panels: it grows out of the
-        // clipboard chip on the utility pill, which can be on any of the three
-        // edges the bar is not using.
-        // Live from the pill, not a value written when something was clicked:
-    // a keybind never clicks, and the panel used to grow from wherever the
-    // last click had left the numbers.
+        // Same drop as Process, out of the clipboard chip on the utility pill.
+        // Read live from the pill, never written at click time: a keybind never
+        // clicks, and the panel used to grow from wherever the last click left.
         readonly property string srcEdge: Services.AppState.clipboardSourceEdge
     // Its chip: on the utility pill of that edge, or on the bar.
     readonly property var chipRect: Services.AppState.chipRectOf("clipboard", win.srcEdge)
@@ -553,12 +550,16 @@ Scope {
                                         }
 
                                         Widgets.IconButton {
+                                            id: tileDel
                                             anchors.top: parent.top
                                             anchors.right: parent.right
                                             anchors.margins: 8
                                             size: 24
                                             glyph: "\ue5cd"
-                                            opacity: tileHover.containsMouse ? 1 : 0
+                                            // Its own hover counts: the button covers
+                                            // the tile's MouseArea, so reaching for it
+                                            // used to make it fade away.
+                                            opacity: tileHover.containsMouse || tileDel.hovered ? 1 : 0
                                             visible: opacity > 0.01
                                             Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
                                             onActivated: win.deleteEntry(modelData)

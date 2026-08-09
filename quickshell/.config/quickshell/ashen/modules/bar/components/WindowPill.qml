@@ -4,13 +4,10 @@ import QtQuick
 
 import "root:/services" as Services
 
-// What you are actually looking at. The bar could tell you the time, the
-// weather, five workspaces and the state of four radios, but not the name of
-// the window in front of you.
-//
-// It is a readout, not a button: nothing here opens, so it does not grow under
-// the pointer and takes no clicks. The rest of the strip stays clickable
-// through it.
+// What you are actually looking at: the bar could tell you the time, the
+// weather and the state of four radios, but not the name of the window in
+// front of you. A readout, not a button -- it does not grow under the pointer
+// and takes no clicks, so the strip stays clickable through it.
 Rectangle {
     id: root
     // Hidden from Settings > Bar > Pills

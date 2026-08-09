@@ -412,6 +412,12 @@ Scope {
         property int clearDelay: 0
         property bool clearing: false
 
+        // Is the pointer anywhere in this row, its buttons included. A child
+        // MouseArea takes hover off the one underneath it, so the row cannot
+        // ask its own MouseArea: a HoverHandler still sees the pointer while
+        // it is over the × or an action button.
+        readonly property alias pointed: rowPointer.hovered
+
         readonly property bool isSystem: entry.source === "system"
         readonly property bool unread: entry.read === false
         // The buttons the sender offered, minus the one the row itself is.
@@ -441,7 +447,7 @@ Scope {
             anchors.fill: parent
             radius: 12
             color: row.isSystem ? "transparent"
-                                : Services.Colors.ghostAlpha(rowHover.containsMouse ? 0.14 : 0.08)
+                                : Services.Colors.ghostAlpha(row.pointed ? 0.14 : 0.08)
             Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
             transform: Translate { id: rowSlide }
             clip: true
@@ -449,6 +455,8 @@ Scope {
             // Clicking a row goes where the notification points, the same as
             // clicking its toast did. It only reported hover before, so a
             // notification you had already let expire was a dead end.
+            HoverHandler { id: rowPointer }
+
             MouseArea {
                 id: rowHover
                 anchors.fill: parent
@@ -607,7 +615,15 @@ Scope {
                 anchors.margins: 8
                 size: 24
                 glyph: ""
-                opacity: rowHover.containsMouse ? 1 : 0
+                // Its own hover counts too: the button sits ON TOP of the row's
+                // MouseArea, so reaching for it took the hover off the row and
+                // it faded out from under the pointer. That is what
+                // IconButton.hovered is for.
+                opacity: row.pointed ? 1 : 0
+                // Faded out is not gone: at opacity 0 it still swallowed the
+                // clicks in that corner, so the top-right of every row
+                // dismissed the notice instead of opening it.
+                visible: opacity > 0.01
                 Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
                 onActivated: win.removeRow(row.entry.id)
             }

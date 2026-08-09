@@ -27,10 +27,12 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         text: "\uE9B0"
-        // Dark only on the accent fill. The hover plate is a surface tone, so
-        // the glyph lifts to snow on it the same way it does at rest.
+        // Dark only on the accent fill; on the hover plate, which is a surface
+        // tone, the glyph lifts to snow. At rest it is `mist` like the pills
+        // beside it -- the accent reads as "this one is on", and a pill that is
+        // merely there must not wear it.
         color: root.active ? Services.Colors.accentText
-             : hover.containsMouse ? Services.Colors.snow : Services.Colors.ghost
+             : hover.containsMouse ? Services.Colors.snow : Services.Colors.mist
         font.pixelSize: 22
         font.family: "Material Symbols Rounded"
         Behavior on color { ColorAnimation { duration: Services.Sizes.msStandard } }
