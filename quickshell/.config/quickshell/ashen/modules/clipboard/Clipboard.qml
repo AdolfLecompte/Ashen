@@ -132,8 +132,8 @@ Scope {
         function moveSelection(dir) {
             if (filtered.length === 0) return
             selectedIndex = Math.max(0, Math.min(filtered.length - 1, selectedIndex + dir))
-            if (win.onImages) imageGrid.positionViewAtIndex(selectedIndex, GridView.Contain)
-            else textList.positionViewAtIndex(selectedIndex, ListView.Contain)
+            const view = win.onImages ? imageGrid : textGrid
+            view.positionViewAtIndex(selectedIndex, GridView.Contain)
         }
 
         function setTab(name) {
@@ -203,9 +203,11 @@ Scope {
                     ? Services.Colors.accentText
                     : (tabHover.containsMouse ? Services.Colors.snow : Services.Colors.mist)
 
-                height: 38
+                height: 34
+                implicitWidth: tabInner.implicitWidth + 24
 
                 RowLayout {
+                    id: tabInner
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
@@ -223,7 +225,6 @@ Scope {
                         font.pixelSize: Services.Sizes.fsBody
                         font.bold: true
                         font.family: "JetBrainsMono NF"
-                        Layout.fillWidth: true
                         Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                     }
                     Text {
@@ -253,44 +254,56 @@ Scope {
                     // What takes the keyboard once the card is on screen.
                     readonly property Item focusItem: searchField
 
-                    RowLayout {
+                    ColumnLayout {
                         anchors.fill: parent
                         anchors.margins: 18
-                        spacing: 16
+                        spacing: 12
 
-                        // ── Left: what you are looking at ──────────────────
-                        ColumnLayout {
-                            Layout.fillWidth: false
-                            Layout.preferredWidth: 200
-                            Layout.fillHeight: true
+                        // ── Top: what you are looking at, and what you are
+                        // looking for. The two tabs used to own a 200 px column
+                        // whose bottom half was a hole; up here they cost a
+                        // pill's width and the entries get the whole card.
+                        RowLayout {
+                            Layout.fillWidth: true
                             spacing: 12
 
-                            // The travelling accent sits behind whichever tab is on.
-                            Item {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 38 * 2 + 2
+                            Rectangle {
+                                id: tabsPill
+                                Layout.preferredWidth: tabsRow.implicitWidth + 8
+                                Layout.preferredHeight: 42
+                                radius: 12
+                                color: Services.Colors.surfacePill
 
+                                // One accent for both tabs, and it travels. See
+                                // docs/DESIGN.md.
                                 Rectangle {
-                                    width: parent.width
-                                    height: 38
+                                    x: (win.onImages ? textTab.width + tabsRow.spacing : 0) + 4
+                                    y: 4
+                                    width: win.onImages ? imagesTab.width : textTab.width
+                                    height: parent.height - 8
                                     radius: Services.Sizes.innerR
                                     color: Services.Colors.ghost
                                     gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                                    y: win.onImages ? 40 : 0
-                                    Behavior on y { SmoothedAnimation { duration: Services.Sizes.msPronounced } }
+                                    Behavior on x { NumberAnimation { duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
+                                    Behavior on width { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
                                 }
 
-                                Column {
-                                    anchors.fill: parent
+                                Row {
+                                    id: tabsRow
+                                    x: 4
+                                    y: 4
+                                    height: parent.height - 8
                                     spacing: 2
                                     TabRow {
-                                        width: parent.width
+                                        id: textTab
+                                        anchors.verticalCenter: parent.verticalCenter
                                         name: "Text"
                                         glyph: "\ue14d"
                                         count: win.textCount
                                     }
                                     TabRow {
-                                        width: parent.width
+                                        id: imagesTab
+                                        anchors.verticalCenter: parent.verticalCenter
                                         name: "Images"
                                         glyph: "\ue3f4"
                                         count: win.imageCount
@@ -298,57 +311,8 @@ Scope {
                                 }
                             }
 
-                            Item { Layout.fillHeight: true }
-
-                            // Wipe: a named button down here rather than a bare icon
-                            // wedged into the tab row, where nothing said what it did.
                             Rectangle {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 38
-                                radius: 12
-                                color: wipeHover.containsMouse ? Services.Colors.ghostAlpha(0.22)
-                                                               : Services.Colors.ghostAlpha(0.06)
-                                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-
-                                RowLayout {
-                                    anchors.centerIn: parent
-                                    spacing: 8
-                                    Text {
-                                        text: "\ue0b8"
-                                        color: wipeHover.containsMouse ? Services.Colors.snow : Services.Colors.mist
-                                        font.pixelSize: 16
-                                        font.family: "Material Symbols Rounded"
-                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                                    }
-                                    Text {
-                                        text: "Clear all"
-                                        color: wipeHover.containsMouse ? Services.Colors.snow : Services.Colors.mist
-                                        font.pixelSize: 11
-                                        font.bold: true
-                                        font.family: "JetBrainsMono NF"
-                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: wipeHover
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: wipeProc.running = true
-                                }
-                            }
-                        }
-
-                        // ── Right: the entries themselves ──────────────────
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            spacing: 12
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: false
                                 Layout.preferredHeight: 42
                                 radius: 12
                                 color: Services.Colors.ghostAlpha(0.1)
@@ -392,10 +356,10 @@ Scope {
                                             // On the grid the arrows have to move by a
                                             // row, not by one tile, or the selection
                                             // crawls sideways through the whole page.
-                                            Keys.onUpPressed: win.moveSelection(win.onImages ? -win.gridCols : -1)
-                                            Keys.onDownPressed: win.moveSelection(win.onImages ? win.gridCols : 1)
-                                            Keys.onLeftPressed: if (win.onImages) win.moveSelection(-1)
-                                            Keys.onRightPressed: if (win.onImages) win.moveSelection(1)
+                                            Keys.onUpPressed: win.moveSelection(-win.gridCols)
+                                            Keys.onDownPressed: win.moveSelection(win.gridCols)
+                                            Keys.onLeftPressed: win.moveSelection(-1)
+                                            Keys.onRightPressed: win.moveSelection(1)
                                         }
                                     }
                                     Text {
@@ -407,6 +371,35 @@ Scope {
                                 }
                             }
 
+                            // Wipe: the far end of the same bar, where a
+                            // destructive button is out of the way of the tabs
+                            // you are actually aiming at.
+                            Rectangle {
+                                Layout.preferredWidth: 42
+                                Layout.preferredHeight: 42
+                                radius: 12
+                                color: wipeHover.containsMouse ? Services.Colors.ghostAlpha(0.22)
+                                                               : Services.Colors.ghostAlpha(0.06)
+                                Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "\ue0b8"
+                                    color: wipeHover.containsMouse ? Services.Colors.snow : Services.Colors.mist
+                                    font.pixelSize: 18
+                                    font.family: "Material Symbols Rounded"
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                }
+
+                                MouseArea {
+                                    id: wipeHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: wipeProc.running = true
+                                }
+                            }
+                        }
                             // Nothing to show: say so rather than leaving a hole where
                             // the list would be.
                             Text {
@@ -422,71 +415,74 @@ Scope {
                                 verticalAlignment: Text.AlignVCenter
                             }
 
-                            // ── Text: one row each ─────────────────────
-                            ListView {
-                                id: textList
+                            // ── Text: the same wall the captures get ───
+                            // A row 900 px wide held one elided line and a lot
+                            // of nothing; a tile holds the first few lines,
+                            // which is what you are scanning for.
+                            GridView {
+                                id: textGrid
                                 opacity: win.listOpacity
                                 transform: Translate { x: listSlide.offX }
                                 visible: !win.onImages && win.filtered.length > 0
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 model: win.onImages ? [] : win.filtered
-                                spacing: 4
+                                cellWidth: width / win.gridCols
+                                cellHeight: 132
                                 clip: true
                                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded; width: 4 }
 
-                                delegate: Rectangle {
+                                delegate: Item {
                                     required property var modelData
                                     required property int index
-                                    width: textList.width
-                                    height: 46
-                                    radius: 10
-                                    color: index === win.selectedIndex ? Services.Colors.ghostAlpha(0.2)
-                                                                       : Services.Colors.ghostAlpha(0.06)
-                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msInstant } }
+                                    width: textGrid.cellWidth
+                                    height: textGrid.cellHeight
 
-                                    RowLayout {
+                                    Rectangle {
                                         anchors.fill: parent
-                                        anchors.leftMargin: 12
-                                        anchors.rightMargin: 8
-                                        spacing: 10
+                                        anchors.margins: 4
+                                        radius: 12
+                                        color: index === win.selectedIndex ? Services.Colors.ghostAlpha(0.2)
+                                                                           : Services.Colors.ghostAlpha(0.06)
+                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msInstant } }
 
                                         Text {
-                                            text: "\ue14d"
-                                            color: Services.Colors.ghost
-                                            font.pixelSize: 16
-                                            font.family: "Material Symbols Rounded"
-                                        }
-                                        Text {
-                                            Layout.fillWidth: true
+                                            anchors.fill: parent
+                                            anchors.margins: 12
+                                            anchors.rightMargin: 14
                                             text: modelData.preview
                                             color: Services.Colors.snow
                                             font.pixelSize: 11
                                             font.family: "JetBrainsMono NF"
+                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                                             elide: Text.ElideRight
+                                            maximumLineCount: 5
+                                            lineHeight: 1.2
                                         }
+
                                         Widgets.IconButton {
-                                            id: rowDel
+                                            id: tileDel
                                             size: 24
                                             glyph: "\ue5cd"
-                                            // Only on the row under the pointer. Filled
-                                            // plates down every line at once read as a
-                                            // column of buttons rather than as a list.
-                                            opacity: rowHover.containsMouse || rowDel.hovered ? 1 : 0
+                                            anchors.right: parent.right
+                                            anchors.top: parent.top
+                                            anchors.margins: 4
+                                            // Only on the tile under the pointer.
+                                            opacity: tileHover.containsMouse || tileDel.hovered ? 1 : 0
                                             visible: opacity > 0.01
                                             Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
                                             onActivated: win.deleteEntry(modelData)
                                         }
-                                    }
 
-                                    MouseArea {
-                                        id: rowHover
-                                        anchors.fill: parent
-                                        z: -1
-                                        cursorShape: Qt.PointingHandCursor
-                                        hoverEnabled: true
-                                        onEntered: win.selectedIndex = index
-                                        onClicked: win.copySelected()
+                                        MouseArea {
+                                            id: tileHover
+                                            anchors.fill: parent
+                                            z: -1
+                                            cursorShape: Qt.PointingHandCursor
+                                            hoverEnabled: true
+                                            onEntered: win.selectedIndex = index
+                                            onClicked: win.copySelected()
+                                        }
                                     }
                                 }
                             }
@@ -577,7 +573,6 @@ Scope {
                                     }
                                 }
                             }
-                        }
                     }
                 }
             }
