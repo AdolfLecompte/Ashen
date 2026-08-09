@@ -2,11 +2,9 @@ import QtQuick
 import "root:/services" as Services
 
 // A transport button wearing the workspace strip's clothes: same square, same
-// corner ratio, same two states. A dim plate means "here, but idle"; a lit one
-// means "this is the one" — hovered, or currently on.
-//
-// Used at three sizes (bar pill, expanded card, and the flying copy that
-// travels between them), so every metric comes off `size`.
+// corner ratio, same two states. A dim plate is "here, but idle", a lit one is
+// "this is the one". Used at three sizes -- bar pill, expanded card, and the
+// copy that flies between them -- so every metric comes off `size`.
 Rectangle {
     id: chip
 

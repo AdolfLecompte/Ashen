@@ -330,7 +330,11 @@ Item {
 
         // Bare card between the two ends. Callers whose ends move fade the
         // line out on this rather than draw it inside a node.
-        readonly property real clearance: len - fromTrim - Math.max(toHW, toHH)
+        // Measured against the side the run actually arrives at: taking the
+        // larger half-size charged a 150-wide node's WIDTH against a drop that
+        // only has to clear its 48 of height, so the wire to the top and bottom
+        // slots was always declared not to fit and never drew.
+        readonly property real clearance: len - fromTrim - (vertical ? toHH : toHW)
 
         ShapePath {
             strokeColor: w.lit ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.4)

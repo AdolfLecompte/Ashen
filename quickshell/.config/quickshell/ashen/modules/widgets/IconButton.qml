@@ -2,15 +2,9 @@ import QtQuick
 
 import "root:/services" as Services
 
-// The small square button, everywhere. Close a panel, dismiss a notification,
-// delete a row, step a value, toggle do-not-disturb: one component, one look.
-//
-// There used to be six of these -- IconBtn, CloseBtn, StepBtn, DeleteBtn and
-// two inline copies -- at six sides (22, 24, 26, 28, 30, 32), five hover
-// opacities and four glyph sizes. None of the differences meant anything.
-//
-// It is always a filled plate, never transparent-until-touched: a control you
-// have to hunt for is a control that reads as decoration. See docs/DESIGN.md.
+// The small square button, everywhere: close, dismiss, delete, step, toggle.
+// Always a filled plate, never transparent-until-touched -- a control you have
+// to hunt for reads as decoration. See docs/DESIGN.md.
 Rectangle {
     id: btn
 

@@ -2,13 +2,10 @@ import QtQuick
 
 import "root:/services" as Services
 
-// Arrival for a panel with no pill to grow out of. It appears where it lives,
-// already its own size, and unfolds from its centre: fade in, box out to full,
-// then the contents assemble. Closing runs it backwards -- contents out, box
-// contracts, fade.
-//
-// Publishes numbers only, so panels with different layouts share one arrival.
-// See DropCard for the version that grows out of a chip.
+// Arrival for a panel with no pill to grow out of: it appears where it lives,
+// already its own size, and unfolds from its centre -- fade, box out, contents
+// assemble -- and runs backwards to close. Publishes numbers only, so panels
+// with different layouts share one arrival. See DropCard for the pill version.
 Item {
     id: root
 

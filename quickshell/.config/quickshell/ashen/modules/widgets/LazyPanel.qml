@@ -1,12 +1,10 @@
 import Quickshell
 import QtQuick
 
-// Host for a panel that must not be built during startup.
-//
-// The panel is loaded asynchronously a moment after the shell is up and then
-// stays loaded. Loading it on first open instead looked wrong: the window was
-// created already open, so its grow-out-of-the-pill animation had nothing to
-// play and only the fade was left.
+// Host for a panel that must not be built during startup: loaded asynchronously
+// a moment after the shell is up, and then it stays. Loading on first open
+// looked wrong -- the window was created already open, so the grow-out-of-the-
+// pill animation had nothing to play and only the fade was left.
 Scope {
     id: root
 

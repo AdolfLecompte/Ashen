@@ -2,14 +2,10 @@ import QtQuick
 
 import "root:/services" as Services
 
-// Changing section slides, the way you push one photo aside to see the next:
-// what is on screen leaves towards the side you came from and the new one
-// arrives from the side you went to. Horizontal selector, horizontal slide;
-// a rail down the side moves things up and down instead.
-//
-// Publishes numbers only. The panel binds its body to `offset` and `fade`, and
-// swaps what it is showing when `commit` fires -- halfway, while nothing is
-// legible, so the contents never change under a body you can read.
+// Changing section slides in the direction you moved: out towards where you
+// came from, in from where you went. Publishes numbers only -- the panel binds
+// `offset` and `fade`, and swaps what it shows on `commit`: halfway, while
+// nothing is legible.
 Item {
     id: root
 

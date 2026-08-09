@@ -3,15 +3,9 @@ import QtQuick
 import "root:/services" as Services
 
 // A reading in a ring: the number in the middle, the level around the rim.
-// Volume, brightness and battery all say the same kind of thing -- one value
-// between nothing and full -- so they say it the same way and only the glyph
-// and the colour differ.
-//
-// The centre is laid out on FIXED slots, never a Column that packs to its
-// contents. Text in there changes size and length as the state changes ("62%"
-// becoming "Muted", 9% becoming 100%), and a packing layout moves everything
-// else on the dial every time it does. This is the whole reason the volume
-// panel came apart when it was muted.
+// Volume, brightness and battery all say the same kind of thing, so they say it
+// the same way. The centre sits on FIXED slots, never a packing Column: text in
+// there changes length ("62%" -> "Muted") and would shove the rest of the dial.
 Item {
     id: root
 
@@ -37,8 +31,13 @@ Item {
     // The vessel fills with liquid as well as stroking its rim; the ring on
     // its own said the same thing twice as quietly.
     property bool liquid: true
-    property real liquidAlpha: 0.28
     property color fillColor: Services.Colors.ghost
+    // The liquid is the accent itself, solid: not a veil, not a mix towards the
+    // surface. Anything under it is re-inked by `Submerged`, so it can be the
+    // full tone without costing the reading its contrast.
+    readonly property color liquidColor: root.fillColor
+    // What can be read once that colour is covering a letter.
+    readonly property color liquidInk: Services.Colors.onColor(root.liquidColor)
     property color trackColor: Services.Colors.ghostAlpha(0.14)
     // The ring breathes: for something that is still happening (charging), not
     // for something that merely is. Opacity on a second canvas, so the pulse
@@ -147,14 +146,16 @@ Item {
 
     // Inside the ring, not under it: the rim stays legible at any level.
     LiquidFill {
+        id: liquidFill
         anchors.fill: parent
         visible: root.liquid && root.armed
         running: root.liquid && root.armed && root.visible
         level: root.frac
         inset: root.lw + 3
-        waveAmp: Math.max(2, root.size * 0.028)
-        color_: Qt.rgba(root.fillColor.r, root.fillColor.g,
-                        root.fillColor.b, root.liquidAlpha)
+        waveAmp: Math.max(2.5, root.size * 0.032)
+        color_: root.liquidColor
+        // Doubles as the mask for the submerged half of the centre.
+        layer.enabled: true
     }
 
     Canvas {
@@ -176,6 +177,12 @@ Item {
     }
 
     // ── The fixed centre ───────────────────────────────────────────────────
+    // Wrapped in a layer the size of the dial so the submerged copy and the
+    // liquid that masks it are measured against the same rect.
+    Item {
+        id: centre
+        anchors.fill: parent
+
     Item {
         id: stack
         anchors.centerIn: parent
@@ -229,6 +236,17 @@ Item {
             opacity: root.caption === "" ? 0 : 1
             Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
         }
+    }
+    }
+
+    // The half of the centre the liquid has reached, re-inked so the reading
+    // meets its own level instead of floating over it.
+    Submerged {
+        anchors.fill: parent
+        visible: root.liquid && root.armed
+        source: centre
+        mask: liquidFill
+        ink: root.liquidInk
     }
 
     MouseArea {

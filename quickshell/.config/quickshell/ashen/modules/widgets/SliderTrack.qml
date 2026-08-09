@@ -2,17 +2,10 @@ import Quickshell
 import QtQuick
 import "root:/services" as Services
 
-// The one slider in the shell: settings rows, the volume pill, the mic pill and
-// the brightness pill all use this, so drag behaviour cannot drift between them.
-//
-// Three things it has to get right, all of which were wrong somewhere before:
-//   1. Writing on every mouse event spawns ~60-120 processes/sec while dragging.
-//      Coalesced to one write per `writeInterval` (leading edge + trailing).
-//   2. The services poll (Audio 1s, Brightness 1.5s), so following `value`
-//      directly makes the knob crawl a second behind the cursor. While dragging
-//      the local position wins.
-//   3. Dropping the local value the instant the mouse is released snaps the knob
-//      back to the stale poll. It is held until the service agrees (or times out).
+// The one slider in the shell, so drag behaviour cannot drift between
+// callers. Three things it has to get right: coalesce writes to one per
+// `writeInterval`, let the local position win while dragging, and hold it
+// after release until the service agrees.
 Item {
     id: root
 

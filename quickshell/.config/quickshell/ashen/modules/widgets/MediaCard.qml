@@ -5,17 +5,10 @@ import QtQuick
 import QtQuick.Layouts
 import "root:/services" as Services
 
-// The "now playing" card, in one place. The bar's media panel and the lock
-// screen both draw this exact item — the panel wraps it in the blob it morphs
-// out of its pill, the lock screen just puts a plate behind it.
-//
-// Content only, no background: whoever mounts it owns the surface it sits on.
-// `pad` is the padding that background is expected to leave, so both callers
-// end up the same size.
-//
-// The cover sets the height and nothing is allowed past it: text hangs off the
-// top edge, transport off the bottom, the way the lock screen's name and
-// password sit either side of the avatar.
+// The "now playing" card, in one place: the bar's media panel morphs into this
+// item and the lock screen mounts the same one. Content only, no background;
+// `pad` is what the caller's plate leaves. The cover sets the height and
+// nothing is allowed past it.
 Item {
     id: root
 
@@ -34,10 +27,9 @@ Item {
     height: implicitHeight
 
     // ── Morph support ───────────────────────────────────────────────────
-    // The media panel flies its own copies of the cover, the title, the two
-    // times and the three transport chips in from the bar pill. With this on,
-    // those pieces are still laid out (they are what the flying copies aim
-    // at) but neither drawn nor clickable. Off, this is just the whole card.
+    // With this on, the pieces the media panel flies in from the pill are still
+    // laid out (they are what the copies aim at) but neither drawn nor
+    // clickable. Off, this is just the whole card.
     property bool ghostShared: false
     readonly property real sharedOpacity: ghostShared ? 0 : 1
 

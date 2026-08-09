@@ -33,7 +33,7 @@ Scope {
         active: uc.open
         // Opacity, not visible: hidden would drop it from the Grid and shove
         // its neighbours sideways mid-animation.
-        opacity: (takenOver && Services.Prefs.panelStyle === "morph") ? 0.0 : 1.0
+        opacity: (takenOver && Services.Pills.wearsFace) ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
 
         onOpenChanged: {

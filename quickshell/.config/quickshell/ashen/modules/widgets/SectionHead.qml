@@ -3,11 +3,9 @@ import QtQuick.Layouts
 
 import "root:/services" as Services
 
-// The title a panel column opens with: icon in a soft box, name, and a line of
-// detail under it. Both columns of a two-column panel wear one, which is what
-// makes the two read as halves of one thing rather than two panels side by
-// side -- and it is the thing the utility pill's chip flies its icon into, so
-// the panel reads as the chip unfolded.
+// The title a panel column opens with: icon in a soft box, name, detail
+// under it. Both columns of a two-column panel wear one, and it is what
+// the utility pill's chip flies its icon into.
 RowLayout {
     id: sh
 

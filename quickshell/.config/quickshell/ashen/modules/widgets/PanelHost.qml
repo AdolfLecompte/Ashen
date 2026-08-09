@@ -2,14 +2,10 @@ import QtQuick
 
 import "root:/services" as Services
 
-// Picks how a panel arrives. If its pill is placed somewhere you can see --
-// on the bar or on the utility pill -- the panel grows out of it (DropCard).
-// If the pill is hidden there is nothing to grow from, so it unfolds where it
-// lives instead (ArriveCard).
-//
-// The panel writes its contents once, as `body`, and this hands them to
-// whichever card is in charge. A body may publish `glyphTarget` / `labelTarget`
-// on its root for the pieces that fly out of the chip.
+// Picks how a panel arrives: out of its pill when that pill is on screen
+// (DropCard), unfolding where it lives when it is not (ArriveCard). The panel
+// writes its contents once as `body`, which may publish glyphTarget /
+// labelTarget for the pieces that fly out of the chip.
 Item {
     id: host
     anchors.fill: parent
@@ -24,7 +20,10 @@ Item {
     readonly property bool hasPill: pillKey !== ""
         && (Services.Pills.isTool(pillKey) || Services.Prefs.pillVisible(pillKey))
     // …and should it transform out of it, or just appear where it would have?
-    readonly property bool fromPill: hasPill && Services.Prefs.panelStyle === "morph"
+    readonly property bool fromPill: hasPill && Services.Pills.wearsFace
+    // Is the capsule's face on this card right now? What a chip asks before it
+    // steps aside.
+    readonly property bool wearingFace: host.fromPill && host.shown
 
     // The pill's rect, for the drop.
     property real pillCX: 0

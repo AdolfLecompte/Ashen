@@ -2,12 +2,10 @@ import QtQuick
 
 import "root:/services" as Services
 
-// A reading as a vessel with liquid in it. The surface never sits still: two
-// sine waves of different length and speed cross each other, which is what
-// keeps it from reading as a moving sawtooth.
-//
-// Drawn on a timer rather than on every animation frame -- a slow swell does
-// not need 60 of them a second, and this can be on screen several times over.
+// A reading as a vessel with liquid in it. Two sine waves of different length
+// and speed cross, which is what keeps the surface from reading as a moving
+// sawtooth. Painted on a timer, not every frame: a slow swell does not need 60
+// a second, and this can be on screen several times over.
 Canvas {
     id: root
 
@@ -20,11 +18,13 @@ Canvas {
     property real inset: 0
 
     property color color_: Services.Colors.ghost
-    // Same opt-in gradient the rest of the shell wears on an active accent:
-    // two neighbouring tones of the scheme, horizontal, never a third colour.
-    property bool gradient_: Services.Prefs.useGradients
-    // Height of the swell in pixels, and how long one pass takes.
-    property real waveAmp: 3
+    // The liquid is one solid tone. The shell's gradient is for an accent that
+    // sits still; on a surface that keeps moving the two tones read as a slick
+    // rather than as a light. Still opt-in per caller, just off by default.
+    property bool gradient_: false
+    // Height of the swell in pixels, and how long one pass takes. Kept low: the
+    // point is that the surface is alive, not that the vessel is being shaken.
+    property real waveAmp: 3.5
     property int periodMs: 4200
     // Off screen it must not paint: a panel that is closed still has its
     // canvas alive.
@@ -85,7 +85,7 @@ Canvas {
         // Whole numbers of cycles across the width, so the surface meets both
         // walls at the same height and the swell reads as one rolling motion
         // rather than a wave shape that happens to be sliding past.
-        for (let x = 0; x <= w; x += 3) {
+        for (let x = 0; x <= w; x += 2) {
             const u = x / w * root.tau
             const y = base
                 + Math.sin(u + root.phaseA) * amp
