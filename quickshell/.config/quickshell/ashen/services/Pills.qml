@@ -2,19 +2,22 @@ pragma Singleton
 import Quickshell
 import QtQuick
 
-// What a pill IS, in one place: name, compact face, and what it opens. Used to
-// be spread across Bar.qml, SettingsBarTab and each pill's own glyph.
-//
-// `glyph` is the compact face the utility pill's tools wear; a bar pill draws
-// its full self and only needs the label.
+// What a pill IS, in one place: name, compact face, and what it opens.
+// `glyph` is the compact face the utility pill's tools wear; a bar pill
+// draws its full self and only needs the label.
 Singleton {
     id: root
+
+    // Does a panel take its capsule's face when it opens? In "window" style it
+    // never does, so a capsule that steps aside anyway leaves a hole and half an
+    // animation. Written here once: five capsules each spelled out the
+    // preference check, and a sixth (the lock screen's) got it wrong.
+    readonly property bool wearsFace: Prefs.panelStyle === "morph"
 
     // key: what it is called in Prefs.barLayout and in the drag-and-drop UI.
     //   label — the human name, shown in Settings > Bar
     //   glyph — its compact face, for the utility pill
-    //   opens — AppState flag its chip toggles there; "" means the compact
-    //           face is not interactive (it is a readout, not a button)
+    //   opens — AppState flag its chip toggles there; "" means a readout
     readonly property var meta: ({
         launcher:      { label: "Launcher",      glyph: "", opens: "launcherVisible" },
         notifications: { label: "Notifications", glyph: "", opens: "notificationsVisible" },

@@ -4,11 +4,10 @@ import Quickshell
 import Quickshell.Hyprland
 import QtQuick
 
-// Feeds the workspace pill: instead of a number, a chip can show a glyph for
-// whatever lives on that workspace. The window class is matched first against a
-// short table of things a class name gives away on sight (terminals, browsers,
-// PWAs), then against the desktop entry's categories — the same buckets the
-// launcher sorts apps into — and only then falls back to a generic window.
+// Feeds the workspace pill: a chip can show a glyph for whatever lives on
+// that workspace. The class is matched first against a short table of names
+// that give themselves away, then against the desktop entry's categories,
+// and only then falls back to a generic window.
 Singleton {
     id: root
 

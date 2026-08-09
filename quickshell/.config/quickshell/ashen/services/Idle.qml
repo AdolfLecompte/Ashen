@@ -4,12 +4,10 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 
-// hypridle has no runtime API: its timeouts live in a config file it reads at
-// startup. So Settings writes its own copy under ~/.config/ashen and restarts
-// the daemon against it. The shipped ~/.config/hypr/hypridle.conf stays the
-// first-boot fallback (autostart falls back to it when ours is missing), and is
-// never written to — it is a stow symlink into the repo, so editing it would
-// dirty the user's checkout on every tweak.
+// hypridle has no runtime API, so Settings writes its own copy of the config
+// under ~/.config/ashen and restarts the daemon against it. The shipped
+// hypridle.conf stays the first-boot fallback and is never written to: it is
+// a stow symlink, and editing it would dirty the user's checkout.
 Singleton {
     id: root
 

@@ -20,11 +20,9 @@ Singleton {
     readonly property int hiddenPopupCount: Math.max(0, activePopups.length - maxPopups)
 
     // ── Toast lifecycle ───────────────────────────────────────────────────
-    // The countdown lives here, not in a Timer inside the delegate. The toast
-    // Repeater is fed a plain JS array, and reassigning one rebuilds EVERY
-    // delegate: a new notification used to restart the countdown of the toasts
-    // already on screen and replay their entry animation, so a busy minute
-    // left a stack that never drained.
+    // The countdown lives here, not in a Timer inside the delegate: the toast
+    // Repeater is fed a plain JS array, and reassigning it rebuilds EVERY
+    // delegate, restarting the countdowns already on screen.
 
     // Ids on their way out, so the view can play an exit before the entry goes.
     // Published as its own list: mutating an entry in place notifies nobody.
@@ -106,9 +104,8 @@ Singleton {
 
     // ── Sweeping several at once ──────────────────────────────────────────
     // A stack that vanishes in one frame reads as a glitch; one card after
-    // another reads as a sweep. Everything that leaves in a batch -- the sweep
-    // button, and a row of toasts whose time runs out together -- goes through
-    // this queue instead of all calling beginLeave in the same tick.
+    // another reads as a sweep. Everything leaving in a batch goes through this
+    // queue instead of all calling beginLeave in the same tick.
     property var sweepQueue: []
     readonly property int sweepStepMs: 80
 
@@ -137,10 +134,9 @@ Singleton {
     }
 
     // ── Which cards have already made their entrance ──────────────────────
-    // The Repeater rebuilds every delegate whenever the array is reassigned,
-    // so a card would replay its entry animation each time a new notification
-    // arrived. The view asks here whether it is genuinely new. Plain array, no
-    // published copy: it is only ever read while a delegate is being built.
+    // The Repeater rebuilds every delegate when the array is reassigned, so a
+    // card would replay its entry each time a notification arrived. Plain array:
+    // it is only ever read while a delegate is being built.
     property var seenPopups: []
     function hasEntered(id) { return root.seenPopups.indexOf(id) !== -1 }
     function markEntered(id) { if (!root.hasEntered(id)) root.seenPopups.push(id) }
@@ -164,10 +160,8 @@ Singleton {
 
     // ── Live D-Bus notifications ──────────────────────────────────────────
     // The Notification object is the only thing that can invoke an action or
-    // tell the sender the notice was closed, so it is kept alive past its
-    // toast for anything the panel can still act on. Everything else is
-    // released as its toast leaves, or the shell would sit on every
-    // notification of the session.
+    // tell the sender it was closed, so it is kept alive past its toast for
+    // anything the panel can still act on. The rest are released.
     property var liveNotifs: ({})
     // What the views bind against: a plain object mutation notifies nobody.
     property var liveIds: []
@@ -308,12 +302,9 @@ Singleton {
     property string lastPowerProfile: ""
     property bool initialized: false
 
-    // Brave PWAs (WhatsApp Web) all report appName "Brave" with the generic
-    // Brave-lion appIcon — no dbus field distinguishes them. In this setup
-    // Brave notifications are WhatsApp, so remap them to the WhatsApp PWA icon
-    // resolved from its .desktop (via the icon theme, no hardcoded path).
-    // Returns a ready-to-use Image source (image://, file:// or http URL) so
-    // both the panel and the lock screen can bind it directly.
+    // Brave PWAs (WhatsApp Web) all report appName "Brave" with the generic lion
+    // icon and no dbus field to tell them apart; in this setup a Brave
+    // notification is WhatsApp. Returns a ready-to-use Image source.
     readonly property string whatsappIconId: "brave-hnpfjngllnobngcgfapefoaidbinmjnm-Default"
     function resolveIcon(appName, appIcon) {
         if (appName === "Brave") {
@@ -577,12 +568,9 @@ Singleton {
             return (k === "image" || k === "actions") ? undefined : v
         })
         saveProc.running = false
-        // Write to a temporary file and move it into place. `> "$2"` truncates
-        // the real file the instant the shell starts, so a write cut short --
-        // by the next save restarting the Process, or by a reload tearing it
-        // down -- left an EMPTY history behind. That is how the whole file was
-        // lost. A rename is atomic: the worst a killed write can leave now is
-        // a stray .tmp.
+        // Write to a temp file and move it into place. `> "$2"` truncates the real
+        // file the instant the shell starts, so a write cut short left an EMPTY
+        // history -- that is how the whole file was lost once. A rename is atomic.
         saveProc.command = ["sh", "-c",
                             "mkdir -p \"$(dirname \"$2\")\" && printf %s \"$1\" > \"$2.tmp\" && mv -f \"$2.tmp\" \"$2\"",
                             "sh", body, root.historyPath]

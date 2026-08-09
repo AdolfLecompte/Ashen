@@ -91,13 +91,10 @@ Singleton {
     // hyprctl runs detached, so give it a beat before re-reading the state
     Timer { id: refreshLater; interval: 250; onTriggered: root.refresh() }
 
-    // `all`, not the device name: the laptop reports a dozen keyboards (wireless
-    // dongle, power button, hotkeys) and switching only the main one desyncs them
-    //
-    // The list is deliberately NOT reordered to persist the pick: that rewrote
-    // kb_layout on every click, so the cards swapped places under the cursor and
-    // the next click landed on the wrong one. The pick is remembered in Prefs
-    // and re-applied on startup instead -- positions stay put.
+    // `all`, not the device name: the laptop reports a dozen keyboards and
+    // switching only the main one desyncs them. The list is deliberately NOT
+    // reordered to persist the pick -- that swapped the cards under the cursor
+    // and the next click landed on the wrong one. Prefs remembers it instead.
     function setLayout(i) {
         if (i < 0 || i >= layouts.length) return
         Services.Prefs.keyboardLayout = layouts[i]

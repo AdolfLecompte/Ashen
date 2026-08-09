@@ -50,13 +50,9 @@ Singleton {
                         ethDev = device
                     }
                 }
-                // `dev status` hands back the PROFILE name, which is "SSID 1"
-                // on a duplicate profile. Writing it straight to wifiSsid made
-                // the pill flick between "Funcionarios" and "Funcionarios 1"
-                // every poll, as this and signalProc took turns. Only
-                // signalProc, which reads the real SSID off the associated AP,
-                // writes the name now; this one just says whether there is a
-                // connection at all, and strips the suffix if it has to guess.
+                // `dev status` hands back the PROFILE name, "SSID 1" on a duplicate, and
+                // writing it to wifiSsid made the pill flick between the two every poll.
+                // Only signalProc, which reads the real SSID off the AP, writes the name.
                 root.wifiProfile = ssid
                 root.ethConnection = eth
                 root.ethDevice = ethDev
@@ -74,12 +70,10 @@ Singleton {
 
     Process {
         id: signalProc
-        // IN-USE marks the AP we're actually associated with ("*"). Its SIGNAL is
-        // the only reliable value: when several APs share the SSID (mesh/repeaters)
-        // the strongest visible one is NOT necessarily ours, so matching by name
-        // overstated the level. Its SSID is also the real network name — the
-        // CONNECTION field from `dev status` is the NM profile name, which gets a
-        // " 1" suffix on duplicate profiles (that stray "1" in the pill).
+        // IN-USE ("*") marks the AP we are associated with, and its SIGNAL is the
+        // only reliable one: where several APs share an SSID the strongest visible
+        // is not necessarily ours. Its SSID is also the real network name -- the
+        // CONNECTION field is the NM profile, which gets a " 1" on duplicates.
         command: ["nmcli", "-t", "-e", "no", "-f", "IN-USE,SIGNAL,SSID", "dev", "wifi"]
         stdout: StdioCollector {
             onStreamFinished: {

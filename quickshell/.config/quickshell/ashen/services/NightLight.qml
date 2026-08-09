@@ -5,11 +5,10 @@ import Quickshell.Io
 import QtQuick
 import "root:/services" as Services
 
-// Drives wlsunset from the persisted prefs. Two modes:
-//   · manual   -> holds a constant warm temperature while enabled
-//   · scheduled-> wlsunset warms the screen only between From and To
-// The daemon is (re)started on any relevant change and killed when disabled;
-// wlsunset restores the gamma to identity on SIGTERM, so "off" is clean.
+// Drives wlsunset from the persisted prefs: manual holds a constant warm
+// temperature, scheduled warms only between From and To. The daemon is
+// killed when disabled; wlsunset restores the gamma to identity on SIGTERM,
+// so "off" is clean.
 Singleton {
     id: root
 
@@ -34,11 +33,10 @@ Singleton {
     function setFrom(s) { Services.Prefs.nightLightFrom = s }
     function setTo(s) { Services.Prefs.nightLightTo = s }
 
-    // wlsunset needs times OR a location; we always pass times so no geo is
-    // required, and it insists high temp > low temp. Scheduled: warm (low temp)
-    // between sunset(-s=From) and sunrise(-S=To). Manual: a ~24h "night" window
-    // (sunrise 00:00, sunset 00:01) so it holds the warm temp constantly; the
-    // 6500 high is only touched for the one-minute daytime sliver near midnight.
+    // wlsunset needs times OR a location, so we always pass times, and it
+    // insists high temp > low temp. Scheduled: warm between -s=From and -S=To.
+    // Manual: a ~24h "night" window (sunrise 00:00, sunset 00:01) so it holds
+    // the warm temp constantly.
     readonly property var args: scheduled
         ? ["wlsunset", "-S", toTime, "-s", fromTime, "-T", "6500", "-t", String(temperature)]
         : ["wlsunset", "-S", "00:00", "-s", "00:01", "-T", "6500", "-t", String(temperature)]

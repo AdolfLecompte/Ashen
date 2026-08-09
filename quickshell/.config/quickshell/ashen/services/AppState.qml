@@ -333,11 +333,10 @@ Singleton {
     }
     property bool launcherVisible: false
     property bool processVisible: false
-    // Where the utility pill's Process chip was when it was clicked, so the
-    // panel can grow out of it the way the media pill becomes the media
-    // panel. Published by UtilityTriggers at click time -- the chip only
-    // reacts to clicks while its pill is fully revealed, so the geometry read
-    // there is always settled, never mid-animation.
+    // Where the utility pill's Process chip was when clicked, so the panel can
+    // grow out of it. Published by UtilityTriggers at click time -- the chip
+    // only reacts while its pill is fully revealed, so the geometry read there
+    // is always settled, never mid-animation.
     property real processPillCX: 0
     property real processPillCY: 0
     property real processPillW: 124
@@ -363,12 +362,10 @@ Singleton {
     property real settingsPillH: 44
     property string settingsSourceEdge: "bottom"
 
-    // The utility drawer: everything the launcher used to hide behind ">".
-    // The launcher is for applications; this is for the shell's own actions.
-    // Where every utility chip sits, keyed "edge|id". Published continuously by
-    // the pill rather than written on click: a panel thrown by a keybind was
-    // never told where to grow from, so it used whatever the last click had
-    // left behind -- or (0, 0), the top-left corner of the screen.
+    // The utility drawer: where every utility chip sits, keyed "edge|id",
+    // published continuously by the pill rather than written on click -- a
+    // panel opened by a keybind was never told where to grow from and used
+    // whatever the last click left, or (0, 0).
     property var utilChip: ({})
     function setUtilChip(edge, id, cx, cy, w, h) {
         const k = edge + "|" + id
