@@ -52,13 +52,13 @@ Item {
                 visible: false   // the drawer header carries the section name
                 text: "Bluetooth"
                 color: Services.Colors.snow
-                font.pixelSize: 20
+                font.pixelSize: Services.Sizes.fsPanelTitle
                 font.bold: true
                 font.family: "JetBrainsMono NF"
                 Layout.fillWidth: true
             }
             Rectangle {
-                width: 28; height: 28; radius: 8
+                width: 28; height: 28; radius: Services.Sizes.innerR
                 color: "transparent"
                 Text {
                     anchors.centerIn: parent
@@ -72,11 +72,12 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     hoverEnabled: true
-                    onEntered: parent.color = Services.Colors.ghostAlpha(0.15)
+                    onEntered: parent.color = Services.Colors.fillLine
                     onExited: parent.color = "transparent"
                     onClicked: tab.startScan()
                 }
             }
+            Item { Layout.fillWidth: true }
             Toggle {
                 checked: tab.adapter !== null && tab.adapter.enabled
                 enabled: tab.adapter !== null
@@ -88,10 +89,10 @@ Item {
             Layout.fillWidth: true
             height: Services.Network.btDevice !== "" ? 64 : 0
             visible: Services.Network.btDevice !== ""
-            radius: 8
+            radius: Services.Sizes.innerR
             // Filled, not outlined: the accent border read as a glow and
             // nothing else in the shell outlines a selection.
-            color: Services.Colors.ghostAlpha(0.2)
+            color: Services.Colors.fillRest
             border.width: 0
             RowLayout {
                 anchors.fill: parent
@@ -101,8 +102,8 @@ Item {
                 Column {
                     Layout.fillWidth: true
                     spacing: 2
-                    Text { text: Services.Network.btDevice; color: Services.Colors.snow; font.pixelSize: 14; font.family: "JetBrainsMono NF"; font.bold: true }
-                    Text { text: "Connected"; color: Services.Colors.ghost; font.pixelSize: 11; font.family: "JetBrainsMono NF" }
+                    Text { text: Services.Network.btDevice; color: Services.Colors.snow; font.pixelSize: Services.Sizes.fsCardTitle; font.family: "JetBrainsMono NF"; font.bold: true }
+                    Text { text: "Connected"; color: Services.Colors.ghost; font.pixelSize: Services.Sizes.fsBody; font.family: "JetBrainsMono NF" }
                 }
                 Text { text: ""; color: Services.Colors.ghost; font.pixelSize: 22; font.family: "Material Symbols Rounded" }
             }
@@ -116,7 +117,7 @@ Item {
             Text {
                 text: tab.adapter && tab.adapter.discovering ? "Scanning..." : "Devices"
                 color: Services.Colors.mist
-                font.pixelSize: 10
+                font.pixelSize: Services.Sizes.fsMeta
                 font.family: "JetBrainsMono NF"
                 leftPadding: 4
             }
@@ -133,8 +134,8 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             height: 60
-            radius: 8
-            color: Services.Colors.ghostAlpha(0.08)
+            radius: Services.Sizes.innerR
+            color: Services.Colors.fillInset
             visible: !tab.adapter || tab.adapter.devices.values.length === 0
             RowLayout {
                 anchors.fill: parent
@@ -149,7 +150,7 @@ Item {
                 Text {
                     text: tab.adapter && tab.adapter.discovering ? "Scanning..." : (tab.adapter ? "No devices found" : "No adapter")
                     color: Services.Colors.ash
-                    font.pixelSize: 13
+                    font.pixelSize: Services.Sizes.fsInput
                     font.family: "JetBrainsMono NF"
                     Layout.fillWidth: true
                 }

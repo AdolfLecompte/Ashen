@@ -6,15 +6,10 @@ import QtQuick.Controls
 
 import "root:/services" as Services
 
-// A folder setting you type. "Change" used to shell out to zenity, which drags
-// a GTK file manager onto the screen over a shell that has its own look, takes
-// a second to appear, and is not even installed everywhere -- and all of that
-// to enter a path the user already knows. Now the path itself becomes the
-// field: click, type, Enter.
-//
-// It refuses a folder that is not there. A settings row that silently accepts
-// a typo and then quietly saves nothing anywhere is worse than one that says
-// no, so the check happens here, once, before the value is handed over.
+// A folder setting you type: click, type, Enter. It replaced zenity, which
+// drags a GTK dialog over a shell with its own look to enter a path you
+// already know. Refuses a folder that is not there, rather than saving a typo
+// and quietly writing nowhere.
 RowLayout {
     id: root
 
@@ -88,7 +83,7 @@ RowLayout {
         Text {
             text: root.title
             color: Services.Colors.snow
-            font.pixelSize: 13
+            font.pixelSize: Services.Sizes.fsInput
             font.bold: true
             font.family: "JetBrainsMono NF"
         }
@@ -108,7 +103,7 @@ RowLayout {
                 visible: !root.editing
                 text: root.value
                 color: Services.Colors.ash
-                font.pixelSize: 10
+                font.pixelSize: Services.Sizes.fsMeta
                 font.family: "JetBrainsMono NF"
                 elide: Text.ElideMiddle
             }
@@ -119,12 +114,12 @@ RowLayout {
                 anchors.verticalCenter: parent.verticalCenter
                 height: 28
                 visible: root.editing
-                radius: 8
-                color: Services.Colors.ghostAlpha(0.12)
+                radius: Services.Sizes.innerR
+                color: Services.Colors.fillLine
                 border.width: 1
                 border.color: root.badPath ? Services.Colors.error_
                             : field.activeFocus ? Services.Colors.ghost
-                                                : Services.Colors.ghostAlpha(0.2)
+                                                : Services.Colors.fillRest
                 Behavior on border.color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                 TextField {
@@ -153,22 +148,22 @@ RowLayout {
             visible: root.badPath
             text: "No such folder"
             color: Services.Colors.error_
-            font.pixelSize: 10
+            font.pixelSize: Services.Sizes.fsMeta
             font.family: "JetBrainsMono NF"
         }
     }
 
     Rectangle {
         width: 84; height: 32
-        radius: 8
-        color: btnHover.containsMouse ? Services.Colors.ghostAlpha(0.3)
-                                      : Services.Colors.ghostAlpha(0.15)
+        radius: Services.Sizes.innerR
+        color: btnHover.containsMouse ? Services.Colors.fillHover
+                                      : Services.Colors.fillLine
         Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
         Text {
             anchors.centerIn: parent
             text: root.editing ? "Save" : "Change"
             color: Services.Colors.snow
-            font.pixelSize: 11
+            font.pixelSize: Services.Sizes.fsBody
             font.family: "JetBrainsMono NF"
         }
         MouseArea {

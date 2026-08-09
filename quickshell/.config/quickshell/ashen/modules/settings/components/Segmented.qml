@@ -3,11 +3,9 @@ import QtQuick.Layouts
 import "root:/services" as Services
 
 // One-of-many picker with the sliding highlight the workspace pill uses: the
-// accent never jumps between options, it travels. Every exclusive choice in
-// Settings goes through this, so they all behave the same.
-//
-// Cells are equal width, so the indicator only has to move — with content-width
-// cells it would have to resize mid-flight and the travel reads as a stretch.
+// accent travels, never jumps, and every exclusive choice in Settings goes
+// through this. Cells are equal width so the indicator only moves -- with
+// content-width cells it would resize mid-flight and read as a stretch.
 Item {
     id: root
 
@@ -38,8 +36,8 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 12
-        color: Services.Colors.ghostAlpha(0.12)
+        radius: Services.Sizes.cardR
+        color: Services.Colors.fillLine
     }
 
     // The travelling accent. Hidden rather than parked at 0 when nothing is
@@ -49,7 +47,7 @@ Item {
         visible: root.currentIndex >= 0
         width: root.cellWidth
         height: root.cellHeight
-        radius: 9
+        radius: Services.Sizes.innerR
         x: root.pad + Math.max(0, root.currentIndex) * root.cellWidth
         y: root.pad
         color: Services.Colors.ghost

@@ -21,9 +21,8 @@ PanelWindow {
 
     WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    // One tab per question the user is actually asking ("how does the bar look?",
-    // "what is this machine talking to?"). Wi-Fi and Bluetooth share one, since
-    // they are the same question, and each tab is small enough to scan.
+    // One tab per question the user is actually asking; Wi-Fi and Bluetooth
+    // share one, since they are the same question.
     // Where the section you picked sits in the rail, so the slide knows which
     // way it moved.
     readonly property int tabIndex: {
@@ -79,12 +78,10 @@ PanelWindow {
         Keys.onEscapePressed: Services.AppState.settingsVisible = false
     }
 
-    // Out of the settings chip on the utility pill, like Process and Clipboard.
-    // It used to slide in from the right edge with nothing behind it, because
-    // Settings had no pill of its own to leave.
-    // Live from the pill, not a value written when something was clicked:
-    // a keybind never clicks, and the panel used to grow from wherever the
-    // last click had left the numbers.
+    // Out of the settings chip on the utility pill, like Process and Clipboard;
+    // it used to slide in from the right edge with nothing behind it. Read live
+    // from the pill, never written at click time: a keybind never clicks, and
+    // the panel used to grow from wherever the last click left the numbers.
         readonly property string srcEdge: Services.AppState.settingsSourceEdge
     // Its chip: on the utility pill of that edge, or on the bar.
     readonly property var chipRect: Services.AppState.chipRectOf("settings", win.srcEdge)
@@ -109,16 +106,10 @@ PanelWindow {
         pillW: win.chipRect.w
         pillH: win.chipRect.h
 
-        // Wide, not a tall narrow drawer. The rail used to run across the top
-        // because the drawer was a narrow column and a second vertical strip
-        // inside it fought the content for width -- but nine icon-only tabs in
-        // a row said nothing about where you were, and the content underneath
-        // had a column's worth of room to lay settings out in. Sideways there
-        // is room for both.
-        // Sized off the bar layout editor, the widest thing in here: three
-        // drop plates side by side, each wanting room for a couple of pill
-        // chips before they wrap. At 1000x620 they took one chip per line and
-        // the picture of the bar read as three cramped columns.
+        // Wide, with the rail down the side: nine icon-only tabs in a row
+        // said nothing about where you were. Sized off the bar layout editor,
+        // the widest thing in here -- under 1240 its three drop plates take
+        // one chip per line and stop reading as a picture of the bar.
         openW: Math.min(1240, win.width - 60)
         openH: Math.min(800, win.height - 80)
         cardRadius: Services.Sizes.panelR
@@ -134,11 +125,9 @@ PanelWindow {
                     spacing: 16
 
                     // ── Left: where you are ────────────────────────────
-                    // One accent that TRAVELS between the sections, the way the
-                    // workspace strip does, instead of a plate per row lighting up.
-                    // A box around every item made nine outlines compete with the
-                    // content; with the indicator doing the work the rail is just
-                    // words, and the movement says which one you picked.
+                    // One accent that TRAVELS between sections, the way the workspace strip
+                    // does. A box around every item made nine outlines compete with the
+                    // content; with the indicator doing the work the rail is just words.
                     Item {
                         Layout.fillWidth: false
                         Layout.preferredWidth: 190

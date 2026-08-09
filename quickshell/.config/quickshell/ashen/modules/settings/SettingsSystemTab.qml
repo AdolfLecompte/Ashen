@@ -71,7 +71,7 @@ TabPage {
             Text {
                 text: Services.Battery.level + "%"
                 color: Services.Colors.snow
-                font.pixelSize: 24
+                font.pixelSize: Services.Sizes.fsReadout
                 font.bold: true
                 font.family: "JetBrainsMono NF"
             }
@@ -80,13 +80,13 @@ TabPage {
                 Text {
                     text: Services.Battery.charging ? "Charging" : "On battery"
                     color: Services.Colors.mist
-                    font.pixelSize: 11
+                    font.pixelSize: Services.Sizes.fsBody
                     font.family: "JetBrainsMono NF"
                 }
                 Text {
                     text: tab.timeRemaining !== "--" ? tab.timeRemaining : (Services.Battery.charging ? "Fully charged" : "Calculating...")
                     color: Services.Colors.ash
-                    font.pixelSize: 10
+                    font.pixelSize: Services.Sizes.fsMeta
                     font.family: "JetBrainsMono NF"
                 }
             }
@@ -117,9 +117,10 @@ TabPage {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
-                Text { text: "Keep Awake"; color: Services.Colors.snow; font.pixelSize: 13; font.bold: true; font.family: "JetBrainsMono NF" }
-                Text { text: "Prevents auto-lock and screen dimming"; color: Services.Colors.ash; font.pixelSize: 10; font.family: "JetBrainsMono NF" }
+                Text { text: "Keep Awake"; color: Services.Colors.snow; font.pixelSize: Services.Sizes.fsInput; font.bold: true; font.family: "JetBrainsMono NF" }
+                Text { text: "Prevents auto-lock and screen dimming"; color: Services.Colors.ash; font.pixelSize: Services.Sizes.fsMeta; font.family: "JetBrainsMono NF" }
             }
+            Item { Layout.fillWidth: true }
             Toggle {
                 checked: Services.AppState.keepAwake
                 // AppState drives hypridle itself, so every flip agrees
@@ -142,17 +143,18 @@ TabPage {
                 Text {
                     text: "Show what is playing"
                     color: Services.Colors.snow
-                    font.pixelSize: 13
+                    font.pixelSize: Services.Sizes.fsInput
                     font.bold: true
                     font.family: "JetBrainsMono NF"
                 }
                 Text {
                     text: "Track, cover art and controls on the lock screen"
                     color: Services.Colors.ash
-                    font.pixelSize: 10
+                    font.pixelSize: Services.Sizes.fsMeta
                     font.family: "JetBrainsMono NF"
                 }
             }
+            Item { Layout.fillWidth: true }
             Toggle {
                 checked: Services.Prefs.lockShowMedia
                 onToggled: Services.Prefs.lockShowMedia = !Services.Prefs.lockShowMedia
@@ -166,7 +168,7 @@ TabPage {
         Text {
             text: "Countdowns start from the last input. Keep Awake pauses all three."
             color: Services.Colors.ash
-            font.pixelSize: 10
+            font.pixelSize: Services.Sizes.fsMeta
             font.family: "JetBrainsMono NF"
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
@@ -195,22 +197,24 @@ TabPage {
                     Layout.fillWidth: true
                     text: modelData.label
                     color: Services.Colors.snow
-                    font.pixelSize: 12
+                    font.pixelSize: Services.Sizes.fsBody
                     font.family: "JetBrainsMono NF"
                 }
                 Text {
                     text: tab.idleLabel(parent.secs)
                     color: parent.secs > 0 ? Services.Colors.ghost : Services.Colors.mist
-                    font.pixelSize: 13
+                    font.pixelSize: Services.Sizes.fsInput
                     font.bold: true
                     font.family: "JetBrainsMono NF"
                     Layout.preferredWidth: 64
                     horizontalAlignment: Text.AlignRight
                 }
+                Item { Layout.fillWidth: true }
                 StepBtn {
                     glyph: ""
                     onClicked: parent.apply(tab.stepIdle(parent.secs, -5))
                 }
+                Item { Layout.fillWidth: true }
                 StepBtn {
                     glyph: ""
                     onClicked: parent.apply(tab.stepIdle(parent.secs, 5))
@@ -224,7 +228,7 @@ TabPage {
                 && Services.Prefs.idleLockSecs > Services.Prefs.idleSuspendSecs
             text: "Suspend fires before the lock does — the machine will sleep unlocked."
             color: Services.Colors.error_
-            font.pixelSize: 10
+            font.pixelSize: Services.Sizes.fsMeta
             font.family: "JetBrainsMono NF"
             wrapMode: Text.WordWrap
             Layout.fillWidth: true

@@ -6,7 +6,7 @@ import "root:/services" as Services
 Rectangle {
     id: rg
     property string glyph: ""
-    width: 26; height: 26; radius: 8; color: "transparent"
+    implicitWidth: 26; implicitHeight: 26; radius: Services.Sizes.innerR; color: "transparent"
     Text {
         anchors.centerIn: parent
         text: rg.glyph

@@ -6,5 +6,5 @@ import "root:/services" as Services
 Rectangle {
     Layout.fillWidth: true
     height: 1
-    color: Services.Colors.ghostAlpha(0.15)
+    color: Services.Colors.fillLine
 }

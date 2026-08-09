@@ -29,9 +29,9 @@ ColumnLayout {
         spacing: 10
         Rectangle {
             width: 26; height: 26
-            radius: 8
+            radius: Services.Sizes.innerR
             color: glyphArea.containsMouse && sliderRow.glyphInteractive
-                ? Services.Colors.ghostAlpha(0.2) : "transparent"
+                ? Services.Colors.fillRest : "transparent"
             Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
             Text {
                 anchors.centerIn: parent
@@ -53,14 +53,14 @@ ColumnLayout {
         Text {
             text: sliderRow.label
             color: Services.Colors.snow
-            font.pixelSize: 13
+            font.pixelSize: Services.Sizes.fsInput
             font.family: "JetBrainsMono NF"
             Layout.fillWidth: true
         }
         Text {
             text: sliderRow.valueText
             color: Services.Colors.mist
-            font.pixelSize: 12
+            font.pixelSize: Services.Sizes.fsBody
             font.family: "JetBrainsMono NF"
         }
     }

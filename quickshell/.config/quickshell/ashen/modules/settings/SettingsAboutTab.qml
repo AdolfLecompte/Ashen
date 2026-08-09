@@ -126,7 +126,7 @@ TabPage {
             visible: false   // the drawer header carries the section name
             text: "About"
             color: Services.Colors.snow
-            font.pixelSize: 20
+            font.pixelSize: Services.Sizes.fsPanelTitle
             font.bold: true
             font.family: "JetBrainsMono NF"
             Layout.fillWidth: true
@@ -134,8 +134,8 @@ TabPage {
         Rectangle {
             width: copyRow.implicitWidth + 18
             height: 32
-            radius: 8
-            color: tab.copied ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.15)
+            radius: Services.Sizes.innerR
+            color: tab.copied ? Services.Colors.ghost : Services.Colors.fillLine
             gradient: Services.Prefs.useGradients && (tab.copied) ? Services.Colors.accentGradient : null
             Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
             RowLayout {
@@ -151,7 +151,7 @@ TabPage {
                 Text {
                     text: tab.copied ? "Copied" : "Copy Info"
                     color: tab.copied ? Services.Colors.accentText : Services.Colors.snow
-                    font.pixelSize: 12
+                    font.pixelSize: Services.Sizes.fsBody
                     font.family: "JetBrainsMono NF"
                 }
             }
@@ -195,45 +195,48 @@ TabPage {
         onExited: Services.AppState.faceVersion = Date.now()
     }
 
-    Divider {}
+    // A box, not a rule: the panel says where one thing ends by
+    // starting the next one, the way every other tab does.
+    Card {
+        title: "This machine"
+        ColumnLayout {
+            Layout.topMargin: 6
+            spacing: 5
 
-    ColumnLayout {
-        Layout.topMargin: 6
-        spacing: 5
-
-        Repeater {
-            model: [
-                { label: "OS", value: tab.osName },
-                { label: "Kernel", value: tab.kernel },
-                { label: "Host", value: tab.hostname },
-                { label: "Product", value: tab.product },
-                { label: "Board", value: tab.board },
-                { label: "Uptime", value: tab.uptime },
-                { label: "CPU", value: tab.cpuInfo },
-                { label: "GPU", value: tab.gpuInfo },
-                { label: "Memory", value: tab.memInfo },
-                { label: "Disk", value: tab.diskInfo },
-                { label: "Packages", value: tab.pkgInfo },
-                { label: "Monitor", value: tab.monitorInfo },
-            ]
-            delegate: RowLayout {
-                required property var modelData
-                Layout.fillWidth: true
-                spacing: 10
-                Text {
-                    text: modelData.label
-                    color: Services.Colors.mist
-                    font.pixelSize: 12
-                    font.family: "JetBrainsMono NF"
-                    Layout.preferredWidth: 80
-                }
-                Text {
-                    text: modelData.value
-                    color: Services.Colors.snow
-                    font.pixelSize: 12
-                    font.family: "JetBrainsMono NF"
-                    elide: Text.ElideRight
+            Repeater {
+                model: [
+                    { label: "OS", value: tab.osName },
+                    { label: "Kernel", value: tab.kernel },
+                    { label: "Host", value: tab.hostname },
+                    { label: "Product", value: tab.product },
+                    { label: "Board", value: tab.board },
+                    { label: "Uptime", value: tab.uptime },
+                    { label: "CPU", value: tab.cpuInfo },
+                    { label: "GPU", value: tab.gpuInfo },
+                    { label: "Memory", value: tab.memInfo },
+                    { label: "Disk", value: tab.diskInfo },
+                    { label: "Packages", value: tab.pkgInfo },
+                    { label: "Monitor", value: tab.monitorInfo },
+                ]
+                delegate: RowLayout {
+                    required property var modelData
                     Layout.fillWidth: true
+                    spacing: 10
+                    Text {
+                        text: modelData.label
+                        color: Services.Colors.mist
+                        font.pixelSize: Services.Sizes.fsBody
+                        font.family: "JetBrainsMono NF"
+                        Layout.preferredWidth: 80
+                    }
+                    Text {
+                        text: modelData.value
+                        color: Services.Colors.snow
+                        font.pixelSize: Services.Sizes.fsBody
+                        font.family: "JetBrainsMono NF"
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
                 }
             }
         }
@@ -246,7 +249,7 @@ TabPage {
         Text {
             text: "ASHEN"
             color: Services.Colors.snow
-            font.pixelSize: 26
+            font.pixelSize: Services.Sizes.fsReadout
             font.bold: true
             font.family: "JetBrainsMono NF"
             font.letterSpacing: 2
@@ -254,13 +257,13 @@ TabPage {
         Text {
             text: "A monochrome Hyprland shell, built with Quickshell"
             color: Services.Colors.mist
-            font.pixelSize: 12
+            font.pixelSize: Services.Sizes.fsBody
             font.family: "JetBrainsMono NF"
         }
         Text {
             text: "by Adolf"
             color: Services.Colors.ash
-            font.pixelSize: 11
+            font.pixelSize: Services.Sizes.fsBody
             font.family: "JetBrainsMono NF"
             Layout.topMargin: 2
         }
@@ -270,8 +273,8 @@ TabPage {
         Layout.topMargin: 12
         width: repoRow.implicitWidth + 24
         height: 40
-        radius: 10
-        color: Services.Colors.ghostAlpha(0.15)
+        radius: Services.Sizes.pillR
+        color: Services.Colors.fillLine
         RowLayout {
             id: repoRow
             anchors.centerIn: parent
@@ -285,7 +288,7 @@ TabPage {
             Text {
                 text: "github.com/AdolfLecompte/ashen"
                 color: Services.Colors.snow
-                font.pixelSize: 12
+                font.pixelSize: Services.Sizes.fsBody
                 font.family: "JetBrainsMono NF"
             }
             Text {
@@ -299,8 +302,8 @@ TabPage {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             hoverEnabled: true
-            onEntered: parent.color = Services.Colors.ghostAlpha(0.25)
-            onExited: parent.color = Services.Colors.ghostAlpha(0.15)
+            onEntered: parent.color = Services.Colors.fillRest
+            onExited: parent.color = Services.Colors.fillLine
             onClicked: Quickshell.execDetached(["sh", "-c", "xdg-open https://github.com/AdolfoLecompteDev/ashen"])
         }
     }

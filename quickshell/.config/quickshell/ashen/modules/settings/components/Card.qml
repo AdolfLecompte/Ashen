@@ -9,8 +9,8 @@ Rectangle {
     default property alias content: cardInner.data
     property string title: ""
     Layout.fillWidth: true
-    radius: 16
-    color: Services.Colors.ghostAlpha(0.05)
+    radius: Services.Sizes.cardR
+    color: Services.Colors.fillInset
     implicitHeight: cardInner.implicitHeight + 32
     ColumnLayout {
         id: cardInner
@@ -23,7 +23,7 @@ Rectangle {
             text: cardRoot.title
             visible: cardRoot.title !== ""
             color: Services.Colors.mist
-            font.pixelSize: 11
+            font.pixelSize: Services.Sizes.fsBody
             font.family: "JetBrainsMono NF"
             Layout.bottomMargin: 4
         }

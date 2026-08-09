@@ -46,8 +46,8 @@ TabPage {
                     required property int index
                     readonly property bool active: Services.Keyboard.activeIndex === kbCard.index
                     width: 100; height: 64
-                    radius: 12
-                    color: kbCard.active ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.12)
+                    radius: Services.Sizes.cardR
+                    color: kbCard.active ? Services.Colors.ghost : Services.Colors.fillLine
                     gradient: Services.Prefs.useGradients && (kbCard.active) ? Services.Colors.accentGradient : null
                     Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                     ColumnLayout {
@@ -62,7 +62,7 @@ TabPage {
                         }
                         Text {
                             text: kbCard.modelData.toUpperCase()
-                            font.pixelSize: 10
+                            font.pixelSize: Services.Sizes.fsMeta
                             font.family: "JetBrainsMono NF"
                             color: kbCard.active ? Services.Colors.accentText : Services.Colors.mist
                             Layout.alignment: Qt.AlignHCenter
@@ -82,8 +82,8 @@ TabPage {
                         anchors.right: parent.right
                         anchors.margins: 4
                         width: 18; height: 18
-                        radius: 9
-                        color: rmArea.containsMouse ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.4)
+                        radius: Services.Sizes.innerR
+                        color: rmArea.containsMouse ? Services.Colors.ghost : Services.Colors.fillSunken
                         gradient: Services.Prefs.useGradients && (rmArea.containsMouse) ? Services.Colors.accentGradient : null
                         Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                         Text {
@@ -109,10 +109,10 @@ TabPage {
             Rectangle {
                 id: addCard
                 width: 100; height: 64
-                radius: 12
+                radius: Services.Sizes.cardR
                 color: addArea.containsMouse && Services.Keyboard.canAdd
-                    ? Services.Colors.ghostAlpha(0.2) : Services.Colors.ghostAlpha(0.06)
-                border.color: Services.Colors.ghostAlpha(0.3)
+                    ? Services.Colors.fillRest : Services.Colors.fillInset
+                border.color: Services.Colors.fillHover
                 border.width: 1
                 opacity: Services.Keyboard.canAdd ? 1.0 : 0.4
                 Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
@@ -128,7 +128,7 @@ TabPage {
                     }
                     Text {
                         text: "Add"
-                        font.pixelSize: 10
+                        font.pixelSize: Services.Sizes.fsMeta
                         font.family: "JetBrainsMono NF"
                         color: Services.Colors.mist
                         Layout.alignment: Qt.AlignHCenter
@@ -155,7 +155,7 @@ TabPage {
             visible: !Services.Keyboard.canAdd
             text: "XKB allows 4 layouts at most -- remove one to add another"
             color: Services.Colors.ash
-            font.pixelSize: 10
+            font.pixelSize: Services.Sizes.fsMeta
             font.family: "JetBrainsMono NF"
         }
 
@@ -163,8 +163,8 @@ TabPage {
         Rectangle {
             Layout.fillWidth: true
             clip: true
-            radius: 12
-            color: Services.Colors.ghostAlpha(0.08)
+            radius: Services.Sizes.cardR
+            color: Services.Colors.fillInset
             implicitHeight: pickerCol.implicitHeight + 20
             // Slide open/closed instead of snapping.
             Layout.preferredHeight: tab.pickerOpen ? implicitHeight : 0
@@ -183,8 +183,8 @@ TabPage {
                 Rectangle {
                     Layout.fillWidth: true
                     height: 34
-                    radius: 8
-                    color: Services.Colors.ghostAlpha(0.12)
+                    radius: Services.Sizes.innerR
+                    color: Services.Colors.fillLine
                     RowLayout {
                         anchors.fill: parent
                         anchors.leftMargin: 10
@@ -204,7 +204,7 @@ TabPage {
                             onTextChanged: tab.layoutQuery = text
                             color: Services.Colors.snow
                             placeholderTextColor: Services.Colors.ash
-                            font.pixelSize: 12
+                            font.pixelSize: Services.Sizes.fsBody
                             font.family: "JetBrainsMono NF"
                             background: null
                             padding: 0
@@ -217,7 +217,7 @@ TabPage {
                     visible: tab.filteredLayouts.length === 0
                     text: "No layout matches \"" + tab.layoutQuery + "\""
                     color: Services.Colors.ash
-                    font.pixelSize: 11
+                    font.pixelSize: Services.Sizes.fsBody
                     font.family: "JetBrainsMono NF"
                 }
 
@@ -236,9 +236,9 @@ TabPage {
                         readonly property bool already: Services.Keyboard.layouts.includes(modelData.code)
                         width: ListView.view.width
                         height: 30
-                        radius: 6
+                        radius: Services.Sizes.innerR
                         color: rowArea.containsMouse && !already
-                            ? Services.Colors.ghostAlpha(0.18) : "transparent"
+                            ? Services.Colors.fillRest : "transparent"
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: 8
@@ -247,7 +247,7 @@ TabPage {
                             Text {
                                 text: modelData.code
                                 color: Services.Colors.ghost
-                                font.pixelSize: 11
+                                font.pixelSize: Services.Sizes.fsBody
                                 font.bold: true
                                 font.family: "JetBrainsMono NF"
                                 Layout.preferredWidth: 52
@@ -255,7 +255,7 @@ TabPage {
                             Text {
                                 text: modelData.name
                                 color: parent.parent.already ? Services.Colors.ash : Services.Colors.snow
-                                font.pixelSize: 11
+                                font.pixelSize: Services.Sizes.fsBody
                                 font.family: "JetBrainsMono NF"
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
@@ -264,7 +264,7 @@ TabPage {
                                 visible: parent.parent.already
                                 text: "in use"
                                 color: Services.Colors.ash
-                                font.pixelSize: 9
+                                font.pixelSize: Services.Sizes.fsCaption
                                 font.family: "JetBrainsMono NF"
                             }
                         }
@@ -287,7 +287,7 @@ TabPage {
         Text {
             text: Services.Keyboard.keymap
             color: Services.Colors.ash
-            font.pixelSize: 10
+            font.pixelSize: Services.Sizes.fsMeta
             font.family: "JetBrainsMono NF"
         }
 
@@ -299,7 +299,7 @@ TabPage {
         Text {
             text: "Read straight from hypr/conf/keybinds.lua — edit that file and this list follows."
             color: Services.Colors.ash
-            font.pixelSize: 10
+            font.pixelSize: Services.Sizes.fsMeta
             font.family: "JetBrainsMono NF"
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
@@ -330,8 +330,8 @@ TabPage {
                         Rectangle {
                             Layout.preferredWidth: 168
                             Layout.preferredHeight: 26
-                            radius: 7
-                            color: Services.Colors.ghostAlpha(0.15)
+                            radius: Services.Sizes.innerR
+                            color: Services.Colors.fillLine
                             Text {
                                 anchors.left: parent.left
                                 anchors.leftMargin: 8
@@ -340,7 +340,7 @@ TabPage {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: modelData.keys
                                 color: Services.Colors.snow
-                                font.pixelSize: 10
+                                font.pixelSize: Services.Sizes.fsMeta
                                 font.bold: true
                                 font.family: "JetBrainsMono NF"
                                 elide: Text.ElideRight
@@ -350,7 +350,7 @@ TabPage {
                             Layout.fillWidth: true
                             text: modelData.action
                             color: Services.Colors.mist
-                            font.pixelSize: 11
+                            font.pixelSize: Services.Sizes.fsBody
                             font.family: "JetBrainsMono NF"
                             elide: Text.ElideRight
                         }
@@ -363,7 +363,7 @@ TabPage {
             visible: Services.Keybinds.binds.length === 0
             text: "No shortcuts found — keybinds.lua could not be read."
             color: Services.Colors.ash
-            font.pixelSize: 11
+            font.pixelSize: Services.Sizes.fsBody
             font.family: "JetBrainsMono NF"
         }
     }

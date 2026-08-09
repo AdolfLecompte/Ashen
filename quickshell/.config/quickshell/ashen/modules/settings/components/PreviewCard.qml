@@ -22,8 +22,8 @@ Rectangle {
 
     Layout.fillWidth: true
     height: 110
-    radius: 12
-    color: cardHover.containsMouse ? Services.Colors.ghostAlpha(0.18) : Services.Colors.ghostAlpha(0.1)
+    radius: Services.Sizes.cardR
+    color: cardHover.containsMouse ? Services.Colors.fillRest : Services.Colors.fillLine
     Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
     RowLayout {
@@ -37,8 +37,8 @@ Rectangle {
         Rectangle {
             id: preview
             width: card.previewWidth; height: 80
-            radius: 12
-            color: Services.Colors.ghostAlpha(0.2)
+            radius: Services.Sizes.cardR
+            color: Services.Colors.fillRest
             clip: true
 
             // Masked through the image's own layer: a separate OpacityMask
@@ -78,7 +78,7 @@ Rectangle {
             Text {
                 text: card.title
                 color: Services.Colors.snow
-                font.pixelSize: 15
+                font.pixelSize: Services.Sizes.fsCardTitle
                 font.bold: true
                 font.family: "JetBrainsMono NF"
                 Layout.alignment: Qt.AlignLeft
@@ -86,7 +86,7 @@ Rectangle {
             Text {
                 text: card.subtitle
                 color: Services.Colors.mist
-                font.pixelSize: 10
+                font.pixelSize: Services.Sizes.fsMeta
                 font.family: "JetBrainsMono NF"
                 elide: Text.ElideMiddle
                 Layout.fillWidth: true
@@ -96,14 +96,14 @@ Rectangle {
 
         Rectangle {
             width: 90; height: 36
-            radius: 8
+            radius: Services.Sizes.innerR
             color: Services.Colors.ghost
             gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
             Text {
                 anchors.centerIn: parent
                 text: card.action
                 color: Services.Colors.accentText
-                font.pixelSize: 12
+                font.pixelSize: Services.Sizes.fsBody
                 font.bold: true
                 font.family: "JetBrainsMono NF"
             }

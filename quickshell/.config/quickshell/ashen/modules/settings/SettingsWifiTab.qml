@@ -27,11 +27,9 @@ Item {
         knownProc.running = true
     }
 
-    // Forget a network by SSID. A NetworkManager profile name isn't always the
-    // SSID: on duplicates NM makes "SSID 1", "SSID 2"…, so `connection delete id
-    // <ssid>` fails silently for those. We resolve SSID→profile by walking the
-    // wifi profiles and deleting every match. SSID passed as $1 (argv, not
-    // interpolated) to avoid shell injection.
+    // Forget a network by SSID. An NM profile name isn't always the SSID: on
+    // duplicates NM makes "SSID 1", so `connection delete id <ssid>` fails
+    // silently. Resolve SSID->profile and delete every match. SSID as argv.
     function forgetSsid(ssid) {
         forgetProc.ssid = ssid
         forgetProc.running = true
@@ -122,7 +120,7 @@ Item {
             visible: false   // the drawer header carries the section name
             text: "Wi-Fi"
             color: Services.Colors.snow
-            font.pixelSize: 20
+            font.pixelSize: Services.Sizes.fsPanelTitle
             font.bold: true
             font.family: "JetBrainsMono NF"
         }
@@ -132,13 +130,13 @@ Item {
             Text {
                 text: "Wireless"
                 color: Services.Colors.mist
-                font.pixelSize: 11
+                font.pixelSize: Services.Sizes.fsBody
                 font.family: "JetBrainsMono NF"
                 Layout.fillWidth: true
             }
             Rectangle {
-                width: 28; height: 28; radius: 8
-                color: refreshHover.containsMouse ? Services.Colors.ghostAlpha(0.15) : "transparent"
+                width: 28; height: 28; radius: Services.Sizes.innerR
+                color: refreshHover.containsMouse ? Services.Colors.fillLine : "transparent"
                 Text {
                     anchors.centerIn: parent
                     text: ""
@@ -154,6 +152,7 @@ Item {
                     onClicked: tab.refreshNetworks()
                 }
             }
+            Item { Layout.fillWidth: true }
             Toggle {
                 checked: Services.Network.wifiEnabled
                 onToggled: {
@@ -176,10 +175,10 @@ Item {
             Layout.fillWidth: true
             height: Services.Network.wifiSsid !== "" ? 64 : 0
             visible: Services.Network.wifiSsid !== ""
-            radius: 8
+            radius: Services.Sizes.innerR
             // Filled, not outlined: the accent border read as a glow and
             // nothing else in the shell outlines a selection.
-            color: Services.Colors.ghostAlpha(0.2)
+            color: Services.Colors.fillRest
             border.width: 0
             RowLayout {
                 anchors.fill: parent
@@ -189,15 +188,15 @@ Item {
                 Column {
                     Layout.fillWidth: true
                     spacing: 2
-                    Text { text: Services.Network.wifiSsid; color: Services.Colors.snow; font.pixelSize: 14; font.family: "JetBrainsMono NF"; font.bold: true }
-                    Text { text: "Connected"; color: Services.Colors.ghost; font.pixelSize: 11; font.family: "JetBrainsMono NF" }
+                    Text { text: Services.Network.wifiSsid; color: Services.Colors.snow; font.pixelSize: Services.Sizes.fsCardTitle; font.family: "JetBrainsMono NF"; font.bold: true }
+                    Text { text: "Connected"; color: Services.Colors.ghost; font.pixelSize: Services.Sizes.fsBody; font.family: "JetBrainsMono NF" }
                 }
                 // Forget the current network
                 Rectangle {
                     Layout.preferredWidth: 34
                     Layout.preferredHeight: 34
-                    radius: 8
-                    color: forgetHover.containsMouse ? Services.Colors.ghostAlpha(0.18) : "transparent"
+                    radius: Services.Sizes.innerR
+                    color: forgetHover.containsMouse ? Services.Colors.fillRest : "transparent"
                     Text {
                         anchors.centerIn: parent
                         text: "\ue5cd"
@@ -221,7 +220,7 @@ Item {
             Layout.fillWidth: true
             spacing: 4
             visible: tab.knownRows.length > 0
-            Text { text: "Known Networks"; color: Services.Colors.mist; font.pixelSize: 10; font.family: "JetBrainsMono NF"; leftPadding: 4 }
+            Text { text: "Known Networks"; color: Services.Colors.mist; font.pixelSize: Services.Sizes.fsMeta; font.family: "JetBrainsMono NF"; leftPadding: 4 }
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(knownList.contentHeight, 3 * 54)
@@ -250,7 +249,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 4
-            Text { text: "Available Networks"; color: Services.Colors.mist; font.pixelSize: 10; font.family: "JetBrainsMono NF"; leftPadding: 4 }
+            Text { text: "Available Networks"; color: Services.Colors.mist; font.pixelSize: Services.Sizes.fsMeta; font.family: "JetBrainsMono NF"; leftPadding: 4 }
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -285,9 +284,9 @@ Item {
         anchors.centerIn: parent
         width: 360
         height: connectCol.implicitHeight + 32
-        radius: 14
+        radius: Services.Sizes.cardR
         color: Services.Colors.surfacePanel
-        border.color: Services.Colors.ghostAlpha(0.2)
+        border.color: Services.Colors.fillRest
         border.width: 0
         visible: tab.showConnectDialog
 
@@ -303,13 +302,13 @@ Item {
                 Column {
                     Layout.fillWidth: true
                     spacing: 2
-                    Text { text: "Connect to Network"; color: Services.Colors.mist; font.pixelSize: 11; font.family: "JetBrainsMono NF" }
-                    Text { text: tab.connectingTo; color: Services.Colors.snow; font.pixelSize: 15; font.family: "JetBrainsMono NF"; font.bold: true }
+                    Text { text: "Connect to Network"; color: Services.Colors.mist; font.pixelSize: Services.Sizes.fsBody; font.family: "JetBrainsMono NF" }
+                    Text { text: tab.connectingTo; color: Services.Colors.snow; font.pixelSize: Services.Sizes.fsCardTitle; font.family: "JetBrainsMono NF"; font.bold: true }
                 }
                 Rectangle {
-                    width: 28; height: 28; radius: 8
-                    color: dismissHover.containsMouse ? Services.Colors.ghostAlpha(0.15) : "transparent"
-                    Text { anchors.centerIn: parent; text: "\u2715"; color: Services.Colors.mist; font.pixelSize: 14 }
+                    width: 28; height: 28; radius: Services.Sizes.innerR
+                    color: dismissHover.containsMouse ? Services.Colors.fillLine : "transparent"
+                    Text { anchors.centerIn: parent; text: "\u2715"; color: Services.Colors.mist; font.pixelSize: Services.Sizes.fsCardTitle }
                     MouseArea {
                         id: dismissHover
                         anchors.fill: parent
@@ -323,9 +322,9 @@ Item {
             Rectangle {
                 width: parent.width
                 height: 48
-                radius: 8
-                color: Services.Colors.ghostAlpha(0.1)
-                border.color: passInput.activeFocus ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.3)
+                radius: Services.Sizes.innerR
+                color: Services.Colors.fillLine
+                border.color: passInput.activeFocus ? Services.Colors.ghost : Services.Colors.fillHover
                 border.width: 1
                 Behavior on border.color { ColorAnimation { duration: Services.Sizes.msMicro } }
                 RowLayout {
@@ -341,7 +340,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: "Password"
                             color: Services.Colors.ash
-                            font.pixelSize: 14
+                            font.pixelSize: Services.Sizes.fsCardTitle
                             font.family: "JetBrainsMono NF"
                             visible: passInput.text.length === 0
                         }
@@ -351,7 +350,7 @@ Item {
                             text: tab.password
                             echoMode: tab.showPassword ? TextInput.Normal : TextInput.Password
                             color: Services.Colors.snow
-                            font.pixelSize: 14
+                            font.pixelSize: Services.Sizes.fsCardTitle
                             font.family: "JetBrainsMono NF"
                             verticalAlignment: TextInput.AlignVCenter
                             onTextChanged: tab.password = text
@@ -359,8 +358,8 @@ Item {
                         }
                     }
                     Rectangle {
-                        width: 32; height: 32; radius: 6
-                        color: eyeHover.containsMouse ? Services.Colors.ghostAlpha(0.15) : "transparent"
+                        width: 32; height: 32; radius: Services.Sizes.innerR
+                        color: eyeHover.containsMouse ? Services.Colors.fillLine : "transparent"
                         Text {
                             anchors.centerIn: parent
                             text: tab.showPassword ? "" : ""
@@ -384,10 +383,10 @@ Item {
                 spacing: 8
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 40; radius: 8
-                    color: cancelHover.containsMouse ? Services.Colors.ghostAlpha(0.25)
-                                                     : Services.Colors.ghostAlpha(0.15)
-                    Text { anchors.centerIn: parent; text: "Cancel"; color: Services.Colors.snow; font.pixelSize: 13; font.family: "JetBrainsMono NF" }
+                    height: 40; radius: Services.Sizes.innerR
+                    color: cancelHover.containsMouse ? Services.Colors.fillRest
+                                                     : Services.Colors.fillLine
+                    Text { anchors.centerIn: parent; text: "Cancel"; color: Services.Colors.snow; font.pixelSize: Services.Sizes.fsInput; font.family: "JetBrainsMono NF" }
                     MouseArea {
                         id: cancelHover
                         anchors.fill: parent
@@ -399,7 +398,7 @@ Item {
                 Rectangle {
                     id: connectBtn
                     Layout.fillWidth: true
-                    height: 40; radius: 8
+                    height: 40; radius: Services.Sizes.innerR
                     color: Services.Colors.ghost
                     gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
                     function connect() {
@@ -419,7 +418,7 @@ Item {
                         opacity: connectMouse.containsMouse ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
                     }
-                    Text { anchors.centerIn: parent; text: "Connect"; color: Services.Colors.accentText; font.pixelSize: 13; font.family: "JetBrainsMono NF"; font.bold: true }
+                    Text { anchors.centerIn: parent; text: "Connect"; color: Services.Colors.accentText; font.pixelSize: Services.Sizes.fsInput; font.family: "JetBrainsMono NF"; font.bold: true }
                     MouseArea {
                         id: connectMouse
                         anchors.fill: parent

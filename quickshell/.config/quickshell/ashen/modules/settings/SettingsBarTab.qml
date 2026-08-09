@@ -44,7 +44,7 @@ TabPage {
         Text {
             text: "Side bars stack the pills and drop the labels they have no room for."
             color: Services.Colors.ash
-            font.pixelSize: 10
+            font.pixelSize: Services.Sizes.fsMeta
             font.family: "JetBrainsMono NF"
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
@@ -52,9 +52,7 @@ TabPage {
     }
 
     // ── Bar layout editor ───────────────────────────────────────────────
-    // Names and icons come from services/Pills.qml, the one catalogue. The
-    // copy that used to live here had to be edited by hand every time a pill
-    // was added, and was already a name behind.
+    // Names and icons come from services/Pills.qml, the one catalogue.
     // Everything the catalogue says you may arrange on the bar.
     readonly property var allPills: Services.Pills.arrangeable
     // Whatever is in no section at all
@@ -63,6 +61,10 @@ TabPage {
 
     // Which pill is in the air, so its own zone can be lifted above the others
     property string draggingId: ""
+    // …and how wide it is, so the gap a plate offers is the size of the pill
+    // itself. A 3 px caret gave you an index; it never said what was about to
+    // be there.
+    property real draggingW: 0
 
     // A chip that can be picked up. The slot keeps its place in the row while
     // only the face travels, so the layout underneath never gets disturbed and
@@ -86,11 +88,11 @@ TabPage {
             implicitWidth: gly.implicitWidth + chipInner.spacing + lab.implicitWidth + 18
             width: slot.maxWidth > 0 ? Math.min(implicitWidth, slot.maxWidth) : implicitWidth
             height: 28
-            radius: 9
+            radius: Services.Sizes.innerR
             z: dragArea.drag.active ? 100 : 0
             color: dragArea.drag.active ? Services.Colors.ghost
-                 : hoverArea.containsMouse ? Services.Colors.ghostAlpha(0.32)
-                 : Services.Colors.ghostAlpha(0.18)
+                 : hoverArea.containsMouse ? Services.Colors.fillHover
+                 : Services.Colors.fillRest
             Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
             // What the DropArea reads on the other end. `Drag.mimeData` is
@@ -133,7 +135,7 @@ TabPage {
                     elide: Text.ElideRight
                     text: Services.Pills.label(slot.pillId)
                     color: dragArea.drag.active ? Services.Colors.accentText : Services.Colors.snow
-                    font.pixelSize: 11
+                    font.pixelSize: Services.Sizes.fsBody
                     font.family: "JetBrainsMono NF"
                 }
             }
@@ -149,13 +151,14 @@ TabPage {
                 anchors.fill: parent
                 drag.target: face
                 drag.smoothed: false
-                onPressed: tab.draggingId = slot.pillId
+                onPressed: {
+                    tab.draggingId = slot.pillId
+                    tab.draggingW = face.width
+                }
                 onReleased: {
-                    // Clear the drag flag BEFORE dropping: a successful drop
-                    // rewrites the layout, which rebuilds this very row and
-                    // destroys this delegate mid-handler. Anything after the
-                    // drop then runs against a dead object — that was throwing
-                    // and leaving the zone stuck in its raised state.
+                    // Clear the drag flag BEFORE dropping: a successful drop rewrites the
+                    // layout, which destroys this delegate mid-handler, so anything after the
+                    // drop throws and leaves the zone stuck in its raised state.
                     tab.draggingId = ""
                     face.Drag.drop()
                     // Only reached when nothing caught it; then it snaps home.
@@ -165,12 +168,10 @@ TabPage {
         }
     }
 
-    // One of the four places a pill can be.
-    //
-    // The three bar sections stand side by side in the order they occupy the
-    // bar, so the editor is a picture of the bar rather than a stack of lists
-    // that only says where things go if you read the captions. Available sits
-    // underneath, off the bar entirely -- which is exactly what it means.
+    // One of the four places a pill can be. The three bar sections stand side
+    // by side in the order they occupy the bar, so the editor is a picture of
+    // the bar and not a stack of lists. Available sits underneath, off the bar
+    // entirely -- which is exactly what it means.
     component Zone: ColumnLayout {
         id: zone
         property string section: ""
@@ -196,7 +197,7 @@ TabPage {
         Text {
             text: zone.caption
             color: Services.Colors.ash
-            font.pixelSize: 10
+            font.pixelSize: Services.Sizes.fsMeta
             font.bold: true
             font.family: "JetBrainsMono NF"
         }
@@ -207,10 +208,10 @@ TabPage {
             // No clip, however tempting: the chip being dragged is a child of
             // this plate until it is dropped, and clipping would cut it off at
             // the edge on the way out.
-            radius: 12
-            color: dropZone.containsDrag ? Services.Colors.ghostAlpha(0.16)
-                                         : Services.Colors.ghostAlpha(0.05)
-            border.color: dropZone.containsDrag ? Services.Colors.ghostAlpha(0.4) : "transparent"
+            radius: Services.Sizes.cardR
+            color: dropZone.containsDrag ? Services.Colors.fillRest
+                                         : Services.Colors.fillInset
+            border.color: dropZone.containsDrag ? Services.Colors.fillSunken : "transparent"
             border.width: 1
             Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
@@ -243,12 +244,19 @@ TabPage {
             Rectangle {
                 id: caret
                 visible: dropZone.containsDrag && zone.dropIndex >= 0
-                width: 3
-                height: 22
-                radius: 1.5
-                color: Services.Colors.ghost
-                x: zone.caretX(zone.dropIndex)
-                y: zone.caretY(zone.dropIndex)
+                // The pill's own size, straddling the gap it would drop into.
+                // Drawn OVER the row, never inserted into it: a placeholder in
+                // the model rebuilds the chip under the pointer, and killing
+                // the drag's own target wedges the editor.
+                z: 5
+                width: Math.max(28, tab.draggingW)
+                height: 28
+                radius: Services.Sizes.innerR
+                color: Services.Colors.fillLine
+                border.color: Services.Colors.ghost
+                border.width: 1
+                x: zone.caretX(zone.dropIndex) - width / 2
+                y: zone.caretY(zone.dropIndex) - 3
                 // Only while it is already up: on the frame it appears, its
                 // position comes from wherever it was left in some other
                 // plate, and animating that would fly it across the editor
@@ -282,16 +290,14 @@ TabPage {
                 visible: zone.ids.length === 0
                 text: "drop here"
                 color: Services.Colors.ash
-                font.pixelSize: 10
+                font.pixelSize: Services.Sizes.fsMeta
                 font.family: "JetBrainsMono NF"
             }
         }
 
-        // Where in the flow a drop at (px, py) belongs: before the first chip
-        // it has not yet passed in reading order. Rows have to be settled
-        // first -- with wrapping, a chip further right can still come earlier
-        // than one on the line above, so x alone would put a drop at the end
-        // of the last row before everything on the rows under it.
+        // Where in the flow a drop at (px, py) belongs, in reading order. Rows have
+        // to be settled first: with wrapping, x alone puts a drop at the end of the
+        // last row before everything on the rows under it.
         function indexAt(px, py) {
             const kids = chipFlow.children
             let n = 0
@@ -346,7 +352,7 @@ TabPage {
         Text {
             text: "The three plates sit where they sit on the bar. Drag a pill onto one to place it, and within one to order it. The clock holds the exact middle of the centre plate and its neighbours fall either side. Anything left in Available is not built at all."
             color: Services.Colors.ash
-            font.pixelSize: 10
+            font.pixelSize: Services.Sizes.fsMeta
             font.family: "JetBrainsMono NF"
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
@@ -375,7 +381,7 @@ TabPage {
         Text {
             text: "Reset to the shipped arrangement"
             color: resetHover.containsMouse ? Services.Colors.snow : Services.Colors.ash
-            font.pixelSize: 10
+            font.pixelSize: Services.Sizes.fsMeta
             font.family: "JetBrainsMono NF"
             Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
             MouseArea {
@@ -399,8 +405,8 @@ TabPage {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
-                Text { text: "Time Format"; color: Services.Colors.snow; font.pixelSize: 13; font.family: "JetBrainsMono NF" }
-                Text { text: tab.timePreview; color: Services.Colors.ash; font.pixelSize: 10; font.family: "JetBrainsMono NF" }
+                Text { text: "Time Format"; color: Services.Colors.snow; font.pixelSize: Services.Sizes.fsInput; font.family: "JetBrainsMono NF" }
+                Text { text: tab.timePreview; color: Services.Colors.ash; font.pixelSize: Services.Sizes.fsMeta; font.family: "JetBrainsMono NF" }
             }
             Segmented {
                 options: [
@@ -419,9 +425,10 @@ TabPage {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
-                Text { text: "Show Seconds"; color: Services.Colors.snow; font.pixelSize: 13; font.family: "JetBrainsMono NF" }
-                Text { text: "Ticks the clock every second"; color: Services.Colors.ash; font.pixelSize: 10; font.family: "JetBrainsMono NF" }
+                Text { text: "Show Seconds"; color: Services.Colors.snow; font.pixelSize: Services.Sizes.fsInput; font.family: "JetBrainsMono NF" }
+                Text { text: "Ticks the clock every second"; color: Services.Colors.ash; font.pixelSize: Services.Sizes.fsMeta; font.family: "JetBrainsMono NF" }
             }
+            Item { Layout.fillWidth: true }
             Toggle {
                 checked: Services.Prefs.clockSeconds
                 onToggled: Services.Prefs.clockSeconds = !Services.Prefs.clockSeconds
@@ -436,8 +443,8 @@ TabPage {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
-                Text { text: "Temperature"; color: Services.Colors.snow; font.pixelSize: 13; font.family: "JetBrainsMono NF" }
-                Text { text: "Now: " + Services.Weather.temp; color: Services.Colors.ash; font.pixelSize: 10; font.family: "JetBrainsMono NF" }
+                Text { text: "Temperature"; color: Services.Colors.snow; font.pixelSize: Services.Sizes.fsInput; font.family: "JetBrainsMono NF" }
+                Text { text: "Now: " + Services.Weather.temp; color: Services.Colors.ash; font.pixelSize: Services.Sizes.fsMeta; font.family: "JetBrainsMono NF" }
             }
             Segmented {
                 options: [
@@ -477,8 +484,8 @@ TabPage {
                     property bool hovered: false
                     implicitWidth: Math.min(cityName.implicitWidth + 44, 220)
                     height: 40
-                    radius: 10
-                    color: cityCard.active ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.12)
+                    radius: Services.Sizes.pillR
+                    color: cityCard.active ? Services.Colors.ghost : Services.Colors.fillLine
                     gradient: Services.Prefs.useGradients && (cityCard.active) ? Services.Colors.accentGradient : null
                     Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                     RowLayout {
@@ -496,7 +503,7 @@ TabPage {
                             id: cityName
                             text: cityCard.modelData.city
                             color: cityCard.active ? Services.Colors.accentText : Services.Colors.snow
-                            font.pixelSize: 11
+                            font.pixelSize: Services.Sizes.fsBody
                             font.family: "JetBrainsMono NF"
                             elide: Text.ElideRight
                             Layout.fillWidth: true
@@ -513,8 +520,8 @@ TabPage {
                         anchors.top: parent.top
                         anchors.right: parent.right
                         anchors.margins: 4
-                        width: 18; height: 18; radius: 9
-                        color: rmCityArea.containsMouse ? Services.Colors.ghost : Services.Colors.ghostAlpha(0.4)
+                        width: 18; height: 18; radius: Services.Sizes.innerR
+                        color: rmCityArea.containsMouse ? Services.Colors.ghost : Services.Colors.fillSunken
                         gradient: Services.Prefs.useGradients && (rmCityArea.containsMouse) ? Services.Colors.accentGradient : null
                         Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                         Text {
@@ -540,9 +547,9 @@ TabPage {
             Rectangle {
                 height: 40
                 implicitWidth: 92
-                radius: 10
-                color: addCityArea.containsMouse ? Services.Colors.ghostAlpha(0.2) : Services.Colors.ghostAlpha(0.06)
-                border.color: Services.Colors.ghostAlpha(0.3)
+                radius: Services.Sizes.pillR
+                color: addCityArea.containsMouse ? Services.Colors.fillRest : Services.Colors.fillInset
+                border.color: Services.Colors.fillHover
                 border.width: 1
                 Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                 RowLayout {
@@ -556,7 +563,7 @@ TabPage {
                     }
                     Text {
                         text: "Add"
-                        font.pixelSize: 10
+                        font.pixelSize: Services.Sizes.fsMeta
                         font.family: "JetBrainsMono NF"
                         color: Services.Colors.mist
                     }
@@ -579,8 +586,8 @@ TabPage {
         Rectangle {
             Layout.fillWidth: true
             clip: true
-            radius: 12
-            color: Services.Colors.ghostAlpha(0.08)
+            radius: Services.Sizes.cardR
+            color: Services.Colors.fillInset
             implicitHeight: cityPickerCol.implicitHeight + 20
             // Slide open/closed instead of snapping.
             Layout.preferredHeight: tab.cityPickerOpen ? implicitHeight : 0
@@ -599,8 +606,8 @@ TabPage {
                 Rectangle {
                     Layout.fillWidth: true
                     height: 34
-                    radius: 8
-                    color: Services.Colors.ghostAlpha(0.12)
+                    radius: Services.Sizes.innerR
+                    color: Services.Colors.fillLine
                     RowLayout {
                         anchors.fill: parent
                         anchors.leftMargin: 10
@@ -618,7 +625,7 @@ TabPage {
                             placeholderText: "Search city..."
                             color: Services.Colors.snow
                             placeholderTextColor: Services.Colors.ash
-                            font.pixelSize: 12
+                            font.pixelSize: Services.Sizes.fsBody
                             font.family: "JetBrainsMono NF"
                             background: null
                             padding: 0
@@ -643,8 +650,8 @@ TabPage {
                         required property var modelData
                         Layout.fillWidth: true
                         Layout.preferredHeight: 38
-                        radius: 8
-                        color: sugArea.containsMouse ? Services.Colors.ghostAlpha(0.18) : Services.Colors.ghostAlpha(0.06)
+                        radius: Services.Sizes.innerR
+                        color: sugArea.containsMouse ? Services.Colors.fillRest : Services.Colors.fillInset
                         Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
 
                         RowLayout {
@@ -664,7 +671,7 @@ TabPage {
                                 Text {
                                     text: modelData.label
                                     color: Services.Colors.snow
-                                    font.pixelSize: 12
+                                    font.pixelSize: Services.Sizes.fsBody
                                     font.family: "JetBrainsMono NF"
                                     elide: Text.ElideRight
                                     Layout.fillWidth: true
@@ -673,7 +680,7 @@ TabPage {
                                     text: modelData.detail
                                     visible: text !== ""
                                     color: Services.Colors.ash
-                                    font.pixelSize: 9
+                                    font.pixelSize: Services.Sizes.fsCaption
                                     font.family: "JetBrainsMono NF"
                                     elide: Text.ElideRight
                                     Layout.fillWidth: true
