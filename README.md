@@ -40,7 +40,7 @@ hypridle mpvpaper ffmpeg wlsunset
 nemo zenity fastfetch cava xdg-utils libnotify
 papirus-icon-theme adw-gtk-theme
 ttf-jetbrains-mono-nerd ttf-material-symbols-variable
-xdg-desktop-portal-hyprland polkit-gnome
+xdg-desktop-portal-hyprland xdg-desktop-portal-gtk polkit-gnome
 ```
 
 `qt6-5compat` is **required**, not optional: the shell imports
@@ -169,7 +169,7 @@ The keyboard layout pill in the bar is **read-only**. Layouts are declared in
 
 ## Status
 
-2.0.0
+2.0.1
 
 ## License
 

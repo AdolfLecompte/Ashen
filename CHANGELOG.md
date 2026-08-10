@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.0.1
+
+### Added
+- **Accent folders** — `scripts/ashen-folders.sh` builds an icon theme that
+  inherits Papirus and repaints only the folders with the accent of the moment,
+  rebuilt whenever the wallpaper moves it. Switched on in Appearance → Folders.
+  The four tones are chosen by the accent's luminance, so a light-mode accent
+  (which is a dark colour) gets a light emblem instead of Papirus' dark one.
+
+### Fixed
+- **GTK apps dissolving into the wallpaper** — Hyprland already draws every
+  window at `active_opacity 0.70` with blur behind it, and the generated CSS
+  added a second `alpha()` on top. Over a light wallpaper that left the file
+  names in Nemo and the portal's file chooser sitting on the picture with
+  nothing behind them. The backgrounds are solid now, and the file managers and
+  the portal dialog keep a near-opaque window rule of their own.
+- **Light mode never reached the apps** — the GTK theme name and the
+  colour-scheme preference were written once at install time and pinned to
+  dark, so switching Ashen to light left our colours light and `adw-gtk3-dark`
+  serving its own dark tones for everything else. `scripts/ashen-gtk-mode.sh`
+  now owns both (and Nemo's Cinnamon namespace, which reads its own), and runs
+  on every switch.
+- **The fixed schemes wrote a different CSS** — the non-dynamic path painted
+  windows nearly transparent, wrote only GTK3, and never restarted the portal.
+  It now matches the matugen templates, writes GTK4 as well, and hands over to
+  the mode script.
+- **libadwaita fell back to dark** — every colour name GTK4 could not find used
+  its dark default; the missing dozen (`dialog_*`, `shade_color`,
+  `sidebar_backdrop_*`, `thumbnail_*`, …) are defined.
+- **`xdg-desktop-portal-gtk` was never declared** in the installer or the
+  package, though it serves the settings portal to GTK apps and Ashen already
+  restarted it.
+- **`wlsunset` missing from the package** — the night light had a switch that
+  did nothing on a package install.
+
 ## 2.0.0
 
 The shell was taken apart and put back together. Everything that used to be a
