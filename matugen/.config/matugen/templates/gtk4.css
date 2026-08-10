@@ -21,18 +21,41 @@
 @define-color card_fg_color {{colors.on_surface_variant.default.hex}};
 @define-color popover_bg_color {{colors.surface.default.hex}};
 @define-color popover_fg_color {{colors.on_surface.default.hex}};
-@define-color sidebar_bg_color {{colors.surface.default.hex}};
+@define-color sidebar_bg_color {{colors.surface_container.default.hex}};
 @define-color sidebar_fg_color {{colors.on_surface.default.hex}};
 
-/* Transparencia para blur */
+/* Every libadwaita name we do NOT set falls back to its DARK default, which is
+   what left the portal's file chooser half dark on a light scheme. */
+@define-color sidebar_backdrop_color {{colors.surface.default.hex}};
+@define-color sidebar_shade_color {{colors.shadow.default.hex}};
+@define-color secondary_sidebar_bg_color {{colors.surface_variant.default.hex}};
+@define-color secondary_sidebar_fg_color {{colors.on_surface_variant.default.hex}};
+@define-color secondary_sidebar_backdrop_color {{colors.surface.default.hex}};
+@define-color secondary_sidebar_shade_color {{colors.shadow.default.hex}};
+@define-color headerbar_backdrop_color {{colors.surface.default.hex}};
+@define-color headerbar_shade_color {{colors.shadow.default.hex}};
+@define-color dialog_bg_color {{colors.surface_container.default.hex}};
+@define-color dialog_fg_color {{colors.on_surface.default.hex}};
+@define-color card_shade_color {{colors.shadow.default.hex}};
+@define-color thumbnail_bg_color {{colors.surface_variant.default.hex}};
+@define-color thumbnail_fg_color {{colors.on_surface_variant.default.hex}};
+@define-color shade_color {{colors.shadow.default.hex}};
+@define-color scrollbar_outline_color {{colors.outline.default.hex}};
+
+/* Solid, same reason as GTK3: the compositor is already drawing these windows
+   at 0.70 with blur behind them. Stacking a second alpha on top left the file
+   chooser unreadable over a bright wallpaper. */
 window, .background {
-    background-color: alpha(@window_bg_color, 0.80);
+    background-color: @window_bg_color;
+    color: @window_fg_color;
 }
 
 headerbar {
-    background-color: alpha(@headerbar_bg_color, 0.75);
+    background-color: @headerbar_bg_color;
+    color: @headerbar_fg_color;
 }
 
 .sidebar {
-    background-color: alpha(@sidebar_bg_color, 0.75);
+    background-color: @sidebar_bg_color;
+    color: @sidebar_fg_color;
 }

@@ -93,5 +93,7 @@ for s in /tmp/kitty-ashen.sock-*; do
     [ -S "$s" ] && kitten @ --to "unix:$s" set-colors --all --configured \
         "$HOME/.config/kitty/ashen-colors.conf" >/dev/null 2>&1
 done
-systemctl --user restart xdg-desktop-portal-gtk.service >/dev/null 2>&1 || true
+# Theme name and colour-scheme live in one place; it restarts the portal for us.
+HERE="$(cd "$(dirname "$0")" && pwd)"
+"$HERE/ashen-gtk-mode.sh" >/dev/null 2>&1
 exit 0

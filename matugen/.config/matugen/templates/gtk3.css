@@ -15,9 +15,14 @@
 @define-color borders {{colors.outline.default.hex}};
 @define-color sidebar_bg_color {{colors.surface_container.default.hex}};
 
-/* Transparencia para blur */
+/* Solid, on purpose. Hyprland already draws every window at
+   active_opacity 0.70 with blur behind it, so an alpha here was a second
+   helping of the same thing: over a light wallpaper the two together left
+   labels sitting on the picture with nothing behind them. Let the compositor
+   own the see-through and let the CSS own the contrast. */
 window, .background {
-    background-color: alpha(@theme_bg_color, 0.80);
+    background-color: @theme_bg_color;
+    color: @theme_fg_color;
 }
 
 /* ── Nemo / file managers ─────────────────── */
@@ -31,7 +36,8 @@ toolbar, GtkToolbar {
 .sidebar,
 .sidebar .view,
 placessidebar {
-    background-color: alpha(@sidebar_bg_color, 0.60);
+    background-color: @sidebar_bg_color;
+    color: @theme_fg_color;
 }
 
 .sidebar row:selected,
@@ -44,10 +50,13 @@ treeview:selected:focus {
     color: @theme_selected_fg_color;
 }
 
+/* Transparent so the window's own colour shows through -- which is now a
+   colour and not a hole. */
 .view,
 iconview.view,
 iconview {
     background-color: transparent;
+    color: @theme_text_color;
 }
 
 iconview.view:selected,
@@ -60,7 +69,7 @@ iconview.view:selected:focus,
 }
 
 .floating-bar {
-    background-color: alpha(@sidebar_bg_color, 0.92);
+    background-color: @sidebar_bg_color;
     color: @theme_fg_color;
     border: 1px solid alpha(@theme_selected_bg_color, 0.3);
     border-radius: 10px;
@@ -69,7 +78,7 @@ iconview.view:selected:focus,
 }
 
 .floating-bar:backdrop {
-    background-color: alpha(@sidebar_bg_color, 0.75);
+    background-color: @sidebar_bg_color;
 }
 
 /* ── Widgets ──────────────────────────────── */
