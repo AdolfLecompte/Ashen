@@ -324,8 +324,6 @@ Singleton {
         if (root.activePopups.find(p => p.id === id)) root.beginLeave(id, true)
     }
 
-    property bool lastCapsLock: false
-    property bool lastNumLock: false
     property string lastPowerProfile: ""
     property bool initialized: false
 
@@ -685,37 +683,20 @@ Singleton {
         }
     }
 
-    // --- Caps Lock / Num Lock (poll via hyprctl -j devices) ---
-    Process {
-        id: kbStateProc
-        command: ["sh", "-c", "hyprctl -j devices"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let data = JSON.parse(text)
-                    let kb = data.keyboards && data.keyboards.find(k => k.main) || (data.keyboards ? data.keyboards[0] : null)
-                    if (!kb) return
-                    if (root.initialized) {
-                        if (kb.capsLock !== root.lastCapsLock) {
-                            root.addSystemToast(kb.capsLock ? "CAPS LOCK ON" : "CAPS LOCK OFF", "", false, "capslock")
-                        }
-                        if (kb.numLock !== root.lastNumLock) {
-                            root.addSystemToast(kb.numLock ? "NUM LOCK ON" : "NUM LOCK OFF", "\uf2af", false, "numlock")
-                        }
-                    }
-                    root.lastCapsLock = kb.capsLock
-                    root.lastNumLock = kb.numLock
-                } catch (e) {}
-            }
+    // Caps Lock and Num Lock are read by services/Keyboard.qml, which owns the
+    // keyboard; this only says so out loud when one of them flips.
+    Connections {
+        target: Services.Keyboard
+        function onCapsLockChanged() {
+            if (!root.initialized) return
+            root.addSystemToast(Services.Keyboard.capsLock ? "CAPS LOCK ON" : "CAPS LOCK OFF",
+                                "\ue318", false, "capslock")
         }
-    }
-
-    Timer {
-        interval: 500
-        running: true
-        repeat: true
-        onTriggered: kbStateProc.running = true
+        function onNumLockChanged() {
+            if (!root.initialized) return
+            root.addSystemToast(Services.Keyboard.numLock ? "NUM LOCK ON" : "NUM LOCK OFF",
+                                "\uf2af", false, "numlock")
+        }
     }
 
     // --- Power profile changes (powerprofilesctl monitor, streaming) ---

@@ -19,6 +19,12 @@ Singleton {
     readonly property string label: code === "" ? "--" : code.toUpperCase()
     readonly property bool multiple: layouts.length > 1
 
+    // The two locks, read from the same device the layout comes from. They live
+    // here and not in whoever draws them: the bar shows them, the notification
+    // service announces them, and both should be reading one answer.
+    property bool capsLock: false
+    property bool numLock: false
+
     function refresh() { devProc.running = true }
 
     // Resolved from $HOME at runtime, and via the stowed config location rather
@@ -131,6 +137,8 @@ Singleton {
                     root.layouts = (main.layout || "").split(",").map(s => s.trim()).filter(s => s.length > 0)
                     root.activeIndex = main.active_layout_index || 0
                     root.keymap = main.active_keymap || ""
+                    root.capsLock = !!main.capsLock
+                    root.numLock = !!main.numLock
                     // Converges: the switch fires an activelayout event -> refresh
                     // -> this runs again, finds the pick already active, no-ops.
                     root.restorePick()
@@ -139,6 +147,16 @@ Singleton {
                 }
             }
         }
+    }
+
+    // Hyprland announces a layout change but says nothing about the locks, so
+    // they are asked for. Twice a second: it is a keypress the user just made,
+    // and the answer costs one hyprctl.
+    Timer {
+        interval: 500
+        running: true
+        repeat: true
+        onTriggered: devProc.running = true
     }
 
     // Hyprland announces every layout change, whoever caused it

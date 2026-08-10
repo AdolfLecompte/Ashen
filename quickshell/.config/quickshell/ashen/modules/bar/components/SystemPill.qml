@@ -24,6 +24,13 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 4
 
+        // Caps and Num, to the left of the layout they belong to. They do not
+        // light and unlit: a lock that is off is not a state worth a slot, so
+        // the chip is there or it is not -- and it grows into the strip rather
+        // than popping the other chips sideways.
+        LockChip { on: Services.Keyboard.capsLock; glyph: "\uf7de" }
+        LockChip { on: Services.Keyboard.numLock;  glyph: "\ue400" }
+
         // Keyboard layout: read-only. Switching lives in Settings > System.
         SystemChip {
             interactive: false
@@ -91,6 +98,60 @@ Rectangle {
             idleColor: Services.Battery.level >= 20 ? Services.Colors.snow
                                                     : Services.Colors.error_
             onActivated: Services.AppState.batteryVisible = !Services.AppState.batteryVisible
+        }
+    }
+
+    // A chip that arrives and leaves in two beats, and in the other order on
+    // the way out: the slot opens, THEN the chip appears; the chip goes, THEN
+    // the slot closes. One driver doing both at once made the letters ride the
+    // gap open and shut, which reads as the strip shoving rather than a chip
+    // arriving. Explicit animations and not Behaviors, because the two halves
+    // are asymmetric.
+    component LockChip: Item {
+        id: slot
+        property bool on: false
+        property string glyph: ""
+
+        // The room it takes, and the chip standing in it.
+        property real boxAmt: 0
+        property real faceAmt: 0
+
+        width: plate.width * slot.boxAmt
+        height: Services.Sizes.innerH
+        visible: slot.boxAmt > 0.01 || slot.faceAmt > 0.01
+
+        onOnChanged: {
+            if (slot.on) { outAnim.stop(); inAnim.restart() }
+            else { inAnim.stop(); outAnim.restart() }
+        }
+        // Born with the lock already on: land there, do not play an entrance
+        // for a state that was true before the bar existed.
+        Component.onCompleted: if (slot.on) { slot.boxAmt = 1; slot.faceAmt = 1 }
+
+        SequentialAnimation {
+            id: inAnim
+            NumberAnimation { target: slot; property: "boxAmt"; to: 1
+                              duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut }
+            NumberAnimation { target: slot; property: "faceAmt"; to: 1
+                              duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut }
+        }
+        SequentialAnimation {
+            id: outAnim
+            NumberAnimation { target: slot; property: "faceAmt"; to: 0
+                              duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeIn }
+            NumberAnimation { target: slot; property: "boxAmt"; to: 0
+                              duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeInOut }
+        }
+
+        SystemChip {
+            id: plate
+            interactive: false
+            glyph: slot.glyph
+            idleColor: Services.Colors.snow
+            x: (slot.width - width) / 2
+            anchors.verticalCenter: parent.verticalCenter
+            opacity: slot.faceAmt
+            scale: 0.82 + 0.18 * slot.faceAmt
         }
     }
 }
