@@ -175,7 +175,7 @@ The keyboard layout pill in the bar is **read-only**. Layouts are declared in
 
 ## Status
 
-2.0.2
+2.1.0
 
 ## License
 

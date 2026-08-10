@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.0
+
+### Added
+- **Caps Lock and Num Lock are back on the bar**, as two chips to the left of
+  the keyboard layout — in the slot the brightness chip left free. They are not
+  lit and unlit: a lock that is off is not a state worth a slot. They arrive in
+  two beats — the slot opens, then the chip appears — and leave in the other
+  order, so the strip is never seen shoving its neighbours aside.
+
+### Changed
+- **The lock state belongs to the keyboard now** — it was polled inside the
+  notification service, with a second `hyprctl` of its own. `services/Keyboard.qml`
+  reads it off the same call the layout already comes from, and the bar and the
+  toasts share that one answer.
+
 ## 2.0.2
 
 ### Changed
