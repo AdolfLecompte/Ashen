@@ -71,9 +71,14 @@ Singleton {
             "settings": "Settings", "notifications": "Notifications", "wallpaper": "Wallpaper picker",
             "clipboard": "Clipboard",
             "process": "Process monitor", "launcher": "Launcher", "lockscreen": "Lock screen",
-            "power": "Power menu", "osd": "On-screen display"
+            "power": "Power menu", "osd": "On-screen display", "media": "Media"
         }
         const label = names[target] !== undefined ? names[target] : target
+        if (target === "media") {
+            if (fn === "next") return "Next track"
+            if (fn === "prev") return "Previous track"
+            if (fn === "playPause") return "Play / pause"
+        }
         if (fn === "toggle") return label
         if (target === "lockscreen") return label
         if (target === "notifications" && fn === "screenshot") return "Screenshot (area)"

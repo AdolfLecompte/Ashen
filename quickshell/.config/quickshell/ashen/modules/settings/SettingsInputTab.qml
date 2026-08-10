@@ -310,8 +310,8 @@ TabPage {
             delegate: ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
-                Layout.topMargin: 6
-                spacing: 6
+                Layout.topMargin: 10
+                spacing: 8
 
                 SectionLabel {
                     text: modelData.name
@@ -324,23 +324,24 @@ TabPage {
                     delegate: RowLayout {
                         required property var modelData
                         Layout.fillWidth: true
-                        spacing: 10
+                        spacing: 14
 
                         // Keys first: the list is scanned by "what do I press?"
                         Rectangle {
-                            Layout.preferredWidth: 168
-                            Layout.preferredHeight: 26
+                            Layout.preferredWidth: 240
+                            Layout.maximumWidth: 240
+                            Layout.preferredHeight: 34
                             radius: Services.Sizes.innerR
                             color: Services.Colors.fillLine
                             Text {
                                 anchors.left: parent.left
-                                anchors.leftMargin: 8
+                                anchors.leftMargin: 12
                                 anchors.right: parent.right
-                                anchors.rightMargin: 8
+                                anchors.rightMargin: 12
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: modelData.keys
                                 color: Services.Colors.snow
-                                font.pixelSize: Services.Sizes.fsMeta
+                                font.pixelSize: Services.Sizes.fsBody
                                 font.bold: true
                                 font.family: "JetBrainsMono NF"
                                 elide: Text.ElideRight
@@ -350,7 +351,7 @@ TabPage {
                             Layout.fillWidth: true
                             text: modelData.action
                             color: Services.Colors.mist
-                            font.pixelSize: Services.Sizes.fsBody
+                            font.pixelSize: Services.Sizes.fsInput
                             font.family: "JetBrainsMono NF"
                             elide: Text.ElideRight
                         }
