@@ -79,6 +79,7 @@ Item {
             pillH: host.pillH
             pillActive: host.pillActive
             pillColor: host.pillColor
+            landColor: host.cardColor
             pillGlyph: host.pillGlyph
             pillLabel: host.pillLabel
             glyphTarget: (bodyHolder.item && bodyHolder.item.glyphTarget) || null

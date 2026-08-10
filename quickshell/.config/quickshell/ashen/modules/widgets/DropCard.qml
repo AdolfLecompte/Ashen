@@ -31,7 +31,16 @@ Item {
     property color pillColor: pillActive ? Services.Colors.ghost
                                          : Services.Colors.fillRest
     readonly property real tone: card.relay
+    // Where the plate ENDS. Normally the panel surface; a panel that is not a
+    // card -- the power menu is four tiles and nothing around them -- lands on
+    // "transparent", and the plate dissolves as it arrives instead of leaving a
+    // box behind. `mix` carries alpha, so this needs no special case.
+    property color landColor: Services.Colors.surfacePanel
     readonly property color cardColor:
+        card.mix(pillColor, landColor, tone)
+    // The flying pieces need a tone they can be read against; a plate on its
+    // way to transparent stops being one, so they read against the surface.
+    readonly property color inkAgainst:
         card.mix(pillColor, Services.Colors.surfacePanel, tone)
     // Once the card has settled a flying piece wears its landing colour.
     readonly property bool pieceSettled: card.relay >= 0.999
@@ -274,7 +283,7 @@ Item {
             font.pixelSize: root.glyphTarget ? root.glyphTarget.font.pixelSize : 18
             color: root.pieceSettled
                 ? (root.glyphTarget ? root.glyphTarget.color : Services.Colors.ghost)
-                : Services.Colors.onColor(root.cardColor)
+                : Services.Colors.onColor(root.inkAgainst)
             Behavior on color { ColorAnimation { duration: root.ms(140) } }
 
             readonly property real s: card.lerp(18 / font.pixelSize, 1, card.morph)
@@ -305,7 +314,7 @@ Item {
             font.pixelSize: root.labelTarget ? root.labelTarget.font.pixelSize : 12
             color: root.pieceSettled
                 ? (root.labelTarget ? root.labelTarget.color : Services.Colors.snow)
-                : Services.Colors.onColor(root.cardColor)
+                : Services.Colors.onColor(root.inkAgainst)
             Behavior on color { ColorAnimation { duration: root.ms(140) } }
 
             readonly property real s: card.lerp(12 / font.pixelSize, 1, card.morph)
