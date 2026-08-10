@@ -78,7 +78,8 @@ Item {
             root.stableAlbum = ""
             return
         }
-        if (root.activePlayer.trackArtUrl !== "") root.stableArtUrl = root.activePlayer.trackArtUrl
+        if (root.activePlayer.trackArtUrl !== "")
+            root.stableArtUrl = root.activePlayer.trackArtUrl
         if (root.activePlayer.trackArtist !== "") root.stableArtist = root.activePlayer.trackArtist
         if (root.activePlayer.trackAlbum !== "") root.stableAlbum = root.activePlayer.trackAlbum
     }
@@ -100,6 +101,121 @@ Item {
             root.stableArtist = ""
             root.stableAlbum = ""
             root.updateTrackInfo()
+        }
+    }
+
+    // ── Changing track ──────────────────────────────────────────────────
+    // Nothing here is bound straight to the player: title, cover and the rest
+    // arrive on different frames and the cover decodes asynchronously, so a
+    // live binding blinked the placeholder between songs. They are committed
+    // together, halfway through a sweep, while nothing is legible.
+    readonly property string liveTitle: root.hasPlayer ? (root.activePlayer.trackTitle || "") : ""
+    // Settled, not live: the title empties for a moment on every change, and
+    // sweeping to that would play two changes per track.
+    property string settledKey: ""
+    Timer {
+        id: settle
+        interval: 180
+        // An empty title is the gap between tracks, never a track called
+        // nothing: hold the last one and wait for the real one to land.
+        onTriggered: {
+            if (root.liveTitle !== "") root.settledKey = root.liveTitle
+            else if (!root.hasPlayer) root.settledKey = ""
+        }
+    }
+    onLiveTitleChanged: {
+        if (root.liveTitle === "" && !root.hasPlayer) root.settledKey = ""
+        else settle.restart()
+    }
+    // The player also flashes its OWN icon as the cover for a frame or two on
+    // the way between tracks, while the old title is still up -- so a cover is
+    // only believed once it has held still. One that lasts a frame is the gap.
+    property string settledArt: ""
+    // The cover as a file of our own: the player's temp file is deleted and
+    // its name reused, and Spotify's is an https URL that has to be fetched.
+    property string cachedArt: ""
+    Timer {
+        id: artSettle
+        interval: 250
+        onTriggered: {
+            root.settledArt = root.stableArtUrl
+            root.cachedArt = Services.MediaArt.local(root.settledArt)
+            root.artWaiting = true
+            Services.MediaArt.request(root.settledArt)
+        }
+    }
+    onStableArtUrlChanged: artSettle.restart()
+    Connections {
+        target: Services.MediaArt
+        function onReady(url) {
+            if (url !== root.settledArt) return
+            root.cachedArt = Services.MediaArt.local(url)
+            // The album this cover came with -- the only thing that can prove
+            // it is the player's icon rather than artwork.
+            Services.MediaArt.note(url, root.artTag)
+            // Same file as before means no reload and so no statusChanged to
+            // wait for: the cover is already up, take it now.
+            if (root.artWaiting && artProbe.status === Image.Ready) {
+                root.artWaiting = false
+                root.shownArtUrl = root.coverOrNothing()
+            }
+        }
+        // It just worked out that what we are showing is the player's logo.
+        function onDecoysChanged() {
+            if (Services.MediaArt.isDecoy(root.settledArt)) root.shownArtUrl = ""
+        }
+    }
+    readonly property string artTag: root.hasPlayer
+        ? (root.activePlayer.trackAlbum || root.activePlayer.trackArtist || "") : ""
+    function coverOrNothing() {
+        return Services.MediaArt.isDecoy(root.settledArt) ? "" : root.cachedArt
+    }
+
+    property string shownTitle: "Nothing playing"
+    property string shownArtUrl: ""
+    property string shownArtist: ""
+    property string shownAlbum: ""
+    property bool artWaiting: false
+
+    // What the panel's flown pieces read to sweep with the card.
+    readonly property real swapOffX: trackSwap.offX
+    readonly property real swapFade: trackSwap.fade
+
+    SlideSwap {
+        id: trackSwap
+        travel: 18
+        key: root.settledKey
+        keyDir: Services.AppState.mediaDir
+        onCommit: {
+            root.shownTitle = root.settledKey !== "" ? root.settledKey : root.titleText
+            root.shownArtist = root.stableArtist
+            root.shownAlbum = root.stableAlbum
+            if (root.cachedArt !== "" && artProbe.status === Image.Ready) {
+                root.artWaiting = false
+                root.shownArtUrl = root.coverOrNothing()
+            } else if (root.stableArtUrl === "") {
+                root.artWaiting = false
+                root.shownArtUrl = ""
+            } else {
+                // Still being fetched or decoded: hold the old cover and let
+                // the probe hand the new one over the moment it is up.
+                root.artWaiting = true
+            }
+            Services.AppState.mediaDir = 1
+        }
+    }
+
+    // Decodes the next cover out of sight. Same source and no sourceSize on
+    // either, so the drawn Image hits Qt's cache and is up on the first frame.
+    Image {
+        id: artProbe
+        source: root.cachedArt
+        asynchronous: true
+        visible: false
+        width: 1; height: 1
+        onStatusChanged: if (status === Image.Ready && root.artWaiting) {
+            root.artWaiting = false
+            root.shownArtUrl = root.coverOrNothing()
         }
     }
 
@@ -160,19 +276,23 @@ Item {
             Layout.alignment: Qt.AlignVCenter
             radius: 28
             color: Services.Colors.accentText
-            opacity: root.sharedOpacity
+            // The panel draws its own flying copy of this, so the sweep here is
+            // for the lock screen, where the card stands on its own.
+            opacity: root.sharedOpacity * trackSwap.fade
+            transform: Translate { x: trackSwap.offX }
 
             Image {
                 id: artImg
                 anchors.fill: parent
-                source: root.stableArtUrl
+                source: root.shownArtUrl
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 visible: status === Image.Ready
             }
             Text {
                 anchors.centerIn: parent
-                visible: artImg.status !== Image.Ready
+                // Only when there is genuinely no cover, never while one decodes.
+                visible: root.shownArtUrl === ""
                 text: "\ue405"
                 color: Services.Colors.ash
                 font.family: "Material Symbols Rounded"
@@ -194,9 +314,10 @@ Item {
 
                 Text {
                     id: titleT
-                    opacity: root.sharedOpacity
+                    opacity: root.sharedOpacity * trackSwap.fade
+                    transform: Translate { x: trackSwap.offX }
                     width: parent.width
-                    text: root.titleText
+                    text: root.shownTitle
                     color: Services.Colors.snow
                     font.pixelSize: 18
                     font.bold: true
@@ -204,20 +325,22 @@ Item {
                     elide: Text.ElideRight
                 }
                 Text {
-                    opacity: root.extrasOpacity
-                    visible: root.stableArtist !== ""
+                    opacity: root.extrasOpacity * trackSwap.fade
+                    transform: Translate { x: trackSwap.offX }
+                    visible: root.shownArtist !== ""
                     width: parent.width
-                    text: root.stableArtist
+                    text: root.shownArtist
                     color: Services.Colors.mist
                     font.pixelSize: 12
                     font.family: "JetBrainsMono NF"
                     elide: Text.ElideRight
                 }
                 Text {
-                    opacity: root.extrasOpacity
-                    visible: root.stableAlbum !== ""
+                    opacity: root.extrasOpacity * trackSwap.fade
+                    transform: Translate { x: trackSwap.offX }
+                    visible: root.shownAlbum !== ""
                     width: parent.width
-                    text: root.stableAlbum
+                    text: root.shownAlbum
                     color: Services.Colors.ash
                     font.pixelSize: 10
                     font.family: "JetBrainsMono NF"
@@ -271,10 +394,14 @@ Item {
                             anchors.fill: parent
                             readonly property real amp: height * 0.30
                             readonly property real waves: 3.5
-                            function trace(ctx) {
+                            // Drawn up to a length rather than clipped to one:
+                            // a clip cuts the played end square, and the whole
+                            // point of a round cap is that both ends are round.
+                            function trace(ctx, until) {
                                 var mid = height / 2
+                                var end = Math.min(width, until)
                                 ctx.beginPath()
-                                for (var px = 0; px <= width; px += 2) {
+                                for (var px = 0; px <= end; px += 2) {
                                     var y = mid + amp * parent.ampFactor * Math.sin((px / width) * waves * 2 * Math.PI + parent.phase)
                                     if (px === 0) ctx.moveTo(px, y); else ctx.lineTo(px, y)
                                 }
@@ -284,30 +411,19 @@ Item {
                                 ctx.reset()
                                 ctx.lineWidth = 5
                                 ctx.lineCap = "round"
+                                ctx.lineJoin = "round"
                                 // Dim full wave
                                 ctx.strokeStyle = Services.Colors.ghostAlpha(0.18)
-                                trace(ctx); ctx.stroke()
-                                // Accent wave, clipped to the played fraction
+                                trace(ctx, width); ctx.stroke()
+                                // Accent wave, as far as the playhead
                                 var pw = width * parent.progress
                                 if (pw > 0) {
-                                    ctx.save()
-                                    ctx.beginPath(); ctx.rect(0, 0, pw, height); ctx.clip()
                                     ctx.strokeStyle = Services.Colors.ghost
-                                    trace(ctx); ctx.stroke()
-                                    ctx.restore()
+                                    trace(ctx, pw); ctx.stroke()
                                 }
                             }
                         }
 
-                        // Dot rides the wave at the playhead
-                        Rectangle {
-                            width: 9; height: 9; radius: 5
-                            color: Services.Colors.snow
-                            x: Math.max(0, parent.width * parent.progress - width / 2)
-                            y: parent.height / 2 - height / 2
-                                + waveCanvas.amp * parent.ampFactor * Math.sin(parent.progress * waveCanvas.waves * 2 * Math.PI + parent.phase)
-                            Behavior on x { NumberAnimation { duration: Services.Sizes.msEmphasis } }
-                        }
                     }
 
                     Item {
@@ -364,7 +480,7 @@ Item {
                         glyphSize: 20
                         glyph: "\ue045"
                         available: root.activePlayer !== null && root.activePlayer.canGoPrevious
-                        onTriggered: if (root.activePlayer) root.activePlayer.previous()
+                        onTriggered: if (root.activePlayer) { Services.AppState.mediaStep(-1); root.activePlayer.previous() }
                     }
                     CtlChip {
                         id: playChip
@@ -387,7 +503,7 @@ Item {
                         glyphSize: 20
                         glyph: "\ue044"
                         available: root.activePlayer !== null && root.activePlayer.canGoNext
-                        onTriggered: if (root.activePlayer) root.activePlayer.next()
+                        onTriggered: if (root.activePlayer) { Services.AppState.mediaStep(1); root.activePlayer.next() }
                     }
                     CtlChip {
                         anchors.verticalCenter: parent.verticalCenter
@@ -460,7 +576,10 @@ Item {
                     const cx = width / 2
                     const maxLen = width / 2
 
-                    ctx.fillStyle = Services.Colors.ghostAlpha(0.45)
+                    // Solid, not translucent: the axis line showed through the
+                    // bars and drew a hairline seam right down the middle.
+                    ctx.fillStyle = Services.Colors.tint(Services.Colors.surfacePanel,
+                                                         Services.Colors.ghost, 0.45)
                     for (let i = 0; i < n; i++) {
                         const half = Math.max(barH / 2, sm[i] * maxLen)
                         const y = i * (barH + gap)

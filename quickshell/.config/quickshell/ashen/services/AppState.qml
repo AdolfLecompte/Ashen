@@ -189,6 +189,13 @@ Singleton {
     property bool mediaMorphing: false
     property bool clockMorphing: false
 
+    // Which way the next track change sweeps: +1 forwards, -1 back. Set by
+    // whichever transport button was pressed -- pill, panel or lock screen all
+    // drive the same two swaps, so the direction cannot live in either of them.
+    // A track that simply ends sweeps forwards, which is why it resets.
+    property int mediaDir: 1
+    function mediaStep(dir) { root.mediaDir = dir }
+
     // ── Workspace hover preview ─────────────────────────────────────────
     // Only one chip can be previewed at a time, so one set of fields covers
     // every workspace instead of a pair per chip. 0 = nothing showing.

@@ -164,18 +164,23 @@ PanelWindow {
                          panelRef.x + panelRef.artCX, card.morph) - width / 2
             y: card.lerp(pillRef.y + refArt.y + refArt.height / 2,
                          panelRef.y + panelRef.artCY, card.morph) - height / 2
+            // Changing track sweeps the flown pieces, the same numbers the card
+            // publishes -- they are the ones actually drawn.
+            opacity: panelRef.swapFade
+            transform: Translate { x: panelRef.swapOffX }
 
             Image {
                 id: flyImg
                 anchors.fill: parent
-                source: panelRef.stableArtUrl
+                source: panelRef.shownArtUrl
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 visible: status === Image.Ready
             }
             Text {
                 anchors.centerIn: parent
-                visible: flyImg.status !== Image.Ready
+                // Only when there is genuinely no cover, never while one decodes.
+                visible: panelRef.shownArtUrl === ""
                 text: "\ue405"
                 color: Services.Colors.ash
                 font.family: "Material Symbols Rounded"
@@ -191,8 +196,9 @@ PanelWindow {
             id: flyTitle
             readonly property real s: card.lerp(11 / 18, 1, card.morph)
             readonly property real visW: card.lerp(refCol.width, panelRef.titleW, card.morph)
-            text: panelRef.titleText
+            text: panelRef.shownTitle
             color: Services.Colors.snow
+            opacity: panelRef.swapFade
             font.pixelSize: 18
             font.bold: true
             font.family: "JetBrainsMono NF"
@@ -201,12 +207,15 @@ PanelWindow {
             x: card.lerp(root.prColX + refTitle.x, panelRef.x + panelRef.titleX, card.morph)
             y: card.lerp(root.prColY + refTitle.y + refTitle.height / 2,
                          panelRef.y + panelRef.titleCY, card.morph) - height / 2
-            transform: Scale {
-                origin.x: 0
-                origin.y: flyTitle.height / 2
-                xScale: flyTitle.s
-                yScale: flyTitle.s
-            }
+            transform: [
+                Scale {
+                    origin.x: 0
+                    origin.y: flyTitle.height / 2
+                    xScale: flyTitle.s
+                    yScale: flyTitle.s
+                },
+                Translate { x: panelRef.swapOffX }
+            ]
         }
 
         // Elapsed and total. Same size at both ends, so they only travel: in
@@ -257,7 +266,7 @@ PanelWindow {
             size: card.lerp(root.chipSm, panelRef.chipLg, card.morph)
             glyphSize: card.lerp(18, 20, card.morph)
             available: root.activePlayer !== null && root.activePlayer.canGoPrevious
-            onTriggered: if (root.activePlayer) root.activePlayer.previous()
+            onTriggered: if (root.activePlayer) { Services.AppState.mediaStep(-1); root.activePlayer.previous() }
             x: card.lerp(pillRef.x + refCtl.x + refPrev.x + refPrev.width / 2,
                          panelRef.x + panelRef.prevCX, card.morph) - width / 2
             y: card.lerp(pillRef.y + refCtl.y + refPrev.y + refPrev.height / 2,
@@ -282,7 +291,7 @@ PanelWindow {
             size: card.lerp(root.chipSm, panelRef.chipLg, card.morph)
             glyphSize: card.lerp(18, 20, card.morph)
             available: root.activePlayer !== null && root.activePlayer.canGoNext
-            onTriggered: if (root.activePlayer) root.activePlayer.next()
+            onTriggered: if (root.activePlayer) { Services.AppState.mediaStep(1); root.activePlayer.next() }
             x: card.lerp(pillRef.x + refCtl.x + refNext.x + refNext.width / 2,
                          panelRef.x + panelRef.nextCX, card.morph) - width / 2
             y: card.lerp(pillRef.y + refCtl.y + refNext.y + refNext.height / 2,

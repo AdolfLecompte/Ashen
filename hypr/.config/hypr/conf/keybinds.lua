@@ -36,20 +36,15 @@ hl.bind(mod .. " + right", hl.dsp.focus({ direction = "right" }))
 hl.bind(mod .. " + up",    hl.dsp.focus({ direction = "up"    }))
 hl.bind(mod .. " + down",  hl.dsp.focus({ direction = "down"  }))
 
--- Cycle workspaces (SUPER + CTRL + arrows): right = +1, left = -1
-hl.bind(mod .. " + CTRL + right", hl.dsp.focus({ workspace = "e+1" }))
-hl.bind(mod .. " + CTRL + left",  hl.dsp.focus({ workspace = "e-1" }))
-
 -- Workspaces and moving windows
 for i = 1, 9 do
     hl.bind(mod .. " + " .. i,           hl.dsp.focus({ workspace = i }))
     hl.bind(mod .. " + ALT + " .. i,     hl.dsp.window.move({ workspace = i }))
 end
-
--- Workspace 10
 hl.bind(mod .. " + 0",       hl.dsp.focus({ workspace = 10 }))
 hl.bind(mod .. " + ALT + 0", hl.dsp.window.move({ workspace = 10 }))
-
+hl.bind(mod .. " + CTRL + right", hl.dsp.focus({ workspace = "e+1" }))
+hl.bind(mod .. " + CTRL + left",  hl.dsp.focus({ workspace = "e-1" }))
 hl.bind(mod .. " + ALT + left",  hl.dsp.window.move({ workspace = "e-1" }))
 hl.bind(mod .. " + ALT + right", hl.dsp.window.move({ workspace = "e+1" }))
 
@@ -70,3 +65,8 @@ hl.bind("XF86AudioLowerVolume",  hl.dsp.exec_cmd("sh -c 'wpctl set-mute @DEFAULT
 hl.bind("XF86AudioMute",         hl.dsp.exec_cmd("sh -c 'wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && qs ipc -c ashen call osd volume'"), { locked = true })
 hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("sh -c 'brightnessctl set 5%+ && qs ipc -c ashen call osd brightness'"),     { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("sh -c 'brightnessctl set 5%- && qs ipc -c ashen call osd brightness'"),     { locked = true, repeating = true })
+
+-- Media
+hl.bind("XF86AudioNext", hl.dsp.exec_cmd("sh -c 'qs ipc -c ashen call media next || playerctl next'"), { locked = true })
+hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("sh -c 'qs ipc -c ashen call media prev || playerctl previous'"), { locked = true })
+hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("sh -c 'qs ipc -c ashen call media playPause || playerctl play-pause'"), { locked = true })

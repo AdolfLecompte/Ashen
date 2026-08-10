@@ -11,6 +11,9 @@ Item {
 
     // Which section is selected. Set it and the slide runs.
     property int index: 0
+    // For content with no sections to count: any change of this string runs the
+    // same slide. A track has no index, only a next one.
+    property string key: ""
     // "horizontal" or "vertical"
     property string axis: "horizontal"
     // How far the content travels on its way out and in.
@@ -27,23 +30,47 @@ Item {
     readonly property real offY: root.horizontal ? 0 : root.offset
 
     property int lastIndex: 0
+    property string lastKey: ""
     // Nothing slides on the way in: a body built with its index already set
     // would otherwise play a change that never happened.
     property bool armed: false
     // Off while something places the index itself -- opening a panel on the
     // section that matches the current state is not a change you made.
     property bool animate: true
-    Component.onCompleted: { root.lastIndex = root.index; root.armed = true }
+    Component.onCompleted: {
+        root.lastIndex = root.index
+        root.lastKey = root.key
+        root.armed = true
+        // A body built around an index already shows it; one built around a key
+        // has nothing until the first commit tells it what to show.
+        if (root.key !== "") root.commit()
+    }
 
-    onIndexChanged: {
-        if (!root.armed || !root.animate) {
+    onIndexChanged: root.run(root.index >= root.lastIndex ? 1 : -1)
+    // A key has no order of its own, so whoever caused the change says which
+    // way it goes: back sweeps left, forwards sweeps right.
+    property int keyDir: 1
+    // An empty key means "nothing playing": there is no track to slide in, so
+    // it just commits.
+    onKeyChanged: {
+        if (root.key === "" || root.lastKey === "") {
+            root.lastKey = root.key
             root.lastIndex = root.index
             root.commit()
             return
         }
-        // Which way it moved decides which way it slides.
-        const dir = root.index >= root.lastIndex ? 1 : -1
+        root.run(root.keyDir)
+    }
+
+    function run(dir) {
+        if (!root.armed || !root.animate) {
+            root.lastIndex = root.index
+            root.lastKey = root.key
+            root.commit()
+            return
+        }
         root.lastIndex = root.index
+        root.lastKey = root.key
         swap.stop()
         outAnim.to = -dir * root.travel
         inAnim.from = dir * root.travel

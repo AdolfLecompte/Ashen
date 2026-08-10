@@ -131,6 +131,12 @@ ShellRoot {
     IpcHandler {
         target: "media"
         function toggle() { Services.AppState.mediaVisible = !Services.AppState.mediaVisible }
+        // The keyboard's transport keys. Hyprland hands XF86Audio* to nobody
+        // unless something is bound to them, so without these three they do
+        // nothing at all.
+        function next() { Services.Media.next() }
+        function prev() { Services.Media.previous() }
+        function playPause() { Services.Media.playPause() }
     }
     IpcHandler {
         target: "calendar"

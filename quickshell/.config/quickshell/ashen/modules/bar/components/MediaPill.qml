@@ -50,16 +50,19 @@ Item {
     function seekPrev() {
         if (!root.hasPlayer) return
         let p = root.activePlayer
+        Services.AppState.mediaStep(-1)
         if (p.canGoPrevious) { p.previous(); return }
         if (p.canSeek) p.position = Math.max(0, p.position - 10)
     }
     function seekNext() {
         if (!root.hasPlayer) return
         let p = root.activePlayer
+        Services.AppState.mediaStep(1)
         if (p.canGoNext) { p.next(); return }
         if (p.canSeek) p.position = Math.min(p.length, p.position + 10)
     }
     property string stableArtUrl: ""
+    readonly property string liveTitle: root.hasPlayer ? (root.activePlayer.trackTitle || "") : ""
     function updateArt() {
         if (!root.hasPlayer) {
             root.stableArtUrl = ""
@@ -72,6 +75,118 @@ Item {
         target: root.activePlayer
         ignoreUnknownSignals: true
         function onTrackArtUrlChanged() { root.updateArt() }
+        // The cover often lands before the title it belongs to, and a cover
+        // without a title is refused, so look again once the title is in.
+        function onTrackTitleChanged() { root.updateArt() }
+    }
+
+    // ── Changing track ──────────────────────────────────────────────────
+    // What the pill shows is committed halfway through a sweep, never bound
+    // straight to the player: a new title and its cover do not arrive on the
+    // same frame, and the cover loads asynchronously, so binding them live
+    // blinked the placeholder between every song.
+    // Settled, not live: the title empties for a moment on every change, and
+    // sweeping to that would play two changes per track.
+    property string settledKey: ""
+    Timer {
+        id: settle
+        interval: 180
+        // An empty title is the gap between tracks, never a track called
+        // nothing: hold the last one and wait for the real one to land.
+        onTriggered: {
+            if (root.liveTitle !== "") root.settledKey = root.liveTitle
+            else if (!root.hasPlayer) root.settledKey = ""
+        }
+    }
+    onLiveTitleChanged: {
+        if (root.liveTitle === "" && !root.hasPlayer) root.settledKey = ""
+        else settle.restart()
+    }
+
+    property string shownTitle: ""
+    property string shownArtUrl: ""
+    // The cover was not decoded yet when the sweep committed: swap it in the
+    // moment it is, rather than showing a hole.
+    property bool artWaiting: false
+    // The player also flashes its OWN icon as the cover for a frame or two on
+    // the way between tracks, while the old title is still up -- so a cover is
+    // only believed once it has held still. One that lasts a frame is the gap.
+    property string settledArt: ""
+    // The cover as a file of our own: the player's temp file is deleted and
+    // its name reused, and Spotify's is an https URL that has to be fetched.
+    property string cachedArt: ""
+    Timer {
+        id: artSettle
+        interval: 250
+        onTriggered: {
+            root.settledArt = root.stableArtUrl
+            root.cachedArt = Services.MediaArt.local(root.settledArt)
+            root.artWaiting = true
+            Services.MediaArt.request(root.settledArt)
+        }
+    }
+    onStableArtUrlChanged: artSettle.restart()
+    Connections {
+        target: Services.MediaArt
+        function onReady(url) {
+            if (url !== root.settledArt) return
+            root.cachedArt = Services.MediaArt.local(url)
+            // The album this cover came with -- the only thing that can prove
+            // it is the player's icon rather than artwork.
+            Services.MediaArt.note(url, root.artTag)
+            // Same file as before means no reload and so no statusChanged to
+            // wait for: the cover is already up, take it now.
+            if (root.artWaiting && artProbe.status === Image.Ready) {
+                root.artWaiting = false
+                root.shownArtUrl = root.coverOrNothing()
+            }
+        }
+        // It just worked out that what we are showing is the player's logo.
+        function onDecoysChanged() {
+            if (Services.MediaArt.isDecoy(root.settledArt)) root.shownArtUrl = ""
+        }
+    }
+    readonly property string artTag: root.hasPlayer
+        ? (root.activePlayer.trackAlbum || root.activePlayer.trackArtist || "") : ""
+    function coverOrNothing() {
+        return Services.MediaArt.isDecoy(root.settledArt) ? "" : root.cachedArt
+    }
+
+    Widgets.SlideSwap {
+        id: trackSwap
+        travel: 12
+        key: root.settledKey
+        keyDir: Services.AppState.mediaDir
+        onCommit: {
+            root.shownTitle = root.settledKey !== "" ? root.settledKey
+                            : (root.hasPlayer ? "Untitled" : "")
+            if (root.cachedArt !== "" && artProbe.status === Image.Ready) {
+                root.artWaiting = false
+                root.shownArtUrl = root.coverOrNothing()
+            } else if (root.stableArtUrl === "") {
+                root.artWaiting = false
+                root.shownArtUrl = ""
+            } else {
+                // Still being fetched or decoded: hold the old cover and let
+                // the probe hand the new one over the moment it is up.
+                root.artWaiting = true
+            }
+            Services.AppState.mediaDir = 1
+        }
+    }
+
+    // Decodes the next cover out of sight. Same source and no sourceSize on
+    // either, so the visible Image hits Qt's cache and is up on the first frame.
+    Image {
+        id: artProbe
+        source: root.cachedArt
+        asynchronous: true
+        visible: false
+        width: 1; height: 1
+        onStatusChanged: if (status === Image.Ready && root.artWaiting) {
+            root.artWaiting = false
+            root.shownArtUrl = root.coverOrNothing()
+        }
     }
 
     height: root.vertical ? (hasPlayer ? pillH : 0) : pillH
@@ -152,10 +267,12 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
     radius: Services.Sizes.innerR
     color: Services.Colors.abyss
     anchors.verticalCenter: parent.verticalCenter
+    opacity: trackSwap.fade
+    transform: Translate { x: trackSwap.offX }
     Image {
         id: pillArt
         anchors.fill: parent
-        source: root.stableArtUrl
+        source: root.shownArtUrl
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         visible: false
@@ -176,7 +293,8 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
     }
     Text {
         anchors.centerIn: parent
-        visible: pillArt.status !== Image.Ready
+        // Only when there is genuinely no cover, never while one decodes.
+        visible: root.shownArtUrl === ""
         text: ""
         color: Services.Colors.ash
         font.family: "Material Symbols Rounded"
@@ -189,10 +307,12 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 3
                 width: root.vertical ? 0 : 120
+                opacity: trackSwap.fade
+                transform: Translate { x: trackSwap.offX }
 
                 Text {
                     width: parent.width
-                    text: root.hasPlayer ? (root.activePlayer.trackTitle || "Untitled") : ""
+                    text: root.shownTitle
                     color: Services.Colors.snow
                     font.pixelSize: 11
                     font.bold: true
@@ -223,7 +343,7 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
                 Widgets.CtlChip {
                     glyph: "\ue045"
                     available: root.activePlayer !== null && root.activePlayer.canGoPrevious
-                    onTriggered: if (root.activePlayer) root.activePlayer.previous()
+                    onTriggered: if (root.activePlayer) { Services.AppState.mediaStep(-1); root.activePlayer.previous() }
                 }
                 Widgets.CtlChip {
                     glyph: root.activePlayer !== null && root.activePlayer.isPlaying ? "\ue034" : "\ue037"
@@ -235,7 +355,7 @@ Component.onCompleted: { activePlayer = livePlayer; updateArt() }
                 Widgets.CtlChip {
                     glyph: "\ue044"
                     available: root.activePlayer !== null && root.activePlayer.canGoNext
-                    onTriggered: if (root.activePlayer) root.activePlayer.next()
+                    onTriggered: if (root.activePlayer) { Services.AppState.mediaStep(1); root.activePlayer.next() }
                 }
             }
             
