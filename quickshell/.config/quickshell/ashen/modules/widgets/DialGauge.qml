@@ -28,16 +28,10 @@ Item {
     property int labelSize: 22
     property int captionSize: 10
 
-    // The vessel fills with liquid as well as stroking its rim; the ring on
-    // its own said the same thing twice as quietly.
-    property bool liquid: true
+    // A ring and a number, and nothing inside it: the liquid the vessel used to
+    // hold said the same thing the rim already says, and it left the reading
+    // sitting in a puddle.
     property color fillColor: Services.Colors.ghost
-    // The liquid is the accent itself, solid: not a veil, not a mix towards the
-    // surface. Anything under it is re-inked by `Submerged`, so it can be the
-    // full tone without costing the reading its contrast.
-    readonly property color liquidColor: root.fillColor
-    // What can be read once that colour is covering a letter.
-    readonly property color liquidInk: Services.Colors.onColor(root.liquidColor)
     property color trackColor: Services.Colors.ghostAlpha(0.14)
     // The ring breathes: for something that is still happening (charging), not
     // for something that merely is. Opacity on a second canvas, so the pulse
@@ -144,23 +138,6 @@ Item {
         }
     }
 
-    // The water runs UNDER the rim rather than up to it. Stopping at the inner
-    // edge left an antialiased hairline of background between the two, which
-    // read as a second border drawn around the liquid; a couple of pixels of
-    // overlap, hidden by the ring painted on top, leaves nothing to show.
-    LiquidFill {
-        id: liquidFill
-        anchors.fill: parent
-        visible: root.liquid && root.armed
-        running: root.liquid && root.armed && root.visible
-        level: root.frac
-        inset: root.lw - 2
-        waveAmp: Math.max(2.5, root.size * 0.032)
-        color_: root.liquidColor
-        // Doubles as the mask for the submerged half of the centre.
-        layer.enabled: true
-    }
-
     Canvas {
         id: ring
         anchors.fill: parent
@@ -180,8 +157,6 @@ Item {
     }
 
     // ── The fixed centre ───────────────────────────────────────────────────
-    // Wrapped in a layer the size of the dial so the submerged copy and the
-    // liquid that masks it are measured against the same rect.
     Item {
         id: centre
         anchors.fill: parent
@@ -240,16 +215,6 @@ Item {
             Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
         }
     }
-    }
-
-    // The half of the centre the liquid has reached, re-inked so the reading
-    // meets its own level instead of floating over it.
-    Submerged {
-        anchors.fill: parent
-        visible: root.liquid && root.armed
-        source: centre
-        mask: liquidFill
-        ink: root.liquidInk
     }
 
     MouseArea {

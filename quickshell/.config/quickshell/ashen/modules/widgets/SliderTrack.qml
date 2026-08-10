@@ -14,9 +14,9 @@ Item {
     // 0..1, what is actually painted (local while dragging/holding)
     readonly property real shown: (dragging || holding) ? localRatio : Math.max(0, Math.min(1, value))
 
-    property int knobSize: 16
-    property int knobBorder: 2
-    property color knobBorderColor: Services.Colors.ghost
+    // No knob: the filled part of the track already says where the value is,
+    // and a dot riding on it was a second thing saying the same. `hitMargin`
+    // below is what makes the bar easy to grab.
     // The mic slider turns red when muted
     property color fillColor: Services.Colors.ghost
     property int trackHeight: 10
@@ -73,23 +73,8 @@ Item {
             Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
             width: track.width * root.shown
             // Easing is for changes coming from elsewhere (keys, OSD); while
-            // dragging it is just lag between cursor and knob.
+            // dragging it is just lag between the cursor and the bar.
             Behavior on width {
-                enabled: !root.dragging
-                NumberAnimation { duration: Services.Sizes.msMicro }
-            }
-        }
-
-        Rectangle {
-            width: root.knobSize; height: root.knobSize
-            radius: width / 2
-            // It rides ON the filled part of the track, so it reads the accent.
-            color: Services.Colors.accentBody
-            border.color: root.knobBorderColor
-            border.width: root.knobBorder
-            anchors.verticalCenter: parent.verticalCenter
-            x: Math.max(0, Math.min(track.width - width, fill.width - width / 2))
-            Behavior on x {
                 enabled: !root.dragging
                 NumberAnimation { duration: Services.Sizes.msMicro }
             }
