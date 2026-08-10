@@ -18,12 +18,23 @@ PanelWindow {
     // stays mapped through the close animation, so the exit plays in reverse
     readonly property bool shown: Services.AppState.powerMenuVisible
     visible: shown || closeDelay.running
-    onShownChanged: if (!shown) closeDelay.restart()
+    onShownChanged: {
+        if (shown) { root.sel = 0; root.pressedIndex = -1 }
+        else closeDelay.restart()
+    }
     Timer { id: closeDelay; interval: host.holdMs }
 
     WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     function close() { Services.AppState.powerMenuVisible = false }
+
+    // ── Keyboard ────────────────────────────────────────────────────────
+    // Which tile the keyboard is on, and which one it is holding down. Both
+    // live up here because the tiles are built inside the host's `body`, a
+    // scope of its own -- they can read `root`, but nothing can reach in.
+    property int sel: 0
+    property int pressedIndex: -1
+    function step(d) { root.sel = (root.sel + d + root.actions.length) % root.actions.length }
 
     // Every one of these has to be held down, not clicked. Nothing here is
     // red: error_ is for something that went wrong, and shutting a machine
@@ -48,6 +59,26 @@ PanelWindow {
         anchors.fill: parent
         focus: root.shown
         Keys.onEscapePressed: root.close()
+        Keys.onLeftPressed: root.step(-1)
+        Keys.onRightPressed: root.step(1)
+        Keys.onTabPressed: root.step(1)
+        Keys.onBacktabPressed: root.step(-1)
+
+        // Held, not pressed: the keyboard says the same thing the pointer does,
+        // so Enter fills the tile while it is down and drains when it is let
+        // go. Auto-repeat is ignored -- the key is still down, and a repeat
+        // arrives as another press, which would restart the fill each time.
+        readonly property var fireKeys: [Qt.Key_Return, Qt.Key_Enter, Qt.Key_Space]
+        Keys.onPressed: (e) => {
+            if (fireKeys.indexOf(e.key) === -1) return
+            e.accepted = true
+            if (!e.isAutoRepeat) root.pressedIndex = root.sel
+        }
+        Keys.onReleased: (e) => {
+            if (fireKeys.indexOf(e.key) === -1) return
+            e.accepted = true
+            if (!e.isAutoRepeat) root.pressedIndex = -1
+        }
     }
 
     Widgets.PanelHost {
@@ -115,11 +146,20 @@ PanelWindow {
                             width: host.tileW
                             height: host.tileH
 
+                            // Pointer or keyboard, the tile only knows it is the
+                            // one being looked at.
+                            readonly property bool active: hover.containsMouse || root.sel === tile.index
+                            readonly property bool keyHeld: root.pressedIndex === tile.index
+                            onKeyHeldChanged: {
+                                if (tile.keyHeld) { holdDrain.stop(); holdFill.restart() }
+                                else { holdFill.stop(); holdDrain.restart() }
+                            }
+
                             opacity: card.stage(index)
                             // The shell's one hover language: it grows and its
                             // contents lift. The plate never lights up.
                             scale: (0.92 + 0.08 * card.stage(index))
-                                   * Services.Sizes.hoverScale(hover.containsMouse, hover.pressed)
+                                   * Services.Sizes.hoverScale(tile.active, hover.pressed || tile.keyHeld)
                             Behavior on scale {
                                 NumberAnimation {
                                     duration: Services.Sizes.pillHoverMs
@@ -223,7 +263,7 @@ PanelWindow {
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 anchors.verticalCenter: parent.verticalCenter
-                                anchors.verticalCenterOffset: hover.containsMouse ? -14 : 0
+                                anchors.verticalCenterOffset: tile.active ? -14 : 0
                                 Behavior on anchors.verticalCenterOffset {
                                     NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut }
                                 }
@@ -231,7 +271,7 @@ PanelWindow {
                                 text: tile.modelData.icon
                                 color: tile.onAccent
                                     ? Services.Colors.accentText
-                                    : (hover.containsMouse ? Services.Colors.snow : Services.Colors.ghost)
+                                    : (tile.active ? Services.Colors.snow : Services.Colors.ghost)
                                 font.pixelSize: 68
                                 font.family: "Material Symbols Rounded"
                                 Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
@@ -250,7 +290,7 @@ PanelWindow {
                                 font.pixelSize: Services.Sizes.fsCardTitle
                                 font.bold: true
                                 font.family: "JetBrainsMono NF"
-                                opacity: hover.containsMouse ? 1 : 0
+                                opacity: tile.active ? 1 : 0
                                 Behavior on opacity { NumberAnimation { duration: Services.Sizes.msMicro } }
                                 Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
                             }
