@@ -36,15 +36,17 @@ Item {
     // "transparent" and the plate leaves once it has arrived.
     property color landColor: Services.Colors.surfacePanel
     readonly property bool plateless: landColor.a < 0.01
-    // The plate keeps its colour the whole way; it is its OPACITY that goes,
-    // and only as the contents land. Fading it on `relay` -- a 180 ms driver
-    // against a choreography four times longer -- had the card vanishing in
-    // mid-air, which is the animation cutting off halfway.
+    // A plateless panel has NO plate at any point -- not at rest, not on the
+    // way in. The power menu is four tiles and nothing around them, and a box
+    // that is only there while it travels is still a box you watch arrive.
+    // What moves is the pieces flying out of the pill and the tiles staging in.
     readonly property color cardColor:
         card.mix(pillColor, Services.Colors.surfacePanel, tone)
-    readonly property real plateFade: card.plateless ? 1 - card.contentAmt : 1
-    // What a flying piece is read against: the plate, while there is one.
-    readonly property color inkAgainst: card.cardColor
+    readonly property real plateFade: card.plateless ? 0 : 1
+    // A flying piece still needs a tone to be read against, and it is not the
+    // plate that is not there: it is the surface the panel sits on.
+    readonly property color inkAgainst: card.plateless
+        ? Services.Colors.surfacePanel : card.cardColor
     // Once the card has settled a flying piece wears its landing colour.
     readonly property bool pieceSettled: card.relay >= 0.999
     // A piece only travels if it is the same piece at both ends.
