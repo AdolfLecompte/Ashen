@@ -35,9 +35,10 @@ Rectangle {
                 height: 26
                 visible: !root.isSystemItem(modelData.id)
 
-                // A tray icon is somebody else's pixmap, and on a light palette the pale
-                // ones vanished. Used as a SHAPE and filled with the shell's own colour,
-                // the way a glyph is, so it lifts to snow under the pointer.
+                // A tray icon is somebody else's artwork: keep its own colours.
+                // Flattening it to one colour destroyed multi-tone icons (Discord
+                // came out with outline and fill the same shade). Hover lifts it
+                // instead: grows and brightens.
                 Image {
                     id: trayIcon
                     anchors.centerIn: parent
@@ -48,15 +49,14 @@ Rectangle {
                     sourceSize: Qt.size(48, 48)
                     smooth: true
                     mipmap: true
-                    visible: false
-                }
-                ColorOverlay {
-                    anchors.fill: trayIcon
-                    source: trayIcon
-                    color: trayHover.containsMouse ? Services.Colors.snow : Services.Colors.mist
-                    Behavior on color { ColorAnimation { duration: Services.Sizes.pillHoverMs } }
+
+                    opacity: trayHover.containsMouse ? 1.0 : 0.88
+                    Behavior on opacity { NumberAnimation { duration: Services.Sizes.pillHoverMs } }
                     scale: Services.Sizes.hoverScale(trayHover.containsMouse, trayHover.pressed)
                     Behavior on scale { NumberAnimation { duration: Services.Sizes.pillHoverMs; easing.type: Services.Sizes.easeOut } }
+
+                    layer.enabled: trayHover.containsMouse
+                    layer.effect: BrightnessContrast { brightness: 0.22 }
                 }
                 MouseArea {
                     id: trayHover
