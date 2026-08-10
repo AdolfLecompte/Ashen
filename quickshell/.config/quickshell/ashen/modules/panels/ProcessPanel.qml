@@ -92,16 +92,23 @@ PanelWindow {
                     return Math.max(0, Math.min(1, (card.contentAmt - start) / (1 - start)))
                 }
 
-                // Five vessels have to read as five different things without
-                // leaving the scheme, so each one takes the accent turned a
-                // little rather than a colour of its own. Turn the wallpaper and
-                // they all follow.
-                function toneAt(deg) {
-                    const c = Services.Colors.ghost
-                    let h = c.hslHue + deg / 360
-                    h = h - Math.floor(h)
-                    return Qt.hsla(h, c.hslSaturation, c.hslLightness, 1)
-                }
+                // Six vessels, six tones, all of them the scheme's own. A hue
+                // spun off the accent gave six colours the wallpaper had never
+                // produced; these are the colours it DID produce -- the accent,
+                // its darker partner, the scheme's second tone -- plus a lift of
+                // each towards the light and dark ends of the same palette.
+                // Turn the wallpaper and the whole board turns with it.
+                readonly property var tones: [
+                    Services.Colors.ghost,                                        // 0 cpu
+                    Services.Colors.lift(Services.Colors.ghost, 0.28),            // 1 memory
+                    Services.Colors.neutral,                                      // 2 thermals
+                    Services.Colors.shade,                                        // 3 gpu
+                    Services.Colors.tint(Services.Colors.ghost,
+                                         Services.Colors.neutral, 0.5),           // 4 network
+                    Services.Colors.lift(Services.Colors.neutral, -0.22),         // 5 storage
+                    Services.Colors.lift(Services.Colors.neutral, 0.24)           // 6 the gpu dial
+                ]
+                function toneAt(i) { return bodyRoot.tones[i % bodyRoot.tones.length] }
 
                 // Busier means livelier: the swell grows and quickens with the
                 // reading instead of idling at one beat for everything.
@@ -376,7 +383,7 @@ PanelWindow {
                         name: "MEMORY"
                         id: ramCard
 
-                        readonly property color tone: bodyRoot.toneAt(28)
+                        readonly property color tone: bodyRoot.toneAt(1)
                         readonly property real used: Services.SysMon.ramTotalMB > 0
                             ? Services.SysMon.ramUsedMB / Services.SysMon.ramTotalMB : 0
 
@@ -450,7 +457,7 @@ PanelWindow {
                         name: "THERMALS"
                         id: thermCard
 
-                        readonly property color tone: bodyRoot.toneAt(-32)
+                        readonly property color tone: bodyRoot.toneAt(2)
 
                         Row {
                             x: thermCard.inset
@@ -464,8 +471,7 @@ PanelWindow {
                                 height: parent.height
                                 // Read against 100 degrees, turning at 80.
                                 level: Math.max(0, Math.min(1, Services.SysMon.cpuTemp / 100))
-                                tone: Services.SysMon.cpuTemp >= 80
-                                    ? Services.Colors.error_ : thermCard.tone
+                                tone: thermCard.tone
                                 label: Services.SysMon.cpuTemp > 0
                                     ? Services.SysMon.cpuTemp.toFixed(0) + "°" : "--"
                                 caption: "CPU"
@@ -475,8 +481,7 @@ PanelWindow {
                                 width: (parent.width - 10) / 2
                                 height: parent.height
                                 level: Math.max(0, Math.min(1, Services.SysMon.gpuTemp / 100))
-                                tone: Services.SysMon.gpuTemp >= 80
-                                    ? Services.Colors.error_ : bodyRoot.toneAt(-46)
+                                tone: bodyRoot.toneAt(6)
                                 label: Services.SysMon.gpuTemp > 0
                                     ? Services.SysMon.gpuTemp.toFixed(0) + "°" : "--"
                                 caption: "GPU"
@@ -493,7 +498,7 @@ PanelWindow {
                         name: "GPU"
                         id: gpuCard
 
-                        readonly property color tone: bodyRoot.toneAt(80)
+                        readonly property color tone: bodyRoot.toneAt(3)
                         readonly property real used: Services.SysMon.gpuPercent / 100
 
                         Widgets.LiquidFill {
@@ -564,7 +569,7 @@ PanelWindow {
                         name: "NETWORK"
                         id: netCard
 
-                        readonly property color tone: bodyRoot.toneAt(-60)
+                        readonly property color tone: bodyRoot.toneAt(4)
                         // Traffic has no ceiling to be a fraction of, so the
                         // level is read on a log scale: a full card is 20 MB/s,
                         // and the first kilobytes still show.
@@ -638,7 +643,7 @@ PanelWindow {
                         // is actually going wrong, so it is the one that may
                         // leave the scheme.
                         readonly property color tone: Services.SysMon.diskPercent >= 90
-                            ? Services.Colors.error_ : bodyRoot.toneAt(56)
+                            ? Services.Colors.error_ : bodyRoot.toneAt(5)
                         readonly property real used: Services.SysMon.diskPercent / 100
 
                         Widgets.LiquidFill {
