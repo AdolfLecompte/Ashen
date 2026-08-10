@@ -32,16 +32,19 @@ Item {
                                          : Services.Colors.fillRest
     readonly property real tone: card.relay
     // Where the plate ENDS. Normally the panel surface; a panel that is not a
-    // card -- the power menu is four tiles and nothing around them -- lands on
-    // "transparent", and the plate dissolves as it arrives instead of leaving a
-    // box behind. `mix` carries alpha, so this needs no special case.
+    // card -- the power menu is four tiles and nothing around them -- asks for
+    // "transparent" and the plate leaves once it has arrived.
     property color landColor: Services.Colors.surfacePanel
+    readonly property bool plateless: landColor.a < 0.01
+    // The plate keeps its colour the whole way; it is its OPACITY that goes,
+    // and only as the contents land. Fading it on `relay` -- a 180 ms driver
+    // against a choreography four times longer -- had the card vanishing in
+    // mid-air, which is the animation cutting off halfway.
     readonly property color cardColor:
-        card.mix(pillColor, landColor, tone)
-    // The flying pieces need a tone they can be read against; a plate on its
-    // way to transparent stops being one, so they read against the surface.
-    readonly property color inkAgainst:
         card.mix(pillColor, Services.Colors.surfacePanel, tone)
+    readonly property real plateFade: card.plateless ? 1 - card.contentAmt : 1
+    // What a flying piece is read against: the plate, while there is one.
+    readonly property color inkAgainst: card.cardColor
     // Once the card has settled a flying piece wears its landing colour.
     readonly property bool pieceSettled: card.relay >= 0.999
     // A piece only travels if it is the same piece at both ends.
@@ -264,7 +267,10 @@ Item {
         y: root.pillCY + (root.openY + root.openH / 2 - root.pillCY) * fall - height / 2
 
         radius: Services.Sizes.pillR + (root.cardRadius - Services.Sizes.pillR) * Math.min(1, spread)
-        color: root.cardColor
+        // The alpha rides on the COLOUR, never on the item: `opacity` here would
+        // take the tiles standing on the plate down with it.
+        color: Qt.rgba(root.cardColor.r, root.cardColor.g, root.cardColor.b,
+                       root.cardColor.a * root.plateFade)
         gradient: Services.Prefs.useGradients && root.pillActive && root.tone < 0.02
             ? Services.Colors.accentGradient : null
         clip: true
