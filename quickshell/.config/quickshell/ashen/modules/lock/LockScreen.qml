@@ -528,21 +528,38 @@ Scope {
                                     onClicked: passInput.forceActiveFocus()
                                 }
 
-                                RowLayout {
-                                    anchors.fill: parent
+                                // The glyph keeps to the edge and the typing owns the
+                                // middle: content centred inside what is left over
+                                // after a left-hand icon is not centred in the field.
+                                Text {
+                                    id: lockGlyph
+                                    anchors.left: parent.left
                                     anchors.leftMargin: 18
-                                    anchors.rightMargin: 18
-                                    spacing: 12
-                                    Text {
-                                        text: surface.glyphLock
-                                        color: surface.errorMsg !== "" ? Services.Colors.error_ : Services.Colors.ghost
-                                        font.pixelSize: 18
-                                        font.family: "Material Symbols Rounded"
-                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                                    }
-                                    Item {
-                                        Layout.fillWidth: true
-                                        height: 30
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: surface.glyphLock
+                                    color: surface.errorMsg !== "" ? Services.Colors.error_ : Services.Colors.ghost
+                                    font.pixelSize: 18
+                                    font.family: "Material Symbols Rounded"
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                }
+
+                                Item {
+                                    anchors.fill: parent
+
+                                    // Prompt, dots and cursor are ONE centred row, so
+                                    // the whole thing drifts outwards as it fills
+                                    // instead of the cursor walking to the right.
+                                    Row {
+                                        id: dotRow
+                                        anchors.centerIn: parent
+                                        spacing: 0
+
+                                        // Capped, and the cap is what fits: 16 slots of
+                                        // 17 px is the 304 px this field has inside its
+                                        // margins. The old 24 ran off both ends.
+                                        readonly property int maxDots: 16
+                                        readonly property int filled: Math.min(surface.password.length, maxDots)
+
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "Enter password..."
@@ -551,51 +568,56 @@ Scope {
                                             font.family: "JetBrainsMono NF"
                                             visible: surface.password.length === 0
                                         }
-                                        Row {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            spacing: 6
-                                            visible: surface.password.length > 0
-                                            Repeater {
-                                                model: Math.min(surface.password.length, 24)
-                                                delegate: Rectangle {
-                                                    width: 11; height: 11; radius: 5
+
+                                        // The model is a CONSTANT. Handing a Repeater a
+                                        // number that changes rebuilds every delegate,
+                                        // so each keystroke replayed the entry
+                                        // animation on every dot already standing
+                                        // there. Fixed slots, each one told whether it
+                                        // is filled, and only the one that changed
+                                        // animates.
+                                        Repeater {
+                                            model: 16
+                                            delegate: Item {
+                                                required property int index
+                                                readonly property bool on: index < dotRow.filled
+
+                                                // Width is the reflow: the row recentres
+                                                // itself as its slots open.
+                                                width: on ? 17 : 0
+                                                height: 11
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                Behavior on width {
+                                                    NumberAnimation { duration: 180; easing.type: Services.Sizes.easeOut }
+                                                }
+
+                                                Rectangle {
+                                                    width: 11; height: 11; radius: 5.5
+                                                    anchors.verticalCenter: parent.verticalCenter
                                                     color: Services.Colors.ghost
                                                     gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
-                                                    anchors.verticalCenter: parent.verticalCenter
                                                     // Grows into place. A fade on its own
                                                     // was a dot that had always been
                                                     // there; the scale is what makes it
                                                     // read as one more letter typed. No
                                                     // OutBack -- the bounce felt springy.
-                                                    NumberAnimation on opacity {
-                                                        from: 0; to: 1; duration: Services.Sizes.msMicro
-                                                        easing.type: Services.Sizes.easeOut
-                                                        running: true
+                                                    opacity: parent.on ? 1 : 0
+                                                    scale: parent.on ? 1 : 0.2
+                                                    Behavior on opacity {
+                                                        NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut }
                                                     }
-                                                    NumberAnimation on scale {
-                                                        from: 0.2; to: 1; duration: 220
-                                                        easing.type: Services.Sizes.easeOut
-                                                        running: true
+                                                    Behavior on scale {
+                                                        NumberAnimation { duration: 220; easing.type: Services.Sizes.easeOut }
                                                     }
-                                                }
-                                            }
-                                            Rectangle {
-                                                id: blinkCursor
-                                                width: 2; height: 16
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                color: Services.Colors.snow
-                                                SequentialAnimation on opacity {
-                                                    running: passInput.activeFocus
-                                                    loops: Animation.Infinite
-                                                    NumberAnimation { to: 0.0; duration: 500 }
-                                                    NumberAnimation { to: 1.0; duration: 500 }
                                                 }
                                             }
                                         }
+
                                         Rectangle {
+                                            id: blinkCursor
                                             width: 2; height: 16
                                             anchors.verticalCenter: parent.verticalCenter
-                                            visible: surface.password.length === 0 && passInput.activeFocus
+                                            visible: passInput.activeFocus
                                             color: Services.Colors.snow
                                             SequentialAnimation on opacity {
                                                 running: passInput.activeFocus
@@ -604,6 +626,8 @@ Scope {
                                                 NumberAnimation { to: 1.0; duration: 500 }
                                             }
                                         }
+                                    }
+
                                         TextInput {
                                             id: passInput
                                             width: 1; height: 1
@@ -631,25 +655,30 @@ Scope {
                                                 }
                                             }
                                         }
+                                }
+
+                                // Was the last cell of a row; now that the field
+                                // centres its contents it holds the right edge itself.
+                                Text {
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 18
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "\uE627"
+                                    color: surface.checking ? Services.Colors.ghost : Services.Colors.ash
+                                    font.pixelSize: 18
+                                    font.family: "Material Symbols Rounded"
+                                    Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        anchors.margins: -6
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: surface.tryUnlock()
                                     }
-                                    Text {
-                                        text: "\uE627"
-                                        color: surface.checking ? Services.Colors.ghost : Services.Colors.ash
-                                        font.pixelSize: 18
-                                        font.family: "Material Symbols Rounded"
-                                        Behavior on color { ColorAnimation { duration: Services.Sizes.msMicro } }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            anchors.margins: -6
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: surface.tryUnlock()
-                                        }
-                                        SequentialAnimation on opacity {
-                                            running: surface.checking
-                                            loops: Animation.Infinite
-                                            NumberAnimation { to: 0.2; duration: 500 }
-                                            NumberAnimation { to: 1.0; duration: 500 }
-                                        }
+                                    SequentialAnimation on opacity {
+                                        running: surface.checking
+                                        loops: Animation.Infinite
+                                        NumberAnimation { to: 0.2; duration: 500 }
+                                        NumberAnimation { to: 1.0; duration: 500 }
                                     }
                                 }
                             }
