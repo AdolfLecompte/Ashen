@@ -82,15 +82,6 @@ Rectangle {
         }
 
         SystemChip {
-            pillKey: "brightness"
-            active: Services.Brightness.level > 0
-            open: Services.AppState.brightnessVisible
-            glyph: ""
-            label: Services.Brightness.level + "%"
-            onActivated: Services.AppState.brightnessVisible = !Services.AppState.brightnessVisible
-        }
-
-        SystemChip {
             pillKey: "battery"
             active: Services.Battery.charging
             open: Services.AppState.batteryVisible

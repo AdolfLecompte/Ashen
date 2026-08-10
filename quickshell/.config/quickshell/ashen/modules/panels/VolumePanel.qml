@@ -186,9 +186,6 @@ PanelWindow {
                             Widgets.SliderTrack {
                                 id: levelBar
                                 width: parent.width
-                                knobSize: 18
-                                knobBorder: 1
-                                knobBorderColor: Services.Colors.ghostAlpha(0.45)
                                 hitMargin: 14
                                 dimmed: win.muted
                                 fillColor: win.muted ? Services.Colors.mist : Services.Colors.ghost
@@ -385,7 +382,6 @@ PanelWindow {
 
                                         Widgets.SliderTrack {
                                             width: parent.width
-                                            knobSize: 14
                                             hitMargin: 10
                                             dimmed: modelData.muted
                                             fillColor: modelData.muted ? Services.Colors.mist
@@ -396,6 +392,48 @@ PanelWindow {
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    // ── Brightness ────────────────────────────────────────
+                    // It had a card of its own once, for one number the keys
+                    // already change. Down here it is a line at the foot of the
+                    // panel you open to change a level anyway.
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: Services.Colors.fillLine
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 10
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "\ue1ac"
+                            color: Services.Colors.ghost
+                            font.pixelSize: 15
+                            font.family: "Material Symbols Rounded"
+                        }
+                        Widgets.SliderTrack {
+                            id: brightBar
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - 76
+                            hitMargin: 12
+                            value: Services.Brightness.level / 100
+                            onMoved: r => {
+                                const pct = Math.round(Math.max(0.01, r) * 100)
+                                Quickshell.execDetached(["sh", "-c",
+                                    "brightnessctl set \"$1\"%", "sh", String(pct)])
+                            }
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: Math.round(brightBar.shown * 100) + "%"
+                            color: Services.Colors.mist
+                            font.pixelSize: Services.Sizes.fsMeta
+                            font.family: "JetBrainsMono NF"
                         }
                     }
                 }

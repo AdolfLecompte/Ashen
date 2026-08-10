@@ -159,11 +159,9 @@ Singleton {
     property string settingsTab: "system"
     property bool notificationsVisible: false
     property real volumePillCenterX: 400
-    property real brightnessPillCenterX: 460
     property real batteryPillCenterX: 520
     // Vertical twins, used when the bar sits on a side edge
     property real volumePillCenterY: 60
-    property real brightnessPillCenterY: 60
     property real batteryPillCenterY: 60
     property real mediaPillCenterY: 60
     property real networkPillCenterY: 60
@@ -174,7 +172,6 @@ Singleton {
     property real notificationPillCenterX: 80
     property real notificationPillCenterY: 60
     property bool volumeVisible: false
-    property bool brightnessVisible: false
     property bool batteryVisible: false
     property real mediaPillCenterX: 200
     // Media pill footprint, published by the pill itself: MediaPanel morphs out
@@ -216,8 +213,6 @@ Singleton {
     property bool networkVisible: false
     property real volumePillW: 44
     property real volumePillH: 32
-    property real brightnessPillW: 44
-    property real brightnessPillH: 32
     property real batteryPillW: 44
     property real batteryPillH: 32
     property real usbPillW: 44
@@ -260,7 +255,6 @@ Singleton {
         else if (key === "media")     { root.mediaPillW = w;     root.mediaPillH = h }
         else if (key === "clock")     { root.clockPillW = w;     root.clockPillH = h }
         else if (key === "volume")     { root.volumePillW = w;     root.volumePillH = h }
-        else if (key === "brightness") { root.brightnessPillW = w; root.brightnessPillH = h }
         else if (key === "battery")    { root.batteryPillW = w;    root.batteryPillH = h }
         else if (key === "usb")        { root.usbPillW = w;        root.usbPillH = h }
         else if (key === "power")      { root.powerPillW = w;      root.powerPillH = h }
@@ -301,7 +295,6 @@ Singleton {
 
     function setPillCenter(key, x, y) {
         if (key === "volume")            { root.volumePillCenterX = x;        root.volumePillCenterY = y }
-        else if (key === "brightness")   { root.brightnessPillCenterX = x;    root.brightnessPillCenterY = y }
         else if (key === "battery")      { root.batteryPillCenterX = x;       root.batteryPillCenterY = y }
         else if (key === "media")        { root.mediaPillCenterX = x;         root.mediaPillCenterY = y }
         else if (key === "network")      { root.networkPillCenterX = x;       root.networkPillCenterY = y }

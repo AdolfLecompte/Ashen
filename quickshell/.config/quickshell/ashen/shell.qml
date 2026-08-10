@@ -30,10 +30,6 @@ ShellRoot {
         function toggle() { Services.AppState.toggleOverlay("volumeVisible") }
     }
     IpcHandler {
-        target: "brightness"
-        function toggle() { Services.AppState.toggleOverlay("brightnessVisible") }
-    }
-    IpcHandler {
         target: "battery"
         function toggle() { Services.AppState.toggleOverlay("batteryVisible") }
     }
@@ -199,7 +195,6 @@ ShellRoot {
 
     // ── Built on demand ───────────────────────────────────────────────────
     Widgets.LazyPanel { preloadMs: 1320; shown: Services.AppState.volumeVisible;        panel: Component { VolumePanel {} } }
-    Widgets.LazyPanel { preloadMs: 1440; shown: Services.AppState.brightnessVisible;    panel: Component { BrightnessPanel {} } }
     Widgets.LazyPanel { preloadMs: 1560; shown: Services.AppState.batteryVisible;       panel: Component { BatteryPanel {} } }
     Widgets.LazyPanel { preloadMs: 1680; shown: Services.AppState.mediaVisible;         panel: Component { MediaPanel {} } }
     Widgets.LazyPanel { preloadMs: 1800; shown: Services.AppState.notificationsVisible; panel: Component { NotificationPanel {} } }

@@ -2,7 +2,7 @@ import QtQuick
 
 import "root:/services" as Services
 
-// One chip inside the system pill: wifi, bluetooth, volume, brightness,
+// One chip inside the system pill: wifi, bluetooth, volume,
 // battery, keyboard. The caller says what it shows and what a click does; the
 // fill, the hover, the expand and the pill-centre report are shared.
 Rectangle {
