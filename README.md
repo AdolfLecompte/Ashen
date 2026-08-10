@@ -200,7 +200,7 @@ The keyboard layout pill in the bar is **read-only**. Layouts are declared in
 
 ## Status
 
-2.1.0
+2.1.1
 
 ## License
 

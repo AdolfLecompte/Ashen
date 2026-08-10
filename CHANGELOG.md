@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.1.1
+
+### Changed
+- **Accent folders are no longer a setting** — they are how Ashen looks, so the
+  switch in Appearance is gone and `ashen-folders.sh` applies by default
+  (`--off` still walks it back).
+- **The system board wears the scheme's own colours** — the tones were the
+  accent spun round the hue wheel, which produced colours the wallpaper never
+  made. They come from the palette now, one to a card, and Thermals no longer
+  turns red past 80°: a warm CPU is the panel doing its job.
+
+### Fixed
+- **The power menu arrives without a card around it.** A `DropCard` always
+  landed on the panel surface, so the four tiles turned up inside a box when
+  opened from the pill in transform style — and a plate that is only there
+  while it travels is still a box you watch arrive. A plateless panel paints
+  none at any point.
+- **Fixed colour schemes repaint the folders.** They read the accent from
+  `~/.cache/ashen_accent.txt`, which only the dynamic road ever wrote, so the
+  folders kept whichever wallpaper wrote it last. A fixed scheme publishes its
+  own accent now — which fixes the window border the same way.
+- **The bar editor's drop preview stays inside its plate**, anchored to the gap
+  instead of straddling it, and the chips step aside to open real room for it.
+
 ## 2.1.0
 
 ### Added
