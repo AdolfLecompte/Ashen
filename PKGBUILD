@@ -17,10 +17,11 @@ depends=(
     networkmanager bluez bluez-utils udisks2 upower power-profiles-daemon
     brightnessctl lm_sensors pciutils
     wl-clipboard cliphist grim slurp wf-recorder
-    hypridle mpvpaper ffmpeg
+    hypridle mpvpaper ffmpeg wlsunset
     zenity fastfetch cava xdg-utils libnotify
     ttf-jetbrains-mono-nerd ttf-material-symbols-variable noto-fonts-emoji
     awww matugen
+    xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
 )
 optdepends=(
     'kitty: the terminal the keybinds open, themed by matugen'
@@ -31,6 +32,9 @@ optdepends=(
     'adw-gtk-theme: GTK apps that match the palette'
     'bibata-cursor-theme: the shipped cursor'
     'papirus-folders: tints the folder icons to the palette'
+    'polkit-gnome: the agent that asks when something needs root'
+    'btop: matugen writes it a theme'
+    'qt6ct: matugen writes it a palette for Qt apps'
 )
 makedepends=('git')
 provides=("$_pkgname")
@@ -56,7 +60,6 @@ package() {
     for s in scripts/ashen-*.sh; do
         install -Dm755 "$s" "$pkgdir/usr/bin/$(basename "$s")"
     done
-    install -Dm755 scripts/bt-toggle.sh "$pkgdir/usr/bin/ashen-bt-toggle.sh"
     install -Dm755 scripts/ashen-setup "$pkgdir/usr/bin/ashen-setup"
 
     # The dotfiles that HAVE to live in the user's home to take effect

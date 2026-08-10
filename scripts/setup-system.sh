@@ -90,7 +90,7 @@ PKGS_OFFICIAL=(
     #   "Noto Color Emoji"         <- noto-fonts-emoji (emoji in what apps send:
     #                                 notification bodies, clipboard entries)
     ttf-jetbrains-mono-nerd ttf-material-symbols-variable noto-fonts-emoji
-    xdg-desktop-portal-hyprland polkit-gnome
+    xdg-desktop-portal-hyprland xdg-desktop-portal-gtk polkit-gnome
 )
 
 # quickshell is in the official 'extra' repo (bundles its Hyprland module for the
@@ -220,13 +220,14 @@ fi
 say "Applying GTK settings..."
 for schema in org.gnome.desktop.interface org.cinnamon.desktop.interface; do
     gsettings writable "$schema" gtk-theme >/dev/null 2>&1 || continue
-    gsettings set "$schema" gtk-theme 'adw-gtk3-dark'
-    gsettings set "$schema" icon-theme 'Papirus-Dark'
     gsettings set "$schema" font-name 'Adwaita Sans 11'
     gsettings set "$schema" cursor-theme 'Bibata-Modern-Ice'
     gsettings set "$schema" cursor-size 24
 done
-gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+# The theme name, the icon theme and the colour-scheme follow light/dark, so
+# they are not written here: ashen-gtk-mode.sh owns them and Settings runs it
+# again on every switch. Dark is what it reads when nothing has been chosen.
+"$REPO_DIR/scripts/ashen-gtk-mode.sh" >/dev/null 2>&1 || true
 
 # adw-gtk3-dark supplies the widget shapes; matugen paints them from the
 # wallpaper into ~/.config/gtk-{3,4}.0/gtk.css. That file is generated, never
