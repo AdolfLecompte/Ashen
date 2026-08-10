@@ -6,13 +6,22 @@ import "root:/services" as Services
 Scope {
     id: root
 
+    // Each reading is a process, and a key held down asks faster than one can
+    // answer. Asking again while one is in flight used to be dropped on the
+    // floor, so the OSD showed the value from two steps ago; now the last ask
+    // is remembered and replayed the moment the reply lands.
+    property bool volPending: false
+    property bool brtPending: false
+
     IpcHandler {
         target: "osd"
         function volume() {
-            volumeProc.running = true
+            if (volumeProc.running) root.volPending = true
+            else volumeProc.running = true
         }
         function brightness() {
-            brightnessProc.running = true
+            if (brightnessProc.running) root.brtPending = true
+            else brightnessProc.running = true
         }
     }
 
@@ -27,6 +36,7 @@ Scope {
                 let vol = match ? parseFloat(match[1]) : 0
                 let ic = Services.Audio.icon(muted ? 0 : Math.round(vol * 100), muted, Services.Audio.headphones)
                 win.showOsd(ic, muted ? 0 : vol)
+                if (root.volPending) { root.volPending = false; volumeProc.running = true }
             }
         }
     }
@@ -41,6 +51,7 @@ Scope {
                 let pctStr = parts.length > 3 ? parts[3].replace("%", "") : "0"
                 let pct = parseFloat(pctStr) / 100.0
                 win.showOsd("", pct)
+                if (root.brtPending) { root.brtPending = false; brightnessProc.running = true }
             }
         }
     }
@@ -117,9 +128,13 @@ Scope {
                         width: parent.width
                         radius: 4
                         color: Services.Colors.ghost
-                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradient : null
+                        // Down the bar, not across it: the fill IS vertical.
+                        gradient: Services.Prefs.useGradients ? Services.Colors.accentGradientV : null
                         height: parent.height * Math.max(0, Math.min(1, win.level))
-                        Behavior on height { NumberAnimation { duration: Services.Sizes.msPronounced; easing.type: Services.Sizes.easeOut } }
+                        // Short: at 260 ms every tap on the volume key restarted
+                        // an animation the next tap interrupted, so the bar
+                        // crawled a step behind the key being held down.
+                        Behavior on height { NumberAnimation { duration: Services.Sizes.msMicro; easing.type: Services.Sizes.easeOut } }
                     }
                 }
                 Text {

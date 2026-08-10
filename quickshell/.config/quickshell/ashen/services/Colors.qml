@@ -146,6 +146,16 @@ Singleton {
         GradientStop { position: 1.0; color: root.lift(root.ghost, -root.gradientDown) }
     }
 
+    // The same light, for something that fills upwards. A gradient drawn across
+    // a bar that is 8 px wide and 180 tall reads as a flat colour; down its
+    // length it reads as the light the accent is lit by.
+    readonly property Gradient accentGradientV: Gradient {
+        orientation: Gradient.Vertical
+        GradientStop { position: 0.0; color: root.lift(root.ghost, root.gradientUp) }
+        GradientStop { position: 0.5; color: root.ghost }
+        GradientStop { position: 1.0; color: root.lift(root.ghost, -root.gradientDown) }
+    }
+
     // ── Live reload: the JSON is written by the Theme tab or by matugen ──
     // matugen writes both faces at once, so switching mode is a re-pick here,
     // not a re-run. A hand-picked scheme writes one flat object, used as-is.
