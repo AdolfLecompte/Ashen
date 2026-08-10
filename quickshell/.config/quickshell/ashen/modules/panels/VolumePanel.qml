@@ -186,7 +186,11 @@ PanelWindow {
                             Widgets.SliderTrack {
                                 id: levelBar
                                 width: parent.width
-                                hitMargin: 14
+                                // Thick: it stands beside a 120 px dial with
+                                // nothing else in the row, and a 10 px line
+                                // left most of that height empty.
+                                trackHeight: 20
+                                hitMargin: 12
                                 dimmed: win.muted
                                 fillColor: win.muted ? Services.Colors.mist : Services.Colors.ghost
                                 value: (win.isOut ? Services.Audio.volume
@@ -420,7 +424,8 @@ PanelWindow {
                             id: brightBar
                             anchors.verticalCenter: parent.verticalCenter
                             width: parent.width - 76
-                            hitMargin: 12
+                            trackHeight: 16
+                            hitMargin: 10
                             value: Services.Brightness.level / 100
                             onMoved: r => {
                                 const pct = Math.round(Math.max(0.01, r) * 100)
