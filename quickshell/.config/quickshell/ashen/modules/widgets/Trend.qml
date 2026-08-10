@@ -19,7 +19,16 @@ Canvas {
     property int lineWidth: 2
     // Leaves room for the stroke's own width at the top and bottom.
     property int padding: 3
+    // Plateaus instead of a curve: each sample holds its own slot and the
+    // change happens between them, over a rounded joint. A reading taken every
+    // three hours did not happen smoothly in between, and drawing it as if it
+    // did is a shape the data never had.
+    property bool stepped: false
+    // How round those joints are. Capped by the slot and by the size of the
+    // step itself, so a small change cannot bulge past the level it came from.
+    property real cornerR: 9
 
+    onSteppedChanged: requestPaint()
     onValuesChanged: requestPaint()
     onColor_Changed: requestPaint()
     Component.onCompleted: requestPaint()
@@ -45,6 +54,22 @@ Canvas {
         // The path once, reused for the fill and the stroke: the ground and the
         // line can never disagree about where the curve went.
         function trace() {
+            if (root.stepped) {
+                // One slot per sample, so the first and last plateaus are as
+                // wide as the rest -- points on the edges would give the two
+                // ends half a step and read as a slope.
+                const slot = w / vs.length
+                ctx.moveTo(0, py(vs[0]))
+                for (let i = 1; i < vs.length; i++) {
+                    const bx = i * slot
+                    const y0 = py(vs[i - 1]), y1 = py(vs[i])
+                    const r = Math.min(root.cornerR, slot / 2, Math.abs(y1 - y0) / 2)
+                    ctx.lineTo(bx - r, y0)
+                    ctx.bezierCurveTo(bx, y0, bx, y1, bx + r, y1)
+                }
+                ctx.lineTo(w, py(vs[vs.length - 1]))
+                return
+            }
             ctx.moveTo(0, py(vs[0]))
             for (let i = 1; i < vs.length; i++) {
                 const x0 = (i - 1) * dx, x1 = i * dx

@@ -82,35 +82,56 @@ Item {
     readonly property real dayFrac:
         (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400
 
-    // The next 24 hours and the span they cover. The curve is drawn against
-    // THIS range, not against absolute degrees: a day between 14° and 19° on a
-    // 0..40 chart is a straight line that tells you nothing.
     readonly property var hours: Services.Weather.hourly || []
-    readonly property int hourMin: {
+
+    // The 24 hours folded into eight plateaus of three. Drawn hour by hour the
+    // joints are 14 px apart and any rounding swallows the step, which put the
+    // realistic curve back; three hours to a plateau is what makes it read as
+    // levels the day sits at.
+    readonly property var hourSteps: {
+        const out = []
+        for (let i = 0; i < hours.length; i += 3) {
+            let sum = 0, n = 0
+            for (let k = i; k < Math.min(i + 3, hours.length); k++) { sum += hours[k].tempC; n++ }
+            if (n === 0) continue
+            out.push({ i: out.length, t: Math.round(sum / n),
+                       label: root.shortHour(hours[i].label) })
+        }
+        return out
+    }
+    readonly property int stepMin: {
         let m = 999
-        for (const h of hours) if (h.tempC < m) m = h.tempC
+        for (const s of hourSteps) if (s.t < m) m = s.t
         return m === 999 ? 0 : m
     }
-    readonly property int hourMax: {
+    readonly property int stepMax: {
         let m = -999
-        for (const h of hours) if (h.tempC > m) m = h.tempC
+        for (const s of hourSteps) if (s.t > m) m = s.t
         return m === -999 ? 0 : m
     }
 
-    // Every third hour of the strip: which sample it is, what it read, and the
-    // time on it. Eight stamps across 24 hours -- one an hour is a smear.
-    readonly property var marks3h: {
-        const out = []
-        for (let i = 0; i < hours.length; i += 3)
-            out.push({ i: i, t: hours[i].tempC, label: root.shortHour(hours[i].label) })
+    // Three numbers on the curve and no more: now, the warmest hour and the
+    // coldest. Eight of them across a day that moves seven degrees was a line
+    // buried under its own labels -- the shape says the rest.
+    readonly property var curveMarks: {
+        const st = root.hourSteps
+        if (st.length === 0) return []
+        let hi = 0, lo = 0
+        for (let i = 1; i < st.length; i++) {
+            if (st[i].t > st[hi].t) hi = i
+            if (st[i].t < st[lo].t) lo = i
+        }
+        const out = [{ i: 0, t: st[0].t }]
+        if (hi !== 0) out.push({ i: hi, t: st[hi].t })
+        if (lo !== 0 && lo !== hi) out.push({ i: lo, t: st[lo].t })
         return out
     }
     // The clock under the chart goes every SIX hours: eight stamps of
     // "12:00 AM" ran into each other across 330 px.
     readonly property var marks6h: {
         const out = []
-        for (let i = 0; i < hours.length; i += 6)
-            out.push({ i: i, label: root.shortHour(hours[i].label) })
+        for (let i = 0; i < root.hourSteps.length; i += 2)
+            out.push({ i: i, label: root.hourSteps[i].label })
         return out
     }
     // "3:00 PM" -> "3PM", "15:00" -> "15". On an axis the minutes are always
@@ -174,20 +195,9 @@ Item {
         return "UNTIL SUNRISE"
     }
 
-    // The days after today, and the span they cover. Every day's bar is drawn
-    // against this shared range — that is the whole point of the bars: you see
-    // which day is the warm one without reading a single number.
+    // The days after today. Today is the hero at the top of the column, so
+    // repeating it in the strip would be the same day said twice.
     readonly property var fcDays: Services.Weather.forecast.slice(1)
-    readonly property int fcMin: {
-        let m = 999
-        for (let d of fcDays) if (d.minC < m) m = d.minC
-        return m === 999 ? 0 : m
-    }
-    readonly property int fcMax: {
-        let m = -999
-        for (let d of fcDays) if (d.maxC > m) m = d.maxC
-        return m === -999 ? 0 : m
-    }
 
     // ── Inline components ───────────────────────────────────────────────
     // These must be declared on the document's root object; nested inside a
@@ -1048,7 +1058,7 @@ Item {
                         font.family: "JetBrainsMono NF"
                     }
                     Text {
-                        text: Services.Weather.city
+                        text: Services.Weather.city + " \u00b7 feels " + Services.Weather.feels
                         color: Services.Colors.ash
                         font.pixelSize: 10
                         font.family: "JetBrainsMono NF"
@@ -1067,13 +1077,15 @@ Item {
                 spacing: 16
                 opacity: root.extrasOpacity
 
-                WxFact { glyph: ""; value: Services.Weather.feels }
                 WxFact { glyph: ""; value: Services.Weather.humidity + "%" }
                 WxFact {
                     glyph: ""
-                    value: Services.Weather.windKph + " "
+                    value: Services.Weather.windKph + " km/h "
                          + Services.Weather.windCompass(Services.Weather.windDir)
                 }
+                // Both already computed by the service and never shown.
+                WxFact { glyph: "\uf157"; value: "UV " + Services.Weather.uvMax }
+                WxFact { glyph: "\uf176"; value: Services.Weather.rainProb + "%" }
             }
 
             // The next 24 hours: the one thing this column can say that no
@@ -1101,28 +1113,30 @@ Item {
                     anchors.top: parent.top
                     anchors.topMargin: 14
                     height: 46
+                    stepped: true
                     values: {
                         const out = []
-                        for (const h of root.hours) out.push(h.tempC - root.hourMin)
+                        for (const st of root.hourSteps) out.push(st.t - root.stepMin)
                         return out
                     }
                     // Never zero: a day that holds one temperature would divide
                     // the chart by nothing.
-                    maxValue: Math.max(1, root.hourMax - root.hourMin)
+                    maxValue: Math.max(1, root.stepMax - root.stepMin)
                 }
 
-                // Every third hour gets its degrees, sitting just above where
-                // the line actually is -- the same arithmetic Trend uses to
-                // place the point, or the number would float off its own curve.
+                // Each of the three sits just above where the line actually
+                // is -- the same arithmetic Trend uses to place the point, or
+                // the number would float off its own curve.
                 Repeater {
-                    model: root.marks3h
+                    model: root.curveMarks
                     delegate: Text {
                         required property var modelData
-                        readonly property int span: Math.max(1, root.hours.length - 1)
-                        readonly property real fx: hourly.width * modelData.i / span
+                        // Slots, not points: the plateau's own middle.
+                        readonly property int slots: Math.max(1, root.hourSteps.length)
+                        readonly property real fx: hourly.width * (modelData.i + 0.5) / slots
                         readonly property real fy: {
-                            const cap = Math.max(1, root.hourMax - root.hourMin)
-                            const f = (modelData.t - root.hourMin) / cap
+                            const cap = Math.max(1, root.stepMax - root.stepMin)
+                            const f = (modelData.t - root.stepMin) / cap
                             return curve.y + 3 + (curve.height - 6) * (1 - f)
                         }
                         x: Math.max(0, Math.min(hourly.width - width, fx - width / 2))
@@ -1140,9 +1154,9 @@ Item {
                     model: root.marks6h
                     delegate: Text {
                         required property var modelData
-                        readonly property int span: Math.max(1, root.hours.length - 1)
+                        readonly property int slots: Math.max(1, root.hourSteps.length)
                         x: Math.max(0, Math.min(hourly.width - width,
-                                                hourly.width * modelData.i / span - width / 2))
+                                                hourly.width * (modelData.i + 0.5) / slots - width / 2))
                         anchors.top: curve.bottom
                         anchors.topMargin: 5
                         text: modelData.label
@@ -1153,7 +1167,12 @@ Item {
                 }
             }
 
-            // The days, as cards. The one thing on this column worth a box.
+            // The days, as cards again -- but with what they were missing.
+            // The bar was the problem: it drew rain while the numbers beside it
+            // said temperature, so the row spoke of two things at once and the
+            // eye kept trying to join them. A card carries one day's figures
+            // with nothing to compare across, which is the honest shape for
+            // four days that barely differ.
             Row {
                 id: fcCol
                 anchors.top: hourly.bottom
@@ -1177,7 +1196,7 @@ Item {
 
                         Column {
                             anchors.centerIn: parent
-                            spacing: 5
+                            spacing: 4
 
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -1194,13 +1213,33 @@ Item {
                                 font.pixelSize: 20
                                 font.family: "Material Symbols Rounded"
                             }
+                            // Under the icon, where every weather app puts it:
+                            // the icon says rain, this says how sure it is.
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: Services.Weather.degrees(modelData.maxC)
-                                color: Services.Colors.snow
-                                font.pixelSize: 14
-                                font.bold: true
+                                text: (modelData.rain || 0) + "%"
+                                color: Services.Colors.ash
+                                font.pixelSize: 9
                                 font.family: "JetBrainsMono NF"
+                            }
+                            // Low then high, told apart by weight rather than by
+                            // a label: the dim one is the night.
+                            Row {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                spacing: 3
+                                Text {
+                                    text: Services.Weather.degrees(modelData.minC)
+                                    color: Services.Colors.ash
+                                    font.pixelSize: 11
+                                    font.family: "JetBrainsMono NF"
+                                }
+                                Text {
+                                    text: Services.Weather.degrees(modelData.maxC)
+                                    color: Services.Colors.snow
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                    font.family: "JetBrainsMono NF"
+                                }
                             }
                         }
                     }

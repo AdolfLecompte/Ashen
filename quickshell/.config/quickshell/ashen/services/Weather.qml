@@ -183,7 +183,11 @@ Singleton {
 
     function dayLabel(dateStr, index) {
         if (index === 0) return "Today"
-        let d = new Date(dateStr)
+        // Built field by field, never `new Date("2026-08-11")`: a date-only
+        // string is parsed as UTC midnight and then read back in local time,
+        // so west of Greenwich every day named itself as the day before.
+        const p = String(dateStr).split("-")
+        const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]))
         return Qt.locale().dayName(d.getDay(), Locale.ShortFormat)
     }
 
@@ -305,6 +309,7 @@ Singleton {
                             label: root.dayLabel(dy.time[i], i),
                             maxC: Math.round(dy.temperature_2m_max[i]),
                             minC: Math.round(dy.temperature_2m_min[i]),
+                            rain: Math.round(dy.precipitation_probability_max[i] || 0),
                             // Daylight icon: a row of five day summaries reading
                             // as night would be nonsense
                             icon: root.codeToIcon(dy.weather_code[i], true)
