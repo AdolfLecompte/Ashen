@@ -63,21 +63,26 @@ Scope {
         implicitWidth: 90
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
-        visible: hideTimer.running || unmapDelay.running
+        visible: shown || unmapDelay.running
 
         property real level: 0
         property string icon: ""
+        // Own flag instead of the timer: restart() drops running to false for an
+        // instant, and anything bound to it unmapped and rebuilt the OSD on every
+        // key press. Held down, only the bar should move.
+        property bool shown: false
 
         function showOsd(ic, lv) {
             win.icon = ic
             win.level = lv
+            win.shown = true
             hideTimer.restart()
         }
 
         Timer {
             id: hideTimer
             interval: 1400
-            onTriggered: unmapDelay.restart()
+            onTriggered: { win.shown = false; unmapDelay.restart() }
         }
         // keep the window mapped a bit longer so the fade-out is visible,
         // then actually unmap it so it does not block clicks
@@ -98,8 +103,8 @@ Scope {
             border.color: Services.Colors.ghostAlpha(0.2)
             border.width: 0
 
-            opacity: hideTimer.running ? 1.0 : 0.0
-            scale: hideTimer.running ? 1.0 : 0.85
+            opacity: win.shown ? 1.0 : 0.0
+            scale: win.shown ? 1.0 : 0.85
             Behavior on opacity { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut } }
             Behavior on scale { NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Easing.OutBack; easing.overshoot: Services.Sizes.overshoot } }
 
