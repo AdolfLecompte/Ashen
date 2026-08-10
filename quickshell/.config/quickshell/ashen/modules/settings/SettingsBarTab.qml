@@ -72,6 +72,11 @@ TabPage {
     component PillChip: Item {
         id: slot
         property string pillId: ""
+        // How far this chip steps aside to open the gap the drop preview is
+        // standing in. A visual shift and not a place in the model: inserting a
+        // real placeholder rebuilds the chip under the pointer and wedges the
+        // drag that is holding it.
+        property real shift: 0
         // Widest the chip may get before its name starts eliding. A third of
         // the drawer is narrow enough that "Notifications" plus an icon can
         // outgrow it, and a chip wider than the plate it sits in wraps to a
@@ -79,6 +84,10 @@ TabPage {
         property real maxWidth: 0
         width: face.width
         height: 28
+        transform: Translate { x: slot.shift }
+        Behavior on shift {
+            NumberAnimation { duration: Services.Sizes.msStandard; easing.type: Services.Sizes.easeOut }
+        }
 
         Rectangle {
             id: face
@@ -249,13 +258,22 @@ TabPage {
                 // the model rebuilds the chip under the pointer, and killing
                 // the drag's own target wedges the editor.
                 z: 5
-                width: Math.max(28, tab.draggingW)
+                // Never wider than the room it is previewing, and never past
+                // the plate's own padding: centred on the gap it used to hang
+                // half a pill outside the plate and lie across its neighbours.
+                width: Math.min(chipFlow.width, Math.max(28, tab.draggingW))
                 height: 28
                 radius: Services.Sizes.innerR
-                color: Services.Colors.fillLine
-                border.color: Services.Colors.ghost
+                // A ghost, not a plate: it stands in a gap it has to share with
+                // the chips already there until the drop actually moves them.
+                color: Services.Colors.ghostAlpha(0.14)
+                border.color: Services.Colors.ghostAlpha(0.55)
                 border.width: 1
-                x: zone.caretX(zone.dropIndex) - width / 2
+                // It opens the gap to its RIGHT, which is where the pill goes,
+                // and stays inside the flow whatever the pointer does.
+                x: Math.max(chipFlow.x,
+                            Math.min(chipFlow.x + chipFlow.width - width,
+                                     zone.caretX(zone.dropIndex) + 1))
                 y: zone.caretY(zone.dropIndex) - 3
                 // Only while it is already up: on the frame it appears, its
                 // position comes from wherever it was left in some other
@@ -279,8 +297,17 @@ TabPage {
                     model: zone.ids
                     delegate: PillChip {
                         required property var modelData
+                        required property int index
                         pillId: modelData
                         maxWidth: chipFlow.width
+                        // Everything from the drop point on slides right by the
+                        // width of what is about to land, plus the gap it will
+                        // want -- so the preview sits in real room instead of
+                        // lying across its neighbours.
+                        shift: (dropZone.containsDrag && zone.dropIndex >= 0
+                                && index >= zone.dropIndex)
+                               ? Math.min(caret.width + chipFlow.spacing,
+                                          zone.slackFrom(zone.dropIndex)) : 0
                     }
                 }
             }
@@ -328,6 +355,25 @@ TabPage {
             return null
         }
         function lastChip() { return zone.chipAt(zone.ids.length - 1) }
+
+        // How far the chips from `n` on can step aside. The tightest of them
+        // decides: a Flow lays out once and a transform does not re-wrap it, so
+        // a shift wider than what the narrowest row has left would push that
+        // row out of the plate instead of onto the next line. Measured per
+        // chip, because the last one may be sitting on a half-empty row while
+        // the one above it is against the edge.
+        function slackFrom(n) {
+            const kids = chipFlow.children
+            let seen = 0
+            let room = chipFlow.width
+            for (let i = 0; i < kids.length; i++) {
+                const c = kids[i]
+                if (!c || c.width === undefined || c.width === 0) continue
+                if (seen >= n) room = Math.min(room, chipFlow.width - (c.x + c.width))
+                seen++
+            }
+            return Math.max(0, room)
+        }
 
         // The caret stands in the gap: half the flow's spacing before the chip
         // it would push along, or past the end of the last one. An empty plate
