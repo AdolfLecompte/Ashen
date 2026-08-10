@@ -24,8 +24,8 @@ Canvas {
     property bool gradient_: false
     // Height of the swell in pixels, and how long one pass takes. Kept low: the
     // point is that the surface is alive, not that the vessel is being shaken.
-    property real waveAmp: 3.5
-    property int periodMs: 4200
+    property real waveAmp: 2.0
+    property int periodMs: 5600
     // Off screen it must not paint: a panel that is closed still has its
     // canvas alive.
     property bool running: true
@@ -89,7 +89,7 @@ Canvas {
             const u = x / w * root.tau
             const y = base
                 + Math.sin(u + root.phaseA) * amp
-                + Math.sin(u * 2 - root.phaseB) * amp * 0.45
+                + Math.sin(u * 2 - root.phaseB) * amp * 0.3
             ctx.lineTo(x, y)
         }
         ctx.lineTo(w, h)

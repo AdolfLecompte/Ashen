@@ -15,13 +15,11 @@ Singleton {
     property real cpuPercent: 0
     property string cpuModel: "..."
     property real cpuTemp: 0
-    property var cpuHistory: []
     property real prevCpuTotal: 0
     property real prevCpuIdle: 0
 
     property real ramUsedMB: 0
     property real ramTotalMB: 0
-    property var ramHistory: []
 
     property real diskUsedGB: 0
     property real diskTotalGB: 0
@@ -40,23 +38,14 @@ Singleton {
     readonly property real gpuPercent: dgpuAwake
         ? gpuUsage
         : (igpuMaxFreq > 0 ? (igpuFreq / igpuMaxFreq) * 100 : 0)
-    property var gpuHistory: []
 
     property real netRxKBs: 0
     property real netTxKBs: 0
-    property var netRxHistory: []
-    property var netTxHistory: []
     property real prevRxBytes: -1
     property real prevTxBytes: -1
 
     // [{ pid, name, cpu, mem }], heaviest first
 
-    function pushHistory(arr, val) {
-        let a = arr.slice()
-        a.push(val)
-        if (a.length > 40) a.shift()
-        return a
-    }
 
     onActiveChanged: if (active) {
         // the static bits only need one read, ever
@@ -111,7 +100,6 @@ Singleton {
                     let idleDiff = idle - root.prevCpuIdle
                     if (totalDiff > 0) {
                         root.cpuPercent = Math.max(0, Math.min(100, 100 * (1 - idleDiff / totalDiff)))
-                        root.cpuHistory = root.pushHistory(root.cpuHistory, root.cpuPercent)
                     }
                 }
                 root.prevCpuTotal = total
@@ -142,8 +130,6 @@ Singleton {
                 if (parts.length === 2) {
                     root.ramUsedMB = parseFloat(parts[0]) || 0
                     root.ramTotalMB = parseFloat(parts[1]) || 0
-                    let pct = root.ramTotalMB > 0 ? (root.ramUsedMB / root.ramTotalMB) * 100 : 0
-                    root.ramHistory = root.pushHistory(root.ramHistory, pct)
                 }
             }
         }
@@ -204,7 +190,6 @@ Singleton {
                 }
                 root.igpuFreq = lines.length > 1 ? (parseFloat(lines[1]) || 0) : 0
                 root.igpuMaxFreq = lines.length > 2 ? (parseFloat(lines[2]) || 0) : 0
-                root.gpuHistory = root.pushHistory(root.gpuHistory, root.gpuPercent)
             }
         }
     }
@@ -222,8 +207,6 @@ Singleton {
                     if (root.prevRxBytes >= 0) {
                         root.netRxKBs = Math.max(0, (rx - root.prevRxBytes) / 1024 / 1.5)
                         root.netTxKBs = Math.max(0, (tx - root.prevTxBytes) / 1024 / 1.5)
-                        root.netRxHistory = root.pushHistory(root.netRxHistory, root.netRxKBs)
-                        root.netTxHistory = root.pushHistory(root.netTxHistory, root.netTxKBs)
                     }
                     root.prevRxBytes = rx
                     root.prevTxBytes = tx

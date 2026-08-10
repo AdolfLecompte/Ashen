@@ -65,8 +65,8 @@ Item {
         radius_: vessel.radius
         level: box.frac
         // Fuller means livelier, the same rule the system board reads by.
-        waveAmp: 2.6 + box.frac * 3.4
-        periodMs: Math.round(5200 - box.frac * 2200)
+        waveAmp: 1.5 + box.frac * 1.9
+        periodMs: Math.round(6400 - box.frac * 1800)
         running: box.running && box.visible
         color_: box.fillColor
         layer.enabled: true

@@ -71,7 +71,7 @@ PanelWindow {
         // A board of cards, each saying its own kind of thing: a history worth
         // drawing, a proportion of something fixed, readings in rings, a vessel.
         // Seven identical liquid boxes made this panel read as a spreadsheet.
-        readonly property int cell: 116
+        readonly property int cell: 126
         readonly property int gap: 12
         readonly property int pad: 22
         function span(n) { return n * cell + (n - 1) * gap }
@@ -112,8 +112,8 @@ PanelWindow {
 
                 // Busier means livelier: the swell grows and quickens with the
                 // reading instead of idling at one beat for everything.
-                function amp(f) { return 2.6 + Math.max(0, Math.min(1, f)) * 4.2 }
-                function beat(f) { return Math.round(5600 - Math.max(0, Math.min(1, f)) * 2800) }
+                function amp(f) { return 1.5 + Math.max(0, Math.min(1, f)) * 2.3 }
+                function beat(f) { return Math.round(6800 - Math.max(0, Math.min(1, f)) * 2400) }
 
                 // Every card on the board: its place on the grid, its name in
                 // the corner, and its own beat in the arrival.
@@ -306,26 +306,15 @@ PanelWindow {
                     Card {
                         id: cpuCard
                         index: 0
-                        col: 0; row: 0; cw: 5; ch: 2
+                        col: 0; row: 0; cw: 4; ch: 2
                         glyph: ""
                         name: "CPU USAGE"
                         note: Services.SysMon.cpuModel
 
                         readonly property color tone: bodyRoot.toneAt(0)
 
-                        // The history sits UNDER the water, not on it: its own
-                        // ground is a dark plate, and over the liquid that plate
-                        // read as a black box someone had left behind.
-                        Widgets.Trend {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: parent.height - cpuCard.headH - 52
-                            values: Services.SysMon.cpuHistory
-                            maxValue: 100
-                            color_: cpuCard.tone
-                        }
-
+                        // No history curve here: the liquid sits on top of it, so
+                        // it repainted a chart nobody could see.
                         Widgets.LiquidFill {
                             id: cpuLiquid
                             anchors.fill: parent
@@ -378,7 +367,7 @@ PanelWindow {
                     // ── Memory: a proportion of something fixed ──
                     Card {
                         index: 1
-                        col: 5; row: 0; cw: 3; ch: 1
+                        col: 4; row: 0; cw: 4; ch: 1
                         glyph: ""
                         name: "MEMORY"
                         id: ramCard
@@ -452,7 +441,7 @@ PanelWindow {
                     // holds are already two of them.
                     Card {
                         index: 2
-                        col: 5; row: 1; cw: 3; ch: 1
+                        col: 4; row: 1; cw: 4; ch: 1
                         glyph: ""
                         name: "THERMALS"
                         id: thermCard
@@ -639,11 +628,7 @@ PanelWindow {
                         note: Services.SysMon.diskPercent + "%"
                         id: diskCard
 
-                        // A drive filling up is the one thing on this board that
-                        // is actually going wrong, so it is the one that may
-                        // leave the scheme.
-                        readonly property color tone: Services.SysMon.diskPercent >= 90
-                            ? Services.Colors.error_ : bodyRoot.toneAt(5)
+                        readonly property color tone: bodyRoot.toneAt(5)
                         readonly property real used: Services.SysMon.diskPercent / 100
 
                         Widgets.LiquidFill {
@@ -654,8 +639,8 @@ PanelWindow {
                             level: diskCard.used
                             // A drive does not slosh: it is the one reading here
                             // that moves once a day.
-                            waveAmp: 2.5
-                            periodMs: 6400
+                            waveAmp: 1.4
+                            periodMs: 7600
                             phaseA: 4.6
                             running: root.shown
                             color_: diskCard.tone
