@@ -34,4 +34,6 @@ matugen image "$src" --mode "$mode" --source-color-index 0 --type "$type"
 # Order matters: the accent has to be resolved and substituted into what matugen
 # just wrote before anything reads those files, the border included.
 "$HERE/ashen-accent.sh"
+# The folders follow the accent too, but only if they were already wearing it.
+"$HERE/ashen-folders.sh" >/dev/null 2>&1
 exec "$HERE/ashen-apply-border.sh"

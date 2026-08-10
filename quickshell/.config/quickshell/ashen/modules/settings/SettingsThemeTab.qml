@@ -190,6 +190,16 @@ Item {
         let css = '/* ══════════════════════════════════════\n' +
             '   Ashen Ghost -- GTK3 overrides for Nemo\n' +
             '   ══════════════════════════════════════ */\n' +
+            '@define-color theme_bg_color ' + c.void_ + ';\n' +
+            '@define-color theme_fg_color ' + c.snow + ';\n' +
+            '@define-color theme_base_color ' + c.void_ + ';\n' +
+            '@define-color theme_text_color ' + c.snow + ';\n' +
+            '@define-color theme_selected_bg_color ' + c.ghost + ';\n' +
+            '@define-color theme_selected_fg_color ' + c.abyss + ';\n' +
+            '@define-color insensitive_bg_color ' + c.surface + ';\n' +
+            '@define-color insensitive_fg_color ' + c.ash + ';\n' +
+            '@define-color borders ' + c.raised + ';\n' +
+            '@define-color sidebar_bg_color ' + c.crypt + ';\n' +
             'toolbar, GtkToolbar {\n' +
             '    background-color: transparent;\n' +
             '    background-image: none;\n' +
@@ -210,21 +220,23 @@ Item {
             '    border-radius: 6px;\n' +
             '}\n' +
             'window, .background {\n' +
-            '    background-color: alpha(' + c.void_ + ', 0.001);\n' +
+            '    background-color: ' + c.void_ + ';\n' +
             '    color: ' + c.snow + ';\n' +
             '}\n' +
             '.sidebar {\n' +
-            '    background-color: ' + c.surface + ';\n' +
+            '    background-color: ' + c.crypt + ';\n' +
             '}\n' +
             '.view,\n' +
             'iconview.view,\n' +
             'iconview {\n' +
-            '    background-color: alpha(' + c.void_ + ', 0.001);\n' +
+            '    background-color: transparent;\n' +
+            '    color: ' + c.snow + ';\n' +
             '}\n' +
             '.sidebar,\n' +
             '.sidebar .view,\n' +
             'placessidebar {\n' +
-            '    background-color: alpha(' + c.surface + ', 0.15);\n' +
+            '    background-color: ' + c.crypt + ';\n' +
+            '    color: ' + c.snow + ';\n' +
             '}\n' +
             'button {\n' +
             '    border-radius: 8px;\n' +
@@ -267,7 +279,7 @@ Item {
             '    color: ' + c.abyss + ';\n' +
             '}\n' +
             '.floating-bar {\n' +
-            '    background-color: alpha(' + c.surface + ', 0.92);\n' +
+            '    background-color: ' + c.surface + ';\n' +
             '    color: ' + c.snow + ';\n' +
             '    border: 1px solid alpha(' + c.ghost + ', 0.3);\n' +
             '    border-radius: 10px;\n' +
@@ -275,15 +287,72 @@ Item {
             '    box-shadow: none;\n' +
             '}\n' +
             '.floating-bar:backdrop {\n' +
-            '    background-color: alpha(' + c.surface + ', 0.75);\n' +
+            '    background-color: ' + c.surface + ';\n' +
             '}\n'
-        let papirusCmd = c.papirusColor ? ("papirus-folders -C " + c.papirusColor + " 2>/dev/null; ") : ""
+        // GTK4/libadwaita reads its own names, and every one it does not find
+        // falls back to libadwaita's DARK default -- which is what left the
+        // portal's file chooser half dark on a light scheme.
+        const def = (name, hex) => '@define-color ' + name + ' ' + hex + ';\n'
+        let css4 = '/* Ashen -- GTK4 / libadwaita overrides */\n' +
+            def('accent_color', c.ghost) +
+            def('accent_bg_color', c.ghost) +
+            def('accent_fg_color', c.abyss) +
+            def('destructive_color', c.error_) +
+            def('destructive_bg_color', c.error_) +
+            def('destructive_fg_color', c.abyss) +
+            def('success_color', c.neutral) +
+            def('warning_color', c.shade) +
+            def('error_color', c.error_) +
+            def('window_bg_color', c.void_) +
+            def('window_fg_color', c.snow) +
+            def('view_bg_color', c.void_) +
+            def('view_fg_color', c.snow) +
+            def('headerbar_bg_color', c.surface) +
+            def('headerbar_fg_color', c.snow) +
+            def('headerbar_backdrop_color', c.crypt) +
+            def('card_bg_color', c.surface) +
+            def('card_fg_color', c.snow) +
+            def('card_shade_color', c.abyss) +
+            def('dialog_bg_color', c.crypt) +
+            def('dialog_fg_color', c.snow) +
+            def('popover_bg_color', c.crypt) +
+            def('popover_fg_color', c.snow) +
+            def('sidebar_bg_color', c.crypt) +
+            def('sidebar_fg_color', c.snow) +
+            def('sidebar_backdrop_color', c.void_) +
+            def('sidebar_shade_color', c.abyss) +
+            def('secondary_sidebar_bg_color', c.surface) +
+            def('secondary_sidebar_fg_color', c.snow) +
+            def('thumbnail_bg_color', c.surface) +
+            def('thumbnail_fg_color', c.snow) +
+            def('shade_color', c.abyss) +
+            'window, .background {\n' +
+            '    background-color: ' + c.void_ + ';\n' +
+            '    color: ' + c.snow + ';\n' +
+            '}\n' +
+            'headerbar {\n' +
+            '    background-color: ' + c.surface + ';\n' +
+            '    color: ' + c.snow + ';\n' +
+            '}\n' +
+            '.sidebar {\n' +
+            '    background-color: ' + c.crypt + ';\n' +
+            '    color: ' + c.snow + ';\n' +
+            '}\n'
+
+        // papirus-folders repoints the Papirus symlinks; with the accent
+        // folders on, Ashen-Papirus is its own theme and this would only fight
+        // it (and the folders already follow the accent).
+        let papirusCmd = (c.papirusColor && !Services.Prefs.accentFolders)
+            ? ("papirus-folders -C " + c.papirusColor + " 2>/dev/null; ") : ""
         Quickshell.execDetached(["sh", "-c",
-            "mkdir -p \"$HOME/.config/gtk-3.0\" && " +
+            "mkdir -p \"$HOME/.config/gtk-3.0\" \"$HOME/.config/gtk-4.0\" && " +
             "printf %s \"$1\" > \"$HOME/.config/gtk-3.0/gtk.css\" && " +
+            "printf %s \"$2\" > \"$HOME/.config/gtk-4.0/gtk.css\"; " +
             papirusCmd,
-            "sh", css
+            "sh", css, css4
         ])
+        // Theme name, colour-scheme and the portal restart, all in one place.
+        Quickshell.execDetached([Services.Paths.script("ashen-gtk-mode.sh")])
     }
     Text {
         visible: false   // the drawer header carries the section name
@@ -396,14 +465,19 @@ Item {
                 // before they are asked to recolour.
                 Quickshell.execDetached(["sh", "-c",
                     'printf %s "$1" > "$HOME/.cache/ashen_theme_mode.txt"', "sh", m])
-                if (schemeSection.dynamicActive) modeRecolor.restart()
-                else tab.applyScheme(schemeSection.activeScheme)
+                // Both roads wait for that write: the fixed schemes now also
+                // run a script (ashen-gtk-mode.sh) that reads the file, and it
+                // used to read the mode it was replacing.
+                modeRecolor.restart()
             }
             // matugen reads the file, so give the write a moment to land.
             Timer {
                 id: modeRecolor
                 interval: 60
-                onTriggered: schemeSection.recolor()
+                onTriggered: {
+                    if (schemeSection.dynamicActive) schemeSection.recolor()
+                    else tab.applyScheme(schemeSection.activeScheme)
+                }
             }
 
             function setDynamicType(t) {
@@ -765,6 +839,49 @@ Item {
             }
         }
 
+
+    // The one piece of the palette that lives outside the shell: the file
+    // manager's folders. papirus-folders can only offer the colours Papirus
+    // ships, so the script builds a theme that inherits Papirus and repaints
+    // just the folders with the accent of the moment.
+    Card {
+        title: "Folders"
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            Text {
+                text: "\ue2c7"
+                font.family: "Material Symbols Rounded"
+                font.pixelSize: 15
+                color: Services.Colors.ghost
+            }
+            Text {
+                text: "Accent folders"
+                color: Services.Colors.snow
+                font.pixelSize: Services.Sizes.fsBody
+                font.bold: true
+                font.family: "JetBrainsMono NF"
+            }
+            Item { Layout.fillWidth: true }
+            Toggle {
+                checked: Services.Prefs.accentFolders
+                onToggled: {
+                    Services.Prefs.accentFolders = !Services.Prefs.accentFolders
+                    Quickshell.execDetached([Services.Paths.script("ashen-folders.sh"),
+                                             Services.Prefs.accentFolders ? "--apply" : "--off"])
+                }
+            }
+        }
+        Text {
+            text: "Papirus folders repainted in the accent, and repainted again whenever the wallpaper moves it"
+            color: Services.Colors.ash
+            font.pixelSize: Services.Sizes.fsMeta
+            font.family: "JetBrainsMono NF"
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+    }
 
     Card {
         title: "Panels"
