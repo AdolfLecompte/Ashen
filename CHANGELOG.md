@@ -1,5 +1,35 @@
 # Changelog
 
+## 2.0.2
+
+### Changed
+- **The battery dial is a ring again** — the liquid inside it said what the rim
+  already said, and left the reading sitting in a puddle.
+- **Sliders lost their knob** — sound and every slider in Settings are just the
+  bar now: the filled part already says where the value is. The grab area is
+  unchanged, it never came from the dot.
+- **The brightness panel is gone**, and so is its capsule in the bar — a whole
+  card, and a chip of its own, for one number the keys already change. The
+  slider moved to the foot of the sound panel, which is the panel you open to
+  change a level anyway; Settings → Display still has its own.
+- **The OSD fills with a vertical gradient**, down the bar rather than across
+  it, and keeps up with a key held down: a reading asked for while the previous
+  one was still in flight used to be dropped, and the fill animated over 260 ms
+  when the next press was 80 ms away.
+
+### Fixed
+- **Updating from an older version actually updates.** `stow` ran all nine
+  packages as one transaction, so a single link it did not consider its own —
+  one made by hand, or with an absolute path — aborted the lot and the update
+  changed nothing but a warning. Links that already point into the repo are
+  dropped first and each package is stowed on its own.
+- **The GTK palette is regenerated on every setup**, not only when it is
+  missing: an update brings new templates, and a machine that already had a
+  `gtk.css` kept the one the old templates wrote.
+- **`papirus-folders` is no longer called by the installer** — it re-runs itself
+  under sudo, which a hardened sudoers refuses, and it only knows the colours
+  Papirus ships. The accent folder theme is built instead.
+
 ## 2.0.1
 
 ### Added

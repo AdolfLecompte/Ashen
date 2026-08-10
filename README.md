@@ -139,9 +139,15 @@ bash ~/ashen/scripts/setup-system.sh
 It pulls the latest repo, and if anything changed it re-runs itself with the new
 version — so new configs **and** any new packages they need are applied in one
 pass (a `git pull` alone can leave the shell half-updated and broken). It also
-refreshes Oh My Zsh + Powerlevel10k + plugins and reloads Quickshell. Nothing is
-reinstalled if it's already current. The self-update is skipped automatically if
-you have local changes in the repo (pass `--no-pull` to force-skip it).
+refreshes Oh My Zsh + Powerlevel10k + plugins, regenerates the GTK palette from
+the current wallpaper (an update usually brings new templates) and reloads
+Quickshell. Nothing is reinstalled if it's already current. The self-update is
+skipped automatically if you have local changes in the repo (pass `--no-pull` to
+force-skip it).
+
+If you use one of the **fixed colour schemes** instead of Dynamic, pick it again
+in Settings → Appearance once after updating: that palette is written by the
+shell, so the setup script cannot regenerate it for you.
 
 ## Usage
 
@@ -169,7 +175,7 @@ The keyboard layout pill in the bar is **read-only**. Layouts are declared in
 
 ## Status
 
-2.0.1
+2.0.2
 
 ## License
 
