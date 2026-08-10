@@ -73,12 +73,18 @@ Item {
         Quickshell.execDetached(["sh", "-c",
             "printf %s \"$1\" > \"$HOME/.cache/ashen_scheme.json\" && " +
             "echo '" + schemeId + "' > \"$HOME/.cache/ashen_scheme_mode.txt\" && " +
+            // The accent everything outside the shell reads. On the dynamic
+            // road ashen-accent.sh writes it; a fixed scheme has no matugen run
+            // to hang off, so it says so itself -- without this the folders and
+            // the border kept whichever wallpaper wrote it last.
+            "printf %s '" + c.ghost.replace("#", "") + "' > \"$HOME/.cache/ashen_accent.txt\" && " +
             "hyprctl eval \"hl.config({ general = { col = { active_border = { colors = {'rgba(" + borderHex + ")'} } } } })\" && " +
             "sed -i 's/active_border = { colors = {\"rgba([^)]*)\"} }/active_border = { colors = {\"rgba(" + borderHex + ")\"} }/' \"$HOME/.config/hypr/conf/general.lua\"",
             "sh", json
         ])
         tab.applyGtkTheme(c)
         tab.applyKittyTheme(c)
+        tab.applyFolders()
         tab.applyP10kTheme(c)
         tab.applyCavaTheme(c)
     }
@@ -184,6 +190,12 @@ Item {
             "printf '%s\\n' " + body + " > \"$HOME/.cache/ashen_p10k.zsh\" && " +
             "for s in " + tab.kittySockets + "; do kitten @ --to \"unix:$s\" send-text --match all $'source ~/.cache/ashen_p10k.zsh\\r' 2>/dev/null; done"
         ])
+    }
+
+    // Repaint the folder icons from the accent just published. Its own call and
+    // not part of the GTK one: the folders are an icon theme, not a stylesheet.
+    function applyFolders() {
+        Quickshell.execDetached([Services.Paths.script("ashen-folders.sh"), "--apply"])
     }
 
     function applyGtkTheme(c) {
@@ -342,8 +354,9 @@ Item {
         // papirus-folders repoints the Papirus symlinks; with the accent
         // folders on, Ashen-Papirus is its own theme and this would only fight
         // it (and the folders already follow the accent).
-        let papirusCmd = (c.papirusColor && !Services.Prefs.accentFolders)
-            ? ("papirus-folders -C " + c.papirusColor + " 2>/dev/null; ") : ""
+        // papirus-folders is not used: the accent folders are the folders now,
+        // and pointing Papirus at one of its own colours only fights them.
+        let papirusCmd = ""
         Quickshell.execDetached(["sh", "-c",
             "mkdir -p \"$HOME/.config/gtk-3.0\" \"$HOME/.config/gtk-4.0\" && " +
             "printf %s \"$1\" > \"$HOME/.config/gtk-3.0/gtk.css\" && " +
@@ -839,49 +852,6 @@ Item {
             }
         }
 
-
-    // The one piece of the palette that lives outside the shell: the file
-    // manager's folders. papirus-folders can only offer the colours Papirus
-    // ships, so the script builds a theme that inherits Papirus and repaints
-    // just the folders with the accent of the moment.
-    Card {
-        title: "Folders"
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-            Text {
-                text: "\ue2c7"
-                font.family: "Material Symbols Rounded"
-                font.pixelSize: 15
-                color: Services.Colors.ghost
-            }
-            Text {
-                text: "Accent folders"
-                color: Services.Colors.snow
-                font.pixelSize: Services.Sizes.fsBody
-                font.bold: true
-                font.family: "JetBrainsMono NF"
-            }
-            Item { Layout.fillWidth: true }
-            Toggle {
-                checked: Services.Prefs.accentFolders
-                onToggled: {
-                    Services.Prefs.accentFolders = !Services.Prefs.accentFolders
-                    Quickshell.execDetached([Services.Paths.script("ashen-folders.sh"),
-                                             Services.Prefs.accentFolders ? "--apply" : "--off"])
-                }
-            }
-        }
-        Text {
-            text: "Papirus folders repainted in the accent, and repainted again whenever the wallpaper moves it"
-            color: Services.Colors.ash
-            font.pixelSize: Services.Sizes.fsMeta
-            font.family: "JetBrainsMono NF"
-            wrapMode: Text.WordWrap
-            Layout.fillWidth: true
-        }
-    }
 
     Card {
         title: "Panels"

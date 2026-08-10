@@ -12,11 +12,10 @@
 # ─────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
-# Without --apply the theme is only rebuilt, and it is worn only if it was
-# already the one in use. That is what the wallpaper pipeline calls: repainting
-# the folders every time the accent moves is the point, hijacking somebody's
-# icon theme because they changed wallpaper is not.
-APPLY=0
+# The folders ARE the accent folders -- there is no switch any more, so the
+# default is to build them and wear them. `--off` is still here as the way back
+# to plain Papirus for anyone who wants it.
+APPLY=1
 for a in "$@"; do
     case "$a" in
         --apply) APPLY=1 ;;
@@ -167,11 +166,6 @@ wanted="Ashen-Papirus"
 current=""
 command -v gsettings >/dev/null && \
     current="$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | tr -d "'")"
-
-if [ "$APPLY" -eq 0 ] && [ "$current" != "Ashen-Papirus" ]; then
-    say "Rebuilt only — the icon theme in use is $current"
-    exit 0
-fi
 
 if command -v gsettings >/dev/null && [ "$current" != "$wanted" ]; then
     for schema in org.gnome.desktop.interface org.cinnamon.desktop.interface; do

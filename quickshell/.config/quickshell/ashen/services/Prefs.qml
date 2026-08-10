@@ -54,10 +54,6 @@ Singleton {
     // Backgrounds never use it. See Colors.accentGradient.
     property bool useGradients: false
 
-    // Paint the Papirus folders with the accent. The theme is built by
-    // scripts/ashen-folders.sh and rebuilt whenever the accent moves; this only
-    // says whether the desktop is wearing it.
-    property bool accentFolders: false
 
     // Quick toggles that a shell restart used to reset. AppState still owns the
     // live value every consumer reads; these two are only the seed it restores
