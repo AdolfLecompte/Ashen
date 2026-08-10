@@ -149,6 +149,31 @@ If you use one of the **fixed colour schemes** instead of Dynamic, pick it again
 in Settings → Appearance once after updating: that palette is written by the
 shell, so the setup script cannot regenerate it for you.
 
+### Coming from a much older version
+
+Installs from before **1.5.1** rewrote the working tree at install time (an
+install-time `sed` that is long gone), so their clone is dirty — and a dirty
+tree is exactly what makes the self-update above skip itself, quietly leaving
+you on the old code. Throw those local edits away first:
+
+```bash
+cd ~/ashen
+git status                       # anything listed here is about to be discarded
+git fetch origin
+git reset --hard origin/main     # or `git stash` if you actually wrote something
+bash scripts/setup-system.sh
+```
+
+Two things to expect on that first run:
+
+- **stow may report a conflict for a package.** That means a real file — not a
+  symlink — is sitting where a config belongs; `~/.zshrc` is the usual one.
+  Move it aside (`mv ~/.zshrc ~/.zshrc.mine`) and re-run. Only the package that
+  conflicts is skipped, the other eight still land.
+- **Log out and back in** afterwards if the bar looks half-dressed: an old
+  session is still holding the previous Hyprland config and the old
+  environment.
+
 ## Usage
 
 | Keys | Action |
