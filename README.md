@@ -88,7 +88,7 @@ which are not packaged — follow their own install instructions.
 ## Install
 
 ```bash
-git clone git@github.com:AdolfLecompte/ashen.git ~/ashen
+git clone https://github.com/AdolfLecompte/Ashen.git ~/ashen
 cd ~/ashen
 bash scripts/setup-system.sh
 ```
