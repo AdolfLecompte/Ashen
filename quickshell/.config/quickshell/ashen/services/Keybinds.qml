@@ -12,9 +12,12 @@ Singleton {
     id: root
 
     readonly property string confPath: Paths.home + "/.config/hypr/conf/keybinds.lua"
+    readonly property string gesturePath: Paths.home + "/.config/hypr/conf/input.lua"
 
     // [{ section, keys, action }]
     property var binds: []
+    // [{ keys, action }]
+    property var gestures: []
     readonly property var sections: {
         let out = []
         for (const b of root.binds) {
@@ -167,5 +170,81 @@ Singleton {
         onFileChanged: reload()
         onLoaded: root.binds = root.parse(text())
         onLoadFailed: root.binds = []
+    }
+
+    // ── Touchpad gestures (input.lua) ──────────────────────────────────
+    // Gestures are multi-line blocks, so the line-by-line parser above does not
+    // see them. Same best-effort rule: anything unrecognised is shown raw.
+    function extractGestures(text) {
+        let out = [], i = 0
+        while (true) {
+            i = text.indexOf("hl.gesture(", i)
+            if (i === -1) break
+            const open = text.indexOf("{", i)
+            if (open === -1) break
+            let depth = 0, quote = "", j = open, ch
+            for (; j < text.length; j++) {
+                ch = text[j]
+                if (quote !== "") {
+                    if (ch === quote && text[j - 1] !== "\\") quote = ""
+                    continue
+                }
+                if (ch === '"' || ch === "'") { quote = ch; continue }
+                if (ch === "{") depth++
+                else if (ch === "}") { depth--; if (depth === 0) { j++; break } }
+            }
+            out.push(text.slice(open, j))
+            i = j
+        }
+        return out
+    }
+
+    function gestureKeys(block) {
+        const m = block.match(/fingers\s*=\s*(\d+)/)
+        const d = block.match(/direction\s*=\s*"([^"]*)"/)
+        const dirNames = {
+            "swipe": "any direction", "horizontal": "horizontal", "vertical": "vertical",
+            "left": "left", "right": "right", "up": "up", "down": "down",
+            "pinch": "pinch", "pinchin": "pinch in", "pinchout": "pinch out"
+        }
+        const dir = d && dirNames[d[1]] !== undefined ? dirNames[d[1]] : (d ? d[1] : "?")
+        return (m ? m[1] : "?") + " fingers · " + dir
+    }
+
+    function gestureAction(block) {
+        // A lambda calling the shell's own IPC names itself after the overlay
+        const ipc = block.match(/hl\.exec_cmd\(\s*"qs ipc -c ashen call (\w+) (\w+)"/)
+        if (ipc) {
+            const label = root.ipcLabel("call " + ipc[1] + " " + ipc[2])
+            return label !== "" ? label : ipc[1]
+        }
+        const a = block.match(/action\s*=\s*"([^"]+)"/)
+        if (a) {
+            const names = {
+                "workspace": "Switch workspaces", "move": "Move active window",
+                "resize": "Resize active window", "special": "Toggle special workspace",
+                "close": "Close active window", "fullscreen": "Fullscreen",
+                "float": "Toggle floating", "cursorZoom": "Zoom into cursor",
+                "scroll_move": "Scroll the tape"
+            }
+            return names[a[1]] !== undefined ? names[a[1]] : a[1]
+        }
+        if (block.indexOf("function") !== -1) return "Custom action"
+        return "Unknown"
+    }
+
+    function parseGestures(text) {
+        return root.extractGestures(text).map(block => ({
+            keys: root.gestureKeys(block),
+            action: root.gestureAction(block)
+        }))
+    }
+
+    FileView {
+        path: root.gesturePath
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: root.gestures = root.parseGestures(text())
+        onLoadFailed: root.gestures = []
     }
 }

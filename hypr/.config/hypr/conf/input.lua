@@ -24,4 +24,35 @@ hl.config({
     },
 })
 
-hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
+hl.gesture({
+    fingers = 3,
+    direction = "swipe",
+    action = "move"
+})
+
+hl.gesture({
+    fingers = 4,
+    direction = "horizontal",
+    action = "workspace"
+})
+
+hl.gesture({
+    fingers = 4,
+    direction = "up",
+    action = function()
+        hl.exec_cmd("qs ipc -c ashen call launcher toggle")
+    end
+})
+
+hl.gesture({
+    fingers = 4,
+    direction = "down",
+    action = function()
+        hl.exec_cmd("qs ipc -c ashen call launcher toggle")
+    end
+})
+
+hl.bind("SUPER + S", hl.dsp.workspace.toggle_special("special"), { description = "Workspace: Toggle scratchpad" })
+
+hl.bind("SUPER + ALT + S",
+    hl.dsp.window.move({ workspace = "special:special", follow = false }), { description = "Window: Send to scratchpad" })
