@@ -294,6 +294,65 @@ TabPage {
     }
 
     Card {
+        title: "Touchpad"
+
+        Text {
+            text: "Read straight from hypr/conf/input.lua — edit that file and this list follows."
+            color: Services.Colors.ash
+            font.pixelSize: Services.Sizes.fsMeta
+            font.family: "JetBrainsMono NF"
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+
+        Repeater {
+            model: Services.Keybinds.gestures
+            delegate: RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: 14
+
+                Rectangle {
+                    Layout.preferredWidth: 240
+                    Layout.maximumWidth: 240
+                    Layout.preferredHeight: 34
+                    radius: Services.Sizes.innerR
+                    color: Services.Colors.fillLine
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 12
+                        anchors.right: parent.right
+                        anchors.rightMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.keys
+                        color: Services.Colors.snow
+                        font.pixelSize: Services.Sizes.fsBody
+                        font.bold: true
+                        font.family: "JetBrainsMono NF"
+                        elide: Text.ElideRight
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: modelData.action
+                    color: Services.Colors.mist
+                    font.pixelSize: Services.Sizes.fsInput
+                    font.family: "JetBrainsMono NF"
+                    elide: Text.ElideRight
+                }
+            }
+        }
+
+        Text {
+            visible: Services.Keybinds.gestures.length === 0
+            text: "No gestures found — input.lua could not be read."
+            color: Services.Colors.ash
+            font.pixelSize: Services.Sizes.fsBody
+            font.family: "JetBrainsMono NF"
+        }
+    }
+
+    Card {
         title: "Shortcuts"
 
         Text {
