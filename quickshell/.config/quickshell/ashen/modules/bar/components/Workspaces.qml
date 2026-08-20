@@ -79,6 +79,15 @@ Item {
         return ""
     }
 
+    // A named special has a fixed glyph; the generic scratchpad ("special")
+    // holds any app, so its chip shows whatever is in it right now, the same
+    // way the normal workspace chips do.
+    function specialGlyph(id, name) {
+        const fixed = root.specialIcon(name)
+        if (fixed !== "") return fixed
+        return Services.Windows.workspaceIcon(id)
+    }
+
 
     // Hold the pointer still on a chip and that workspace opens a preview of
     // itself. 600 ms: long enough that sweeping across the strip never trips
@@ -290,7 +299,7 @@ Item {
 
                     Text {
                         anchors.centerIn: parent
-                        text: root.specialIcon(parent.shortName)
+                        text: root.specialGlyph(parent.modelData.id, parent.shortName)
                         color: parent.isShown ? Services.Colors.accentText
                              : parent.warm ? Services.Colors.snow : Services.Colors.ash
                         font.pixelSize: 18
@@ -306,7 +315,7 @@ Item {
                     PreviewHover {
                         id: spHover
                         wsId: parent.modelData.id
-                        label: root.specialIcon(parent.shortName)
+                        label: root.specialGlyph(parent.modelData.id, parent.shortName)
                         previewable: Hyprland.toplevels.values.filter(
                             t => t.workspace && t.workspace.id === parent.modelData.id).length > 0
                         onActivated: {
